@@ -1,0 +1,20 @@
+{
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-06-12T04:42:54.317Z",
+  "deployer": "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3",
+  "contracts": {
+    "VVVToken": "0x3C03096D6174b7d6Cc6d5f1e442f43B269Bc3A30",
+    "MockRouter": "0x9BB5BA22C26B816157Cd943b13bEe8967aAe01B1",
+    "VVVTreasury": "0xD9247b65A641c67b4Db600494af67E0De6e17e72",
+    "VVVPayout": "0x6cb514724C355Be8A2d19D1228DF8300cBb1CbA6",
+    "VVVEcoStaking": "0x3b735fA01839f411c9C53BB2b61CD7448a398Bc5"
+  },
+  "config": {
+    "routerRate": "10000000000",
+    "feePercent": 10,
+    "projectWallet": "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3",
+    "feeWallet": "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3",
+    "note": "MockRouter 流动性 & VVVPayout ETH 需部署后手动充值"
+  }
+}

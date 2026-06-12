@@ -1,0 +1,22 @@
+{
+  "network": "localhost",
+  "chainId": 31337,
+  "deployedAt": "2026-06-10T06:55:08.479Z",
+  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "contracts": {
+    "VVVToken": "0x8B190573374637f144AC8D37375d97fd84cBD3a0",
+    "MockRouter": "0x9385556B571ab92bf6dC9a0DbD75429Dd4d56F91",
+    "VVVTreasury": "0x162700d1613DfEC978032A909DE02643bC55df1A",
+    "VVVPayout": "0x67aD6EA566BA6B0fC52e97Bc25CE46120fdAc04c",
+    "VVVEcoStaking": "0x114e375B6FCC6d6fCb68c7A1d407E652C54F25FB"
+  },
+  "config": {
+    "routerRate": "100000000000000",
+    "routerEthSeed": "5.0",
+    "routerVvvSeed": "1000000.0",
+    "payoutEthDeposit": "10.0",
+    "feePercent": 10,
+    "projectWallet": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "feeWallet": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  }
+}

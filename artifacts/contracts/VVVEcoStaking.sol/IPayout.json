@@ -1,0 +1,50 @@
+{
+  "_format": "hh3-artifact-1",
+  "contractName": "IPayout",
+  "sourceName": "contracts/VVVEcoStaking.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "vvvAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "payPrincipal",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "vvvGross",
+          "type": "uint256"
+        }
+      ],
+      "name": "payReward",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "immutableReferences": {},
+  "inputSourceName": "project/contracts/VVVEcoStaking.sol",
+  "buildInfoId": "solc-0_8_20-5e4b0f8cfffa6a90358179848a4f0358a50baa9e"
+}

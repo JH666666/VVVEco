@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" fill="none">
+  <!-- V 形标志 -->
+  <path d="M100 10 L85 35 L100 60 L115 35 Z" fill="none" stroke="#1a1f2e" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M100 25 L100 50" stroke="#1a1f2e" stroke-width="5" stroke-linecap="round"/>
+  
+  <!-- 左侧钥匙杆 -->
+  <line x1="55" y1="50" x2="115" y2="130" stroke="#1a1f2e" stroke-width="8" stroke-linecap="round"/>
+  <!-- 左侧旗帜 -->
+  <path d="M55 50 L35 55 L45 65 L35 75 L55 70" fill="#1a1f2e"/>
+  
+  <!-- 右侧钥匙杆 -->
+  <line x1="145" y1="50" x2="85" y2="130" stroke="#1a1f2e" stroke-width="8" stroke-linecap="round"/>
+  <!-- 右侧旗帜 -->
+  <path d="M145 50 L165 55 L155 65 L165 75 L145 70" fill="#1a1f2e"/>
+  
+  <!-- 中心交叉点 -->
+  <rect x="92" y="118" width="16" height="24" rx="2" fill="#1a1f2e"/>
+  
+  <!-- 左侧钥匙头 -->
+  <circle cx="60" cy="175" r="32" fill="#1a1f2e"/>
+  <circle cx="60" cy="175" r="18" fill="none" stroke="currentColor" stroke-width="0"/>
+  <path d="M60 157 C72 157 78 165 78 175 C78 185 72 193 60 193 C48 193 42 185 42 175 C42 165 48 157 60 157" fill="#1a1f2e"/>
+  <!-- 左侧四叶草孔 -->
+  <circle cx="60" cy="163" r="6" fill="white"/>
+  <circle cx="48" cy="175" r="6" fill="white"/>
+  <circle cx="60" cy="187" r="6" fill="white"/>
+  <circle cx="72" cy="175" r="6" fill="white"/>
+  <circle cx="60" cy="175" r="5" fill="white"/>
+  
+  <!-- 右侧钥匙头 -->
+  <circle cx="140" cy="175" r="32" fill="#1a1f2e"/>
+  <!-- 右侧四叶草孔 -->
+  <circle cx="140" cy="163" r="6" fill="white"/>
+  <circle cx="128" cy="175" r="6" fill="white"/>
+  <circle cx="140" cy="187" r="6" fill="white"/>
+  <circle cx="152" cy="175" r="6" fill="white"/>
+  <circle cx="140" cy="175" r="5" fill="white"/>
+</svg>

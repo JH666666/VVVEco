@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  walletAddress            String            @id @map("wallet_address")
+  uid                      Int               @unique
+  inviteCode               String?           @unique @map("invite_code")
+  referrerAddress          String?           @map("referrer_address")
+  levelOverride            Int?              @map("level_override")
+  firstStakeAt             DateTime?         @map("first_stake_at")
+  createdAt                DateTime          @default(now()) @map("created_at")
+  updatedAt                DateTime          @updatedAt @map("updated_at")
+  claimRecords             ClaimRecord[]
+  inviteRelationParent     InviteRelation[]  @relation("Parent")
+  inviteRelationChild      InviteRelation?   @relation("Child")
+  stakeOrders              StakeOrder[]
+  teamRewardsAsSource      TeamReward[]      @relation("Source")
+  teamRewardsAsBeneficiary TeamReward[]      @relation("Beneficiary")
+  freezeStatus             UserFreezeStatus?
+  referrer                 User?             @relation("Referrals", fields: [referrerAddress], references: [walletAddress])
+  referrals                User[]            @relation("Referrals")
+
+  @@map("users")
+}
+
+model InviteRelation {
+  childAddress  String   @id @map("child_address")
+  parentAddress String   @map("parent_address")
+  boundMethod   String   @map("bound_method")
+  boundAt       DateTime @default(now()) @map("bound_at")
+  parent        User     @relation("Parent", fields: [parentAddress], references: [walletAddress])
+  child         User     @relation("Child", fields: [childAddress], references: [walletAddress])
+
+  @@map("invite_relations")
+}
+
+model StakeOrder {
+  txHash        String        @id @map("tx_hash")
+  walletAddress String        @map("wallet_address")
+  mode          String
+  amount        Float
+  usdValue      Float         @map("usd_value")
+  period        Int
+  periodUnit    String        @default("day") @map("period_unit")
+  dailyRate     Float         @map("daily_rate")
+  startTime     DateTime      @map("start_time")
+  endTime       DateTime      @map("end_time")
+  isWithdrawn   Boolean       @default(false) @map("is_withdrawn")
+  withdrawnTx   String?       @map("withdrawn_tx")
+  hiddenByAdmin Boolean       @default(false) @map("hidden_by_admin")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  claimRecords  ClaimRecord[]
+  user          User          @relation(fields: [walletAddress], references: [walletAddress])
+  teamRewards   TeamReward[]
+
+  @@map("stake_orders")
+}
+
+model ClaimRecord {
+  txHash        String       @id @map("tx_hash")
+  orderTxHash   String       @map("order_tx_hash")
+  walletAddress String       @map("wallet_address")
+  amount        Float
+  amountVvv     Float        @map("amount_vvv")
+  amountUsd     Float        @map("amount_usd")
+  priceAtClaim  Float        @map("price_at_claim")
+  feeAmount     Float        @default(0) @map("fee_amount")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  user          User         @relation(fields: [walletAddress], references: [walletAddress])
+  order         StakeOrder   @relation(fields: [orderTxHash], references: [txHash])
+  @@index([orderTxHash])
+  @@index([walletAddress])
+  @@map("claim_records")
+}
+
+model TeamReward {
+  id              Int         @id @default(autoincrement())
+  claimTxHash     String      @map("claim_tx_hash")
+  beneficiaryAddr String      @map("beneficiary_addr")
+  sourceAddr      String      @map("source_addr")
+  sourceOrderTx   String      @map("source_order_tx")
+  rewardType      String      @map("reward_type")
+  generation      Int?
+  rate            Float
+  amount          Float
+  claimed         Boolean     @default(false)
+  claimedAt       DateTime?   @map("claimed_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  sourceOrder     StakeOrder  @relation(fields: [sourceOrderTx], references: [txHash])
+  sourceUser      User        @relation("Source", fields: [sourceAddr], references: [walletAddress])
+  beneficiary     User        @relation("Beneficiary", fields: [beneficiaryAddr], references: [walletAddress])
+  @@unique([claimTxHash, beneficiaryAddr, rewardType, generation])
+  @@index([beneficiaryAddr, claimed])
+  @@index([claimTxHash])
+  @@index([sourceAddr])
+  @@map("team_rewards")
+}
+
+model RewardConfig {
+  id              Int      @id @default(autoincrement())
+  generationRates String   @default("15,10,5") @map("generation_rates")
+  periodRates     String   @default("0.7,0.8,0.9,1.0") @map("period_rates")
+  periodDurations String   @default("7,15,30,60") @map("period_durations")
+  periodUnits     String   @default("day,day,day,day") @map("period_units")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("reward_config")
+}
+
+model GlobalStatsConfig {
+  id                      Int      @id @default(autoincrement())
+  baseStakedUsd           Float    @default(12450000) @map("base_staked_usd")
+  baseClaimedUsd          Float    @default(2890000) @map("base_claimed_usd")
+  baseStakers             Int      @default(8542) @map("base_stakers")
+  stakedGrowthUsdPerHour  Float    @default(1200) @map("staked_growth_usd_per_hour")
+  claimedGrowthUsdPerHour Float    @default(260) @map("claimed_growth_usd_per_hour")
+  stakersGrowthPerDay     Float    @default(18) @map("stakers_growth_per_day")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("global_stats_config")
+}
+
+model ContractConfig {
+  id                  Int      @id @default(autoincrement())
+  stakingContract     String?  @map("staking_contract")
+  payoutContract      String?  @map("payout_contract")
+  vvvToken            String?  @map("vvv_token")
+  priceRouter         String?  @map("price_router")
+  projectWallet       String?  @map("project_wallet")
+  feeWallet           String?  @map("fee_wallet")
+  feePercent          Int      @default(10) @map("fee_percent")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  rootReferrerAddress String?  @map("root_referrer_address")
+
+  @@map("contract_config")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   @default("announcement")
+  title     String
+  content   String
+  titleEn   String?  @map("title_en")
+  contentEn String?  @map("content_en")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model AdminAuditLog {
+  id            Int      @id @default(autoincrement())
+  adminAddress  String   @map("admin_address")
+  targetAddress String   @map("target_address")
+  actionType    String   @map("action_type")
+  actionValue   String?  @map("action_value")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([targetAddress])
+  @@index([adminAddress])
+  @@index([createdAt(sort: Desc)])
+  @@map("admin_audit_logs")
+}
+
+model UserFreezeStatus {
+  walletAddress           String    @id @map("wallet_address")
+  personalClaimFrozen     Boolean   @default(false) @map("personal_claim_frozen")
+  teamClaimFrozen         Boolean   @default(false) @map("team_claim_frozen")
+  principalWithdrawFrozen Boolean   @default(false) @map("principal_withdraw_frozen")
+  frozenAt                DateTime? @map("frozen_at")
+  unfrozenAt              DateTime? @map("unfrozen_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+  user                    User      @relation(fields: [walletAddress], references: [walletAddress])
+
+  @@map("user_freeze_status")
+}

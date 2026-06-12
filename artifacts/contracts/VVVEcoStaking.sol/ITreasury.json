@@ -1,0 +1,32 @@
+{
+  "_format": "hh3-artifact-1",
+  "contractName": "ITreasury",
+  "sourceName": "contracts/VVVEcoStaking.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "staker",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "vvvAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "receiveAndConvert",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "immutableReferences": {},
+  "inputSourceName": "project/contracts/VVVEcoStaking.sol",
+  "buildInfoId": "solc-0_8_20-5e4b0f8cfffa6a90358179848a4f0358a50baa9e"
+}
