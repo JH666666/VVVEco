@@ -91,16 +91,69 @@ const externalLinks = [
   },
 ]
 
-const socialLinks = [
-  { icon: Send, href: 'https://t.me/vvveco', label: 'Telegram' },
-  { icon: 'X', href: 'https://twitter.com/vvveco', label: 'X' },
-  { icon: 'Discord', href: 'https://discord.gg/vvveco', label: 'Discord' },
-  { icon: FileText, href: '/whitepaper', label: 'Whitepaper' },
-]
+const SOCIAL_DEFAULTS = {
+  telegramUrl: 'https://t.me/vvveco',
+  xUrl: 'https://twitter.com/vvveco',
+  discordUrl: 'https://discord.gg/vvveco',
+  websiteUrl: 'https://vvveco.com',
+  whitepaperUrl: '/whitepaper',
+  supportUrl: 'https://t.me/vvveco_support',
+}
+
+function useSocialConfig() {
+  const [config, setConfig] = useState(SOCIAL_DEFAULTS)
+  useEffect(() => {
+    fetch('/api/config/social')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setConfig(data) })
+      .catch(() => {})
+  }, [])
+  return config
+}
+
+function SocialIcons({ config }: { config: typeof SOCIAL_DEFAULTS }) {
+  const links = [
+    { href: config.telegramUrl, label: 'Telegram', icon: 'telegram' as const },
+    { href: config.xUrl, label: 'X', icon: 'x' as const },
+    { href: config.discordUrl, label: 'Discord', icon: 'discord' as const },
+    { href: config.whitepaperUrl, label: 'Whitepaper', icon: 'file' as const },
+    { href: config.supportUrl, label: 'Support', icon: 'support' as const },
+  ].filter(l => l.href)
+
+  return (
+    <>
+      {links.map((link) => (
+        <a
+          key={link.label}
+          href={link.href}
+          target={link.href.startsWith('http') ? '_blank' : undefined}
+          rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
+          title={link.label}
+        >
+          {link.icon === 'telegram' && <Send className="h-4 w-4" />}
+          {link.icon === 'x' && (
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          )}
+          {link.icon === 'discord' && (
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+            </svg>
+          )}
+          {link.icon === 'file' && <FileText className="h-4 w-4" />}
+          {link.icon === 'support' && <MessageCircle className="h-4 w-4" />}
+        </a>
+      ))}
+    </>
+  )
+}
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname()
-  const { language, setLanguage } = useLanguage()
+  const { language, setLanguage, t } = useLanguage()
+  const socialConfig = useSocialConfig()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showReferralDialog, setShowReferralDialog] = useState(false)
@@ -112,8 +165,8 @@ export function Sidebar({ className }: SidebarProps) {
   const handleConfirmBind = () => {
     if (!referralCode.trim()) {
       toast({
-        title: "绑定失败",
-        description: "请输入正确的邀请码",
+        title: t("绑定失败", "Bind Failed"),
+        description: t("请输入正确的邀请码", "Please enter a valid invite code"),
         variant: "destructive",
       })
       return
@@ -124,7 +177,7 @@ export function Sidebar({ className }: SidebarProps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ childAddress: "user_wallet", parentCode: referralCode, method: "code_input" }),
     }).catch(() => {})
-    toast({ title: "绑定成功", description: "邀请关系已绑定成功" })
+    toast({ title: t("绑定成功", "Bound"), description: t("邀请关系已绑定成功", "Referral relationship confirmed") })
     window.setTimeout(() => setShowReferralDialog(false), 700)
   }
 
@@ -290,7 +343,7 @@ export function Sidebar({ className }: SidebarProps) {
         {/* External Links */}
         <div className="px-3 py-2 border-t border-sidebar-border">
           {!collapsed && (
-            <p className="text-xs text-muted-foreground mb-2 px-3">官方工具</p>
+            <p className="text-xs text-muted-foreground mb-2 px-3">{t('官方工具', 'Tools')}</p>
           )}
           {externalLinks.map((item) => (
             <a
@@ -318,7 +371,7 @@ export function Sidebar({ className }: SidebarProps) {
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-foreground"
           >
             {isDark ? <Sun className="h-5 w-5 shrink-0" /> : <Moon className="h-5 w-5 shrink-0" />}
-            <span>{isDark ? '浅色模式' : '深色模式'}</span>
+            <span>{isDark ? t('浅色模式', 'Light') : t('深色模式', 'Dark')}</span>
           </button>
 
           {/* Language Switcher */}
@@ -342,27 +395,7 @@ export function Sidebar({ className }: SidebarProps) {
 
           {/* Social Links */}
           <div className={cn('flex gap-2', collapsed ? 'flex-col items-center' : 'justify-start')}>
-            {socialLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-              >
-                {link.icon === 'X' ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                ) : link.icon === 'Discord' ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-                  </svg>
-                ) : (
-                  <link.icon className="h-4 w-4" />
-                )}
-              </a>
-            ))}
+            <SocialIcons config={socialConfig} />
           </div>
 
         </div>
@@ -398,7 +431,7 @@ export function Sidebar({ className }: SidebarProps) {
 
           {/* External Links */}
           <div className="pt-2 mt-2 border-t border-sidebar-border">
-            <p className="text-xs text-muted-foreground mb-2 px-3">官方工具</p>
+            <p className="text-xs text-muted-foreground mb-2 px-3">{t('官方工具', 'Tools')}</p>
             {externalLinks.map((item) => (
               <a
                 key={item.href}
@@ -421,7 +454,7 @@ export function Sidebar({ className }: SidebarProps) {
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-foreground"
           >
             {isDark ? <Sun className="h-5 w-5 shrink-0" /> : <Moon className="h-5 w-5 shrink-0" />}
-            <span>{isDark ? '浅色模式' : '深色模式'}</span>
+            <span>{isDark ? t('浅色模式', 'Light') : t('深色模式', 'Dark')}</span>
           </button>
 
           {/* Language Switcher */}
@@ -439,27 +472,7 @@ export function Sidebar({ className }: SidebarProps) {
 
           {/* Social Links */}
           <div className="flex gap-2 justify-start">
-            {socialLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-              >
-                {link.icon === 'X' ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                ) : link.icon === 'Discord' ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-                  </svg>
-                ) : (
-                  <link.icon className="h-4 w-4" />
-                )}
-              </a>
-            ))}
+            <SocialIcons config={socialConfig} />
           </div>
 
         </div>
@@ -469,15 +482,15 @@ export function Sidebar({ className }: SidebarProps) {
       <Dialog open={showReferralDialog} onOpenChange={setShowReferralDialog}>
         <DialogContent className="w-[min(92vw,670px)] border-border bg-card px-8 py-9 shadow-2xl sm:max-w-[670px]">
           <DialogHeader className="gap-3 text-left">
-            <DialogTitle className="text-2xl font-semibold leading-none text-foreground">绑定邀请码</DialogTitle>
+            <DialogTitle className="text-2xl font-semibold leading-none text-foreground">{t('绑定邀请码', 'Bind Invite Code')}</DialogTitle>
             <DialogDescription className="text-base text-muted-foreground">
-              请输入邀请人的邀请码
+              {t('请输入邀请人的邀请码', "Enter your referrer's invite code")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-7 pt-7">
             <Input
               type="text"
-              placeholder="输入8位邀请码"
+              placeholder={t('输入8位邀请码', 'Enter 8-digit code')}
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value.trim())}
               className="h-20 rounded-xl border-2 border-primary bg-input text-center text-lg font-mono text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
@@ -488,13 +501,13 @@ export function Sidebar({ className }: SidebarProps) {
                 className="h-14 rounded-lg border-border bg-card text-base font-semibold hover:bg-secondary"
                 onClick={handleSkip}
               >
-                跳过
+                {t('跳过', 'Skip')}
               </Button>
               <Button
                 className="h-14 rounded-lg bg-primary text-base font-semibold text-primary-foreground hover:bg-primary/90"
                 onClick={handleConfirmBind}
               >
-                确认绑定
+                {t('确认绑定', 'Confirm')}
               </Button>
             </div>
           </div>

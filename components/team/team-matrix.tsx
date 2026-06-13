@@ -8,6 +8,7 @@ import { useWalletAuth } from '@/contexts/wallet-auth-context'
 import { useRewardConfig } from '@/lib/reward-config'
 import { getUserLevelOverride, useUserLevelOverrides } from '@/lib/user-level-overrides'
 import { fetchTeamRewards } from '@/lib/api-client'
+import { useLanguage } from '@/contexts/language-context'
 import { useTeamRewardsTotal, useUserOnChainInfo } from '@/lib/contract-hooks'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -113,6 +114,7 @@ function TeamMemberNode({
   onNicknameChange: (address: string, value: string) => void
   onToggle: (id: string) => void
 }) {
+  const { t } = useLanguage()
   const levelInfo = levelConfig[member.level - 1]
   const hasChildren = member.children && member.children.length > 0
   const isExpanded = expanded.has(member.id)
@@ -156,7 +158,7 @@ function TeamMemberNode({
                   event.stopPropagation()
                   onCopyAddress(member.fullAddress)
                 }}
-                aria-label="复制地址"
+                aria-label={t('复制地址', 'Copy address')}
               >
                 {member.fullAddress === copiedAddress ? (
                   <Check className="h-3.5 w-3.5 text-chart-1" />
@@ -173,7 +175,7 @@ function TeamMemberNode({
                   value={nickname}
                   onChange={event => onNicknameChange(member.fullAddress, event.target.value)}
                   onClick={event => event.stopPropagation()}
-                  placeholder="昵称"
+                  placeholder={t('昵称', 'Nickname')}
                   className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </div>
@@ -184,19 +186,19 @@ function TeamMemberNode({
         <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-10 sm:pl-0">
           {layer > 0 && member.stakeAmount === 0 ? (
             <div className="text-left sm:text-right">
-              <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">待质押</span>
+              <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{t('待质押', 'Not staked')}</span>
             </div>
           ) : (
             <div className="text-left sm:text-right">
               <p className="text-sm sm:text-base font-semibold text-foreground">${member.stakeAmount.toLocaleString()}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">质押金额</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{t('质押金额', 'Staked')}</p>
             </div>
           )}
 
           {layer > 0 && member.stakeAmount > 0 && (
             <div className="text-left sm:text-right">
               <p className="text-sm sm:text-base font-medium text-chart-1">+{formatTeamReward(member.contribution)} VVV</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">贡献奖励</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{t('贡献奖励', 'Contribution')}</p>
             </div>
           )}
         </div>
@@ -226,6 +228,7 @@ function TeamMemberNode({
 
 export function TeamMatrix() {
   const { toast } = useToast()
+  const { t } = useLanguage()
   const { accounts, claimTeamRewards, referrals, stakes, teamRewards } = useLocalWeb3Sim()
   const { signedAddress } = useWalletAuth()
   const walletAddr = signedAddress ?? ""
@@ -412,9 +415,9 @@ export function TeamMatrix() {
     if (ok) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-      toast({ title: '邀请码已复制' })
+      toast({ title: t('邀请码已复制', 'Invite code copied') })
     } else {
-      toast({ title: '复制失败，请手动复制', variant: 'destructive' })
+      toast({ title: t('复制失败，请手动复制', 'Copy failed, please copy manually'), variant: 'destructive' })
     }
   }
 
@@ -424,7 +427,7 @@ export function TeamMatrix() {
       setAddressCopied(address)
       setTimeout(() => setAddressCopied(''), 1500)
     } else {
-      toast({ title: '复制失败，请手动复制', variant: 'destructive' })
+      toast({ title: t('复制失败，请手动复制', 'Copy failed, please copy manually'), variant: 'destructive' })
     }
   }
 
@@ -459,9 +462,9 @@ export function TeamMatrix() {
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">我的团队</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">{t('我的团队', 'My Team')}</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            查看您的团队矩阵，追踪伞下业绩
+            {t('查看您的团队矩阵，追踪伞下业绩', 'View your team matrix and track downline performance')}
           </p>
         </div>
         {/* My Level Card — includes team stake */}
@@ -477,10 +480,10 @@ export function TeamMatrix() {
                   <span className="text-xs sm:text-sm px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{myLevel.rate}%</span>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  等级要求: <span className="font-medium text-foreground">{myLevel.threshold}</span>
+                  {t('等级要求', 'Req')}: <span className="font-medium text-foreground">{myLevel.threshold}</span>
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  团队质押: <span className="font-medium text-foreground">${totalTeamStake.toLocaleString()}</span>
+                  {t('团队质押', 'Team Stake')}: <span className="font-medium text-foreground">${totalTeamStake.toLocaleString()}</span>
                 </p>
               </div>
             </div>
@@ -496,7 +499,7 @@ export function TeamMatrix() {
               <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">团队总人数</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('团队总人数', 'Total Members')}</p>
               <p className="text-lg sm:text-xl font-semibold text-foreground">{totalTeamMembers}</p>
             </div>
           </CardContent>
@@ -507,7 +510,7 @@ export function TeamMatrix() {
               <Star className="h-5 w-5 sm:h-6 sm:w-6 text-chart-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-muted-foreground truncate">直推人数</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('直推人数', 'Direct Referrals')}</p>
               <p className="text-lg sm:text-xl font-semibold text-foreground">{directMembers}</p>
             </div>
           </CardContent>
@@ -519,8 +522,8 @@ export function TeamMatrix() {
         {!!realInviteCode ? (
           <Card className="bg-card border-border shadow-card">
             <CardHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
-              <CardTitle className="text-base sm:text-lg">我的邀请码</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">分享您的邀请码邀请好友加入</CardDescription>
+              <CardTitle className="text-base sm:text-lg">{t('我的邀请码', 'My Invite Code')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">{t('分享您的邀请码邀请好友加入', 'Share your invite code to invite friends')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
               <div className="flex gap-2">
@@ -540,7 +543,7 @@ export function TeamMatrix() {
               </div>
               <div className="rounded-lg bg-secondary/50 p-3 sm:p-4">
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  邀请奖励一代收益的15%，二代收益的10%，三代收益的5%，邀请越多奖励越多
+                  {t('邀请奖励一代收益的15%，二代收益的10%，三代收益的5%，邀请越多奖励越多', 'Earn 15% from gen-1, 10% from gen-2, 5% from gen-3 referral rewards — invite more, earn more')}
                 </p>
               </div>
             </CardContent>
@@ -548,14 +551,14 @@ export function TeamMatrix() {
         ) : (
           <Card className="bg-card border-border shadow-card">
             <CardHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
-              <CardTitle className="text-base sm:text-lg">我的邀请码</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">完成首次质押后获取您的专属邀请码</CardDescription>
+              <CardTitle className="text-base sm:text-lg">{t('我的邀请码', 'My Invite Code')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">{t('完成首次质押后获取您的专属邀请码', 'Complete your first stake to get your invite code')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
               <div className="rounded-lg bg-secondary/30 p-4 sm:p-6 text-center">
-                <p className="text-sm text-muted-foreground mb-3">您还未参与质押</p>
-                <p className="text-xs text-muted-foreground">完成首次质押后，系统将自动生成您的专属邀请码</p>
-                <p className="mt-3 text-xs text-muted-foreground">邀请奖励一代收益的15%，二代收益的10%，三代收益的5%，邀请越多奖励越多</p>
+                <p className="text-sm text-muted-foreground mb-3">{t('您还未参与质押', 'You have not staked yet')}</p>
+                <p className="text-xs text-muted-foreground">{t('完成首次质押后，系统将自动生成您的专属邀请码', 'Your invite code will be generated automatically after your first stake')}</p>
+                <p className="mt-3 text-xs text-muted-foreground">{t('邀请奖励一代收益的15%，二代收益的10%，三代收益的5%，邀请越多奖励越多', 'Earn 15% from gen-1, 10% from gen-2, 5% from gen-3 — invite more, earn more')}</p>
               </div>
             </CardContent>
           </Card>
@@ -566,10 +569,10 @@ export function TeamMatrix() {
           <CardHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
             <div className="flex items-start justify-between">
               <div>
-                <CardTitle className="text-base sm:text-lg">V1-V8 等级体系</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">根据紧缩制7层内团队总业绩自动升级，级差越高收益越多</CardDescription>
+                <CardTitle className="text-base sm:text-lg">{t('V1-V8 等级体系', 'V1-V8 Level System')}</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">{t('根据紧缩制7层内团队总业绩自动升级，级差越高收益越多', 'Auto-upgrade based on 7-layer team performance — higher rank means more rewards')}</CardDescription>
               </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">* 平级奖励 10%</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{t('* 平级奖励 10%', '* Same-level bonus 10%')}</span>
             </div>
           </CardHeader>
           <CardContent className="px-4 sm:px-6">
@@ -600,8 +603,8 @@ export function TeamMatrix() {
       {/* Team Tree */}
       <Card className="bg-card border-border shadow-card">
         <CardHeader className="px-4 sm:px-6">
-          <CardTitle className="text-base sm:text-lg">团队矩阵</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">可视化展示您的伞下团队结构</CardDescription>
+          <CardTitle className="text-base sm:text-lg">{t('团队矩阵', 'Team Matrix')}</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">{t('可视化展示您的伞下团队结构', 'Visualize your downline team structure')}</CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6 overflow-x-auto">
           <div className="min-w-0">

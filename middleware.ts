@@ -62,5 +62,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/web', '/admin/contract', '/admin/global', '/admin/users', '/admin/orders'],
+  matcher: ['/admin/web', '/admin/contract', '/admin/global', '/admin/users', '/admin/orders', '/admin/social'],
 }

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { BarChart3, Bell, ClipboardList, DatabaseZap, LogOut, Menu, Moon, ShieldCheck, Sun, UsersRound, WalletCards, X } from 'lucide-react'
+import { BarChart3, Bell, ClipboardList, DatabaseZap, Globe, LogOut, Menu, Moon, ShieldCheck, Sun, UsersRound, WalletCards, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminWalletProvider, truncateAddress, useAdminWallet } from '@/contexts/admin-wallet-context'
 import { resetAllDevelopmentData } from '@/lib/dev-reset'
@@ -45,6 +45,12 @@ const adminNavItems = [
     description: '质押订单、领取记录、推荐关系',
     href: '/admin/orders',
     icon: ClipboardList,
+  },
+  {
+    title: '社群配置',
+    description: 'Telegram / X / Discord / 官网链接',
+    href: '/admin/social',
+    icon: Globe,
   },
 ]
 

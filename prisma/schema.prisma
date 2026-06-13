@@ -167,6 +167,19 @@ model AdminAuditLog {
   @@map("admin_audit_logs")
 }
 
+model SocialConfig {
+  id           Int      @id @default(autoincrement())
+  telegramUrl  String   @default("https://t.me/vvveco") @map("telegram_url")
+  xUrl         String   @default("https://twitter.com/vvveco") @map("x_url")
+  discordUrl   String   @default("https://discord.gg/vvveco") @map("discord_url")
+  websiteUrl   String   @default("https://vvveco.com") @map("website_url")
+  whitepaperUrl String  @default("/whitepaper") @map("whitepaper_url")
+  supportUrl   String   @default("https://t.me/vvveco_support") @map("support_url")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("social_config")
+}
+
 model UserFreezeStatus {
   walletAddress           String    @id @map("wallet_address")
   personalClaimFrozen     Boolean   @default(false) @map("personal_claim_frozen")
