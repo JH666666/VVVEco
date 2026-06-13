@@ -9,6 +9,7 @@ import { useChainId } from 'wagmi'
 import { useWalletAuth } from '@/contexts/wallet-auth-context'
 import { encodeFunctionData, parseAbi, formatUnits } from 'viem'
 import { useApproveVVV, useStake, useVVVBalanceData, useLatestPrice, VVV_TOKEN_ADDR, STAKING_ADDR } from '@/lib/contract-hooks'
+import { useLanguage } from '@/contexts/language-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -75,8 +76,8 @@ const defaultStakePeriods: StakePeriod[] = [
   { duration: 60, unit: 'day', durationDays: 60, dailyRate: 1, totalReturn: 60 },
 ]
 
-function getPeriodLabel(period: StakePeriod) {
-  return `${period.duration} ${period.unit === 'hour' ? '时' : '天'}`
+function getPeriodLabel(period: StakePeriod, t: (zh: string, en: string) => string) {
+  return `${period.duration} ${period.unit === 'hour' ? t('时', 'hr') : t('天', 'd')}`
 }
 
 function sanitizeStakeAmount(value: string) {
@@ -90,6 +91,7 @@ function sanitizeStakeAmount(value: string) {
 
 export function StakingHub() {
   const { toast } = useToast()
+  const { t } = useLanguage()
   const { config } = useRewardConfig()
   const stakePeriods = useMemo<StakePeriod[]>(
     () => config.periodDurations.map((duration, index) => {
@@ -185,8 +187,8 @@ export function StakingHub() {
   const estimatedDailyReward = stakeMode === 'coin'
     ? vvvAmount * (selectedPeriod.dailyRate / 100)
     : usdValue * (selectedPeriod.dailyRate / 100)
-  const rewardUnitLabel = selectedPeriod.unit === 'hour' ? '时' : '日'
-  const rewardRateLabel = `${rewardUnitLabel}收益率`
+  const rewardUnitLabel = selectedPeriod.unit === 'hour' ? t('时', 'Hr') : t('日', 'Daily')
+  const rewardRateLabel = selectedPeriod.unit === 'hour' ? t('时收益率', 'Hourly Rate') : t('日收益率', 'Daily Rate')
 
   const estimatedTotalReward = stakeMode === 'coin'
     ? vvvAmount * (selectedPeriod.totalReturn / 100)
@@ -213,12 +215,12 @@ export function StakingHub() {
         setOnChainReferrer(data.parentAddress as `0x${string}`)
         setInviteDialogOpen(false)
         setInviteCodeInput('')
-        toast({ title: '绑定成功' })
+        toast({ title: t('绑定成功', 'Bound Successfully') })
       } else {
-        toast({ title: '绑定失败', description: data?.error ?? '邀请码无效', variant: 'destructive' })
+        toast({ title: t('绑定失败', 'Bind Failed'), description: data?.error ?? t('邀请码无效', 'Invalid invite code'), variant: 'destructive' })
       }
     } catch {
-      toast({ title: '绑定失败', description: '网络错误，请重试', variant: 'destructive' })
+      toast({ title: t('绑定失败', 'Bind Failed'), description: t('网络错误，请重试', 'Network error, please retry'), variant: 'destructive' })
     } finally {
       setInviteBinding(false)
     }
@@ -226,7 +228,7 @@ export function StakingHub() {
 
   const handleStake = async () => {
     if (!address) {
-      toast({ title: "请先连接钱包", variant: "destructive" })
+      toast({ title: t("请先连接钱包", "Please connect wallet first"), variant: "destructive" })
       return
     }
     setIsStaking(true)
@@ -256,7 +258,7 @@ export function StakingHub() {
           await realApprove(MaxUint256)
         } catch (e: unknown) {
           console.error('[stake] approve failed raw error:', e)
-          toast({ title: 'Approve 失败', description: getErrorMessage(e), variant: 'destructive' })
+          toast({ title: t('Approve 失败', 'Approve Failed'), description: getErrorMessage(e), variant: 'destructive' })
           return
         }
       }
@@ -267,7 +269,7 @@ export function StakingHub() {
         tx = await realStake(amountWei, selectedPeriod.duration, stakeMode === "coin", onChainReferrer)
       } catch (e: unknown) {
         console.error('[stake] stake failed raw error:', e)
-        toast({ title: '质押失败', description: getErrorMessage(e), variant: 'destructive' })
+        toast({ title: t('质押失败', 'Stake Failed'), description: getErrorMessage(e), variant: 'destructive' })
         return
       }
 
@@ -288,12 +290,12 @@ export function StakingHub() {
         createdAtMs: stakeNow,
         endTime: new Date(stakeEndMs).toISOString(),
       })
-      toast({ title: '质押成功', description: '质押订单已创建' })
+      toast({ title: t('质押成功', 'Stake Successful'), description: t('质押订单已创建', 'Stake order created') })
       refetchBalance()
       setStakeAmount("")
     } catch (e: unknown) {
       console.error('[stake] unexpected error:', e)
-      toast({ title: '质押失败', description: getErrorMessage(e), variant: 'destructive' })
+      toast({ title: t('质押失败', 'Stake Failed'), description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setIsStaking(false)
     }
@@ -305,14 +307,14 @@ export function StakingHub() {
       <Dialog open={inviteDialogOpen} onOpenChange={(open) => { if (!open) setInviteDialogOpen(false) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>绑定邀请关系</DialogTitle>
+            <DialogTitle>{t('绑定邀请关系', 'Bind Referral')}</DialogTitle>
             <DialogDescription>
-              输入邀请人的邀请码绑定推荐关系，或点击跳过直接进入质押
+              {t('输入邀请人的邀请码绑定推荐关系，或点击跳过直接进入质押', 'Enter an invite code to bind a referral, or skip to stake directly')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <Input
-              placeholder="输入邀请码（如：AB12CD34）"
+              placeholder={t('输入邀请码（如：AB12CD34）', 'Enter invite code (e.g. AB12CD34)')}
               value={inviteCodeInput}
               onChange={e => setInviteCodeInput(e.target.value.toUpperCase())}
               maxLength={8}
@@ -324,14 +326,14 @@ export function StakingHub() {
                 disabled={!inviteCodeInput.trim() || inviteBinding}
                 className="flex-1"
               >
-                {inviteBinding ? '绑定中...' : '确认'}
+                {inviteBinding ? t('绑定中...', 'Binding...') : t('确认', 'Confirm')}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setInviteDialogOpen(false)}
                 className="flex-1"
               >
-                跳过
+                {t('跳过', 'Skip')}
               </Button>
             </div>
           </div>
@@ -340,8 +342,8 @@ export function StakingHub() {
 
       {/* Page Header */}
       <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">质押大厅</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">选择质押模式和周期，开启您的收益之旅</p>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">{t('质押大厅', 'Staking Hub')}</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">{t('选择质押模式和周期，开启您的收益之旅', 'Choose your staking mode and period to start earning')}</p>
       </div>
 
       {/* VVV Token Price Chart */}
@@ -367,7 +369,7 @@ export function StakingHub() {
           
           {/* Time Period Tabs */}
           <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
-            {['分', '时', '天', '周', '月'].map((period, i) => (
+            {(t('分,时,天,周,月', 'Min,Hr,Day,Week,Month')).split(',').map((period, i) => (
               <button
                 key={period}
                 className={cn(
@@ -443,13 +445,13 @@ export function StakingHub() {
             
             {/* X-axis labels */}
             <div className="flex justify-between mt-2 text-[10px] text-muted-foreground pr-8">
-              <span>22日</span>
-              <span>23日</span>
-              <span>24日</span>
-              <span>25日</span>
-              <span>26日</span>
-              <span>27日</span>
-              <span>今天</span>
+              <span>22</span>
+              <span>23</span>
+              <span>24</span>
+              <span>25</span>
+              <span>26</span>
+              <span>27</span>
+              <span>{t('今天', 'Today')}</span>
             </div>
           </div>
         </CardContent>
@@ -461,10 +463,10 @@ export function StakingHub() {
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Coins className="h-5 w-5 text-primary" />
-              选择质押模式
+              {t('选择质押模式', 'Select Stake Mode')}
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              选择适合您的质押本位模式，一旦确认不可更改
+              {t('选择适合您的质押本位模式，一旦确认不可更改', 'Choose your preferred staking mode — cannot be changed after confirmation')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 sm:space-y-6">
@@ -487,12 +489,12 @@ export function StakingHub() {
                     <Coins className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-sm sm:text-base text-foreground">币本位模式</h3>
+                    <h3 className="font-semibold text-sm sm:text-base text-foreground">{t('币本位模式', 'Coin-Based')}</h3>
                     <p className="text-xs text-muted-foreground">Coin-Based</p>
                   </div>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  以 VVV 代币数量为基数计算收益，追求币量增加 + 币价上涨的复利效应
+                  {t('以 VVV 代币数量为基数计算收益，追求币量增加 + 币价上涨的复利效应', 'Rewards calculated on VVV token quantity — maximize compound gains from both token growth and price appreciation')}
                 </p>
                 {stakeMode === 'coin' && (
                   <div className="absolute right-3 top-3 h-3 w-3 rounded-full bg-primary" />
@@ -516,12 +518,12 @@ export function StakingHub() {
                     <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-sm sm:text-base text-foreground">金本位模式</h3>
+                    <h3 className="font-semibold text-sm sm:text-base text-foreground">{t('金本位模式', 'Fiat-Based')}</h3>
                     <p className="text-xs text-muted-foreground">Fiat-Based</p>
                   </div>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  以美金价值为基数，锁定固定美金收益，自带防跌气垫保护
+                  {t('以美金价值为基数，锁定固定美金收益，自带防跌气垫保护', 'USD-denominated rewards with built-in downside protection')}
                 </p>
                 {stakeMode === 'fiat' && (
                   <div className="absolute right-3 top-3 h-3 w-3 rounded-full bg-accent" />
@@ -533,7 +535,7 @@ export function StakingHub() {
             <div className="space-y-3">
               <h4 className="text-xs sm:text-sm font-medium text-foreground flex items-center gap-2">
                 <Clock className="h-4 w-4 text-primary" />
-                选择质押周期
+                {t('选择质押周期', 'Select Period')}
               </h4>
               <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
                 {stakePeriods.map((period) => (
@@ -548,7 +550,7 @@ export function StakingHub() {
                     )}
                   >
                     <span className="text-xl sm:text-2xl font-semibold text-foreground">{period.duration}</span>
-                    <span className="text-xs text-muted-foreground">{period.unit === 'hour' ? '时' : '天'}</span>
+                    <span className="text-xs text-muted-foreground">{period.unit === 'hour' ? t('时', 'hr') : t('天', 'd')}</span>
                     <div className="w-full h-px bg-border" />
                     <div className="text-center">
                       <p className="text-xs sm:text-sm font-medium text-primary">{period.dailyRate}%</p>
@@ -564,17 +566,17 @@ export function StakingHub() {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs sm:text-sm">
                 <span className="font-medium text-foreground">
-                  {stakeMode === 'coin' ? '可质押最大数量' : '可质押最大金额'}
+                  {stakeMode === 'coin' ? t('可质押最大数量', 'Max Stakeable') : t('可质押最大金额', 'Max Stakeable')}
                 </span>
                 <span className="text-muted-foreground">
                   {!address
-                    ? '请连接钱包'
+                    ? t('请连接钱包', 'Please connect wallet')
                     : !isBaseSepolia
-                    ? `请切换到 Base Sepolia（当前 chainId: ${chainId}）`
+                    ? t(`请切换到 Base Sepolia（当前 chainId: ${chainId}）`, `Please switch to Base Sepolia (current chainId: ${chainId})`)
                     : balancePending
-                    ? '读取余额中...'
+                    ? t('读取余额中...', 'Loading balance...')
                     : balanceError
-                    ? '余额读取失败，请刷新重试'
+                    ? t('余额读取失败，请刷新重试', 'Balance read failed, please refresh')
                     : stakeMode === 'coin'
                     ? `${availableVvvBalance.toLocaleString()} VVV ($${availableUsdBalance.toFixed(2)})`
                     : `$${availableUsdBalance.toFixed(2)} (${availableVvvBalance.toLocaleString()} VVV)`}
@@ -584,7 +586,7 @@ export function StakingHub() {
                 <Input
                   type="text"
                   inputMode="decimal"
-                  placeholder={stakeMode === 'coin' ? '输入 VVV 数量' : '输入美金金额'}
+                  placeholder={stakeMode === 'coin' ? t('输入 VVV 数量', 'Enter VVV amount') : t('输入美金金额', 'Enter USD amount')}
                   value={stakeAmount}
                   onChange={(e) => setStakeAmount(sanitizeStakeAmount(e.target.value))}
                   onKeyDown={(e) => {
@@ -618,7 +620,7 @@ export function StakingHub() {
                 </span>
                 <span className="text-muted-foreground flex items-center gap-1">
                   <Info className="h-3 w-3" />
-                  最低质押 $100
+                  {t('最低质押 $100', 'Min. stake $100')}
                 </span>
               </div>
             </div>
@@ -630,9 +632,9 @@ export function StakingHub() {
               onClick={handleStake}
             >
               {isStaking ? (
-                <><Loader2 className="h-4 w-4 animate-spin" />处理中...</>
+                <><Loader2 className="h-4 w-4 animate-spin" />{t('处理中...', 'Processing...')}</>
               ) : (
-                <>确认质押<ArrowRight className="h-4 w-4" /></>
+                <>{t('确认质押', 'Confirm Stake')}<ArrowRight className="h-4 w-4" /></>
               )}
             </Button>
           </CardContent>
@@ -643,13 +645,13 @@ export function StakingHub() {
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <TrendingUp className="h-5 w-5 text-chart-1" />
-              预估收益
+              {t('预估收益', 'Estimated Returns')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5 sm:space-y-6">
             <div className="rounded-xl bg-gradient-to-br from-primary/10 to-accent/10 p-4 sm:p-6 border border-primary/20">
               <p className="text-xs sm:text-sm text-muted-foreground mb-2">
-                {stakeMode === 'coin' ? `预计每${rewardUnitLabel}收益 (VVV)` : `预计每${rewardUnitLabel}收益 (USD)`}
+                {stakeMode === 'coin' ? t(`预计每${rewardUnitLabel}收益 (VVV)`, `Est. ${rewardUnitLabel} Reward (VVV)`) : t(`预计每${rewardUnitLabel}收益 (USD)`, `Est. ${rewardUnitLabel} Reward (USD)`)}
               </p>
               <p className="text-2xl sm:text-3xl font-semibold text-foreground font-mono">
                 {stakeMode === 'coin' 
@@ -660,19 +662,19 @@ export function StakingHub() {
 
             <div className="space-y-3 sm:space-y-4">
               <div className="flex justify-between items-center py-2.5 sm:py-3 border-b border-border">
-                <span className="text-xs sm:text-sm text-muted-foreground">质押周期</span>
-                <span className="text-sm font-medium text-foreground">{getPeriodLabel(selectedPeriod)}</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">{t('质押周期', 'Stake Period')}</span>
+                <span className="text-sm font-medium text-foreground">{getPeriodLabel(selectedPeriod, t)}</span>
               </div>
               <div className="flex justify-between items-center py-2.5 sm:py-3 border-b border-border">
                 <span className="text-xs sm:text-sm text-muted-foreground">{rewardRateLabel}</span>
                 <span className="text-sm font-medium text-primary">{selectedPeriod.dailyRate}%</span>
               </div>
               <div className="flex justify-between items-center py-2.5 sm:py-3 border-b border-border">
-                <span className="text-xs sm:text-sm text-muted-foreground">周期总收益率</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">{t('周期总收益率', 'Total Return Rate')}</span>
                 <span className="text-sm font-medium text-chart-1">+{selectedPeriod.totalReturn}%</span>
               </div>
               <div className="flex justify-between items-center py-2.5 sm:py-3">
-                <span className="text-xs sm:text-sm text-muted-foreground">预计总收益</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">{t('预计总收益', 'Est. Total Reward')}</span>
                 <span className="text-base sm:text-lg font-semibold text-foreground">
                   {stakeMode === 'coin' 
                     ? `${estimatedTotalReward.toFixed(4)} VVV`
@@ -685,8 +687,8 @@ export function StakingHub() {
               <div className="flex items-start gap-2">
                 <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="text-[10px] sm:text-xs text-muted-foreground space-y-1">
-                  <p>收益实时产生，领取扣除 10% 手续费</p>
-                  <p>本金到期解锁，全额提取 0 手续费</p>
+                  <p>{t('收益实时产生，领取扣除 10% 手续费', 'Rewards accrue in real time; 10% fee on claim')}</p>
+                  <p>{t('本金到期解锁，全额提取 0 手续费', 'Principal unlocked at maturity; 0% withdrawal fee')}</p>
                 </div>
               </div>
             </div>

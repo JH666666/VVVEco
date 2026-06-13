@@ -7,6 +7,7 @@ import { isPersonalClaimFrozen, useAdminControls } from '@/lib/admin-controls'
 import { fetchStakeOrders, fetchClaimRecords, createClaimRecord } from '@/lib/api-client'
 import { useClaimRewards, useWithdrawPrincipal } from '@/lib/contract-hooks'
 import { useWalletAuth } from '@/contexts/wallet-auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
@@ -41,12 +42,12 @@ interface StakeOrder {
   withdrawn: boolean
 }
 
-function getOrderPeriodLabel(order: Pick<StakeOrder, 'period' | 'periodUnit'>) {
-  return `${order.period} ${order.periodUnit === 'hour' ? '时' : '天'}`
+function getOrderPeriodLabel(order: Pick<StakeOrder, 'period' | 'periodUnit'>, t: (zh: string, en: string) => string) {
+  return `${order.period} ${order.periodUnit === 'hour' ? t('时', 'hr') : t('天', 'd')}`
 }
 
-function getOrderRateLabel(order: Pick<StakeOrder, 'periodUnit'>) {
-  return `${order.periodUnit === 'hour' ? '时' : '日'}收益率`
+function getOrderRateLabel(order: Pick<StakeOrder, 'periodUnit'>, t: (zh: string, en: string) => string) {
+  return `${order.periodUnit === 'hour' ? t('时', 'Hourly') : t('日', 'Daily')} ${t('收益率', 'Rate')}`
 }
 
 // Animated number component for real-time effect
@@ -92,13 +93,14 @@ function parseOrderDate(value: string) {
   ).getTime()
 }
 
-function formatOrderDate(value: number) {
-  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+function formatOrderDate(value: number, lang = 'zh') {
+  return new Date(value).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { hour12: false })
 }
 
 function WithdrawButton({ chainOrderId, orderId, isWithdrawn, onSuccess }: { chainOrderId: number; orderId: string; isWithdrawn: boolean; onSuccess?: () => void }) {
   const withdraw = useWithdrawPrincipal()
   const { toast } = useToast()
+  const { t } = useLanguage()
   const [withdrawn, setWithdrawn] = useState(isWithdrawn)
   const [isPending, setIsPending] = useState(false)
 
@@ -106,7 +108,7 @@ function WithdrawButton({ chainOrderId, orderId, isWithdrawn, onSuccess }: { cha
     return (
       <Button size="sm" variant="ghost" disabled className="gap-1">
         <CheckCircle2 className="h-4 w-4 text-chart-1" />
-        已赎回
+        {t('已赎回', 'Redeemed')}
       </Button>
     )
   }
@@ -126,10 +128,10 @@ function WithdrawButton({ chainOrderId, orderId, isWithdrawn, onSuccess }: { cha
             body: JSON.stringify({ txHash: orderId, withdrawnTx: typeof txHash === "string" ? txHash : null }),
           })
           setWithdrawn(true)
-          toast({ title: "本金已赎回", description: "本金已退回钱包" })
+          toast({ title: t("本金已赎回", "Principal Redeemed"), description: t("本金已退回钱包", "Principal returned to wallet") })
           onSuccess?.()
         } catch (e: unknown) {
-          toast({ title: "赎回失败", description: (e as Error)?.message?.slice(0, 100) ?? "交易未完成", variant: "destructive" })
+          toast({ title: t("赎回失败", "Redeem Failed"), description: (e as Error)?.message?.slice(0, 100) ?? t("交易未完成", "Transaction failed"), variant: "destructive" })
         } finally {
           setIsPending(false)
         }
@@ -138,7 +140,7 @@ function WithdrawButton({ chainOrderId, orderId, isWithdrawn, onSuccess }: { cha
       {isPending ? (
         <><Loader2 className="h-4 w-4 animate-spin" />赎回中...</>
       ) : (
-        <><ArrowUpRight className="h-4 w-4" />赎回本金</>
+        <><ArrowUpRight className="h-4 w-4" />{t('赎回本金', 'Redeem')}</>
       )}
     </Button>
   )
@@ -146,6 +148,7 @@ function WithdrawButton({ chainOrderId, orderId, isWithdrawn, onSuccess }: { cha
 
 export function Dashboard() {
   const { toast } = useToast()
+  const { t, language } = useLanguage()
   const { claimReward, claims, stakes } = useLocalWeb3Sim()
   const { signedAddress } = useWalletAuth()
   const currentAddress = signedAddress ?? ""
@@ -187,11 +190,11 @@ export function Dashboard() {
 
   const handleClaimReward = async (order: StakeOrder) => {
     if (personalClaimFrozen) {
-      toast({ title: "领取失败", description: "当前钱包领取收益功能已被冻结", variant: "destructive" })
+      toast({ title: t("领取失败", "Claim Failed"), description: t("当前钱包领取收益功能已被冻结", "Claim is frozen for this wallet"), variant: "destructive" })
       return
     }
     if (order.pendingReward <= 0) {
-      toast({ title: "领取失败", description: "当前暂无可领取收益", variant: "destructive" })
+      toast({ title: t("领取失败", "Claim Failed"), description: t("当前暂无可领取收益", "No pending rewards"), variant: "destructive" })
       return
     }
     const TEAM_REWARD_TOPIC = "0xe07f61c526a4ace6d1e5cad0a84eddbf8e2733ce8383b0b2f1d76f07fb1cab49"
@@ -233,11 +236,11 @@ export function Dashboard() {
       }))
       claimReward(order.id, order.pendingReward)
       refreshData()
-      toast({ title: "领取成功", description: "收益已领取成功" })
+      toast({ title: t("领取成功", "Claimed"), description: t("收益已领取成功", "Rewards claimed successfully") })
     } catch (e: unknown) {
       toast({
-        title: "领取失败",
-        description: (e as Error)?.message?.slice(0, 100) ?? "交易未完成",
+        title: t("领取失败", "Claim Failed"),
+        description: (e as Error)?.message?.slice(0, 100) ?? t("交易未完成", "Transaction failed"),
         variant: "destructive",
       })
     } finally {
@@ -285,8 +288,8 @@ export function Dashboard() {
         period: order.period,
         periodUnit: order.periodUnit ?? 'day',
         dailyRate: order.dailyRate,
-        startDate: formatOrderDate(safeStartMs),
-        endDate: formatOrderDate(endMs),
+        startDate: formatOrderDate(safeStartMs, language),
+        endDate: formatOrderDate(endMs, language),
         earnedReward: claimedReward,
         pendingReward,
         withdrawn,
@@ -336,8 +339,8 @@ export function Dashboard() {
     <div className="space-y-6 lg:space-y-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">资产看板</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mt-1">实时追踪您的质押收益和订单状态</p>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">{t('资产看板', 'Dashboard')}</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">{t('实时追踪您的质押收益和订单状态', 'Track your staking rewards and order status in real time')}</p>
       </div>
 
       {/* Summary Cards */}
@@ -347,7 +350,7 @@ export function Dashboard() {
           <CardContent className="p-3 sm:p-6 relative">
             <div className="flex items-start sm:items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm text-muted-foreground truncate">质押金额</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('质押金额', 'Staked')}</p>
                 <p className="text-lg sm:text-2xl font-semibold text-foreground mt-1">
                   <AnimatedNumber value={totalStaked} prefix="$" />
                 </p>
@@ -364,7 +367,7 @@ export function Dashboard() {
           <CardContent className="p-3 sm:p-6 relative">
             <div className="flex items-start sm:items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm text-muted-foreground truncate">赎回金额</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('赎回金额', 'Redeemed')}</p>
                 <p className="text-lg sm:text-2xl font-semibold text-foreground mt-1">
                   <AnimatedNumber value={redeemedAmount} prefix="$" />
                 </p>
@@ -381,7 +384,7 @@ export function Dashboard() {
           <CardContent className="p-3 sm:p-6 relative">
             <div className="flex items-start sm:items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm text-muted-foreground truncate">累计领取收益</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('累计领取收益', 'Total Claimed')}</p>
                 <p className="text-lg sm:text-2xl font-semibold text-chart-1 mt-1">
                   <AnimatedNumber value={totalClaimedVvv} prefix="+" suffix=" VVV" />
                 </p>
@@ -401,9 +404,9 @@ export function Dashboard() {
           <CardContent className="p-3 sm:p-6 relative">
             <div className="flex items-start sm:items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm text-muted-foreground truncate">进行中订单</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{t('进行中订单', 'Active Orders')}</p>
                 <p className="text-lg sm:text-2xl font-semibold text-foreground mt-1">{activeOrders.length}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">笔质押</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">{t('笔质押', 'stakes')}</p>
               </div>
               <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-accent/10 shrink-0">
                 <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-accent" />
@@ -417,7 +420,7 @@ export function Dashboard() {
       <Card className="bg-card border-border shadow-card">
         <CardHeader className="px-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-base sm:text-lg">我的质押订单</CardTitle>
+            <CardTitle className="text-base sm:text-lg">{t('我的质押订单', 'My Stake Orders')}</CardTitle>
             <div className="flex gap-1.5 sm:gap-2">
               {(['active', 'completed', 'withdrawn', 'all'] as const).map((status) => (
                 <Button
@@ -432,7 +435,7 @@ export function Dashboard() {
                       : 'hover:bg-secondary'
                   )}
                 >
-                  {status === 'all' ? '全部' : status === 'active' ? '进行中' : status === 'completed' ? '可赎回' : '已赎回'}
+                  {status === 'all' ? t('全部', 'All') : status === 'active' ? t('进行中', 'Active') : status === 'completed' ? t('可赎回', 'Redeemable') : t('已赎回', 'Redeemed')}
                 </Button>
               ))}
             </div>
@@ -442,7 +445,7 @@ export function Dashboard() {
           <div className="space-y-3 sm:space-y-4">
             {filteredOrders.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                暂无质押订单
+                {t('暂无质押订单', 'No stake orders yet')}
               </div>
             ) : filteredOrders.map((order) => (
               <div
@@ -468,7 +471,7 @@ export function Dashboard() {
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm sm:text-base font-medium text-foreground">
-                          {order.mode === 'coin' ? '币本位' : '金本位'}
+                          {order.mode === 'coin' ? t('币本位', 'Coin') : t('金本位', 'Fiat')}
                         </span>
                         <span className={cn(
                           "text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium",
@@ -476,11 +479,11 @@ export function Dashboard() {
                             : order.status === "withdrawn" ? "bg-muted text-muted-foreground"
                             : "bg-accent/15 text-accent"
                         )}>
-                          {order.status === "active" ? "进行中" : order.status === "withdrawn" ? "已赎回" : "可赎回"}
+                          {order.status === "active" ? t("进行中", "Active") : order.status === "withdrawn" ? t("已赎回", "Redeemed") : t("可赎回", "Redeemable")}
                         </span>
                       </div>
                       <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                        {getOrderPeriodLabel(order)} · {getOrderRateLabel(order)} {order.dailyRate}%
+                        {getOrderPeriodLabel(order, t)} · {getOrderRateLabel(order, t)} {order.dailyRate}%
                       </p>
                     </div>
                   </div>
@@ -501,21 +504,21 @@ export function Dashboard() {
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">开始日期</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">{t('开始日期', 'Start Date')}</p>
                       <p className="font-mono text-xs text-foreground sm:text-sm">{order.startDate}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <Timer className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">结束日期</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">{t('结束日期', 'End Date')}</p>
                       <p className="font-mono text-xs text-foreground sm:text-sm">{order.endDate}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-chart-1 shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">已获收益</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">{t('已获收益', 'Earned')}</p>
                       <p className="text-xs sm:text-sm font-medium text-chart-1">
                         +{formatRewardAmount(order.earnedReward)} {order.mode === 'coin' ? 'VVV' : 'USD'}
                       </p>
@@ -525,7 +528,7 @@ export function Dashboard() {
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-accent shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">待领取收益</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">{t('待领取收益', 'Pending')}</p>
                         <p className="text-xs sm:text-sm font-semibold text-accent">
                           {order.mode === 'coin' 
                             ? `+${formatRewardAmount(order.pendingReward)} VVV`
@@ -546,9 +549,9 @@ export function Dashboard() {
                       disabled={order.pendingReward <= 0 || personalClaimFrozen || claimingOrderIds.has(order.id)}
                     >
                       {claimingOrderIds.has(order.id) ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" />领取中...</>
+                        <><Loader2 className="h-4 w-4 animate-spin" />{t('领取中...', 'Claiming...')}</>
                       ) : (
-                        <><Gift className="h-4 w-4" />领取收益</>
+                        <><Gift className="h-4 w-4" />{t('领取收益', 'Claim Rewards')}</>
                       )}
                     </Button>
                   </div>
