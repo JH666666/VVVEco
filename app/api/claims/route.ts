@@ -55,7 +55,6 @@ export async function GET(request: NextRequest) {
         include: {
           user: { select: { walletAddress: true, uid: true } },
           order: { select: { mode: true, dailyRate: true } },
-          teamRewards: { select: { id: true, rewardType: true, amount: true, beneficiaryAddr: true } },
         },
       }),
       prisma.claimRecord.count({ where }),
@@ -72,7 +71,6 @@ export async function GET(request: NextRequest) {
       priceAtClaim: c.priceAtClaim,
       feeAmount: c.feeAmount,
       createdAt: c.createdAt,
-      teamRewardsGenerated: c.teamRewards.length,
     }));
 
     return NextResponse.json({

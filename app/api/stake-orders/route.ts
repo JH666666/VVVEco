@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { verifyStakeTx } from "@/lib/verify-tx";
+import { getLatestChainOrder } from "@/lib/chain-read";
 import { NextRequest, NextResponse } from "next/server";
 
 const CHAR_SET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -146,21 +147,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Transaction verification failed", detail: verification.reason }, { status: 403 });
     }
 
+    // 从链上读取权威订单数据，覆盖前端计算的 usdValue/amount/rate
+    const chainOrder = await getLatestChainOrder(walletAddress);
+    const amount    = chainOrder ? chainOrder.vvvAmountIn  : (body.amount ?? 0);
+    const usdValue  = chainOrder ? chainOrder.usdValue     : (body.usdValue ?? 0);
+    const dailyRate = chainOrder ? chainOrder.dailyRatePct : (body.dailyRate ?? 0.9);
+    const mode      = chainOrder ? (chainOrder.isCoinBased ? "coin" : "fiat") : (body.mode ?? "coin");
+    const period    = chainOrder ? chainOrder.duration     : (body.period ?? 30);
+    const startTime = chainOrder ? chainOrder.startTime    : (body.startTime ? new Date(body.startTime) : new Date());
+    const endTime   = chainOrder ? chainOrder.endTime      : (body.endTime ? new Date(body.endTime) : new Date());
+
+    if (!chainOrder) {
+      console.warn("[POST /api/stake-orders] chain read failed, falling back to body values for", txHash);
+    }
+
     // Upsert: don't duplicate
     const order = await prisma.stakeOrder.upsert({
       where: { txHash },
-      update: {},
+      update: { amount, usdValue, dailyRate, mode, period, startTime, endTime },
       create: {
         txHash,
         walletAddress,
-        mode: body.mode ?? "coin",
-        amount: body.amount ?? 0,
-        usdValue: body.usdValue ?? 0,
-        period: body.period ?? 30,
+        mode,
+        amount,
+        usdValue,
+        period,
         periodUnit: body.periodUnit ?? "day",
-        dailyRate: body.dailyRate ?? 0.9,
-        startTime: body.startTime ? new Date(body.startTime) : new Date(),
-        endTime: body.endTime ? new Date(body.endTime) : new Date(),
+        dailyRate,
+        startTime,
+        endTime,
       },
     });
 

@@ -32,8 +32,10 @@ async function waitForRawReceipt(txHash: string, maxWaitMs = 120_000): Promise<R
 }
 
 // Base Sepolia deployed addresses — env var takes priority, hardcoded fallback prevents zero-address bugs
-export const VVV_TOKEN_ADDR = (process.env.NEXT_PUBLIC_VVV_TOKEN || "0xf857F4BaeF1503262c20156457e1336BA37BA495") as `0x${string}`;
-export const STAKING_ADDR = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xf1F2A60EdD2110a42F5Ec9d760348C0fB4Bc1659") as `0x${string}`;
+export const VVV_TOKEN_ADDR = (process.env.NEXT_PUBLIC_VVV_TOKEN || "0x3C03096D6174b7d6Cc6d5f1e442f43B269Bc3A30") as `0x${string}`;
+export const STAKING_ADDR   = (process.env.NEXT_PUBLIC_VVECO_STAKING  || "0x707AeF5E4331c45F1b11aA50EB452b396cE69DD9") as `0x${string}`;
+export const PAYOUT_ADDR    = (process.env.NEXT_PUBLIC_VVECO_PAYOUT   || "0x6cb514724C355Be8A2d19D1228DF8300cBb1CbA6") as `0x${string}`;
+export const TREASURY_ADDR  = (process.env.NEXT_PUBLIC_VVECO_TREASURY || "0xD9247b65A641c67b4Db600494af67E0De6e17e72") as `0x${string}`;
 
 const VVV_ABI = [
   "function balanceOf(address) view returns (uint256)",
@@ -169,13 +171,25 @@ export function useVVVAllowance(spender: `0x${string}`) {
   return (data as bigint) ?? 0n;
 }
 
+const PRICE_CACHE_KEY = "vvveco-mock-price";
+
 // ═══════════════ Read Staking ═══════════════
 export function useLatestPrice() {
-  const [price, setPrice] = useState<bigint>(0n);
+  const [price, setPrice] = useState<bigint>(() => {
+    // 初始值读 localStorage 缓存，避免切换页面时闪现 fallback 价格
+    if (typeof window === "undefined") return 0n;
+    const cached = window.localStorage.getItem(PRICE_CACHE_KEY);
+    return cached ? parseEther(cached) : 0n;
+  });
   useEffect(() => {
     fetch("/api/admin/chain-params")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.mockPrice) setPrice(parseEther(d.mockPrice)); })
+      .then((d) => {
+        if (d?.mockPrice) {
+          setPrice(parseEther(d.mockPrice));
+          window.localStorage.setItem(PRICE_CACHE_KEY, String(d.mockPrice));
+        }
+      })
       .catch(() => {});
   }, []);
   return price;
@@ -407,7 +421,7 @@ function getEth() {
   return eth as { request: (args: unknown) => Promise<string> };
 }
 
-// 发送管理员交易：显式带 nonce 避免钱包去重误判
+// 发送管理员交易：显式带 nonce，让 TP 钱包把每次调用视为独立交易，避免 "duplicate call detected" 去重误判
 async function sendAdminTx(from: string | undefined, to: string, data: string): Promise<string> {
   const eth = getEth();
   const nonce = await eth.request({ method: "eth_getTransactionCount", params: [from, "pending"] } as unknown as Parameters<typeof eth.request>[0]);
@@ -432,11 +446,11 @@ export function useSetFeePercent() {
   const { address } = useAccount();
   return async (fee: number) => {
     const data = encodeFunctionData({
-      abi: parseAbi(["function setFeePercent(uint256 newFee)"]),
+      abi: parseAbi(["function setFeePercent(uint256 _pct)"]),
       functionName: "setFeePercent",
       args: [BigInt(fee)],
     });
-    return sendAdminTx(address, STAKING_ADDR, data);
+    return sendAdminTx(address, PAYOUT_ADDR, data);
   };
 }
 
@@ -444,11 +458,11 @@ export function useSetProjectWallet() {
   const { address } = useAccount();
   return async (wallet: string) => {
     const data = encodeFunctionData({
-      abi: parseAbi(["function setProjectWallet(address newWallet)"]),
+      abi: parseAbi(["function setProjectWallet(address _wallet)"]),
       functionName: "setProjectWallet",
       args: [wallet as `0x${string}`],
     });
-    return sendAdminTx(address, STAKING_ADDR, data);
+    return sendAdminTx(address, TREASURY_ADDR, data);
   };
 }
 
@@ -456,11 +470,23 @@ export function useSetFeeWallet() {
   const { address } = useAccount();
   return async (wallet: string) => {
     const data = encodeFunctionData({
-      abi: parseAbi(["function setFeeWallet(address newFeeWallet)"]),
+      abi: parseAbi(["function setFeeWallet(address _wallet)"]),
       functionName: "setFeeWallet",
       args: [wallet as `0x${string}`],
     });
-    return sendAdminTx(address, STAKING_ADDR, data);
+    return sendAdminTx(address, PAYOUT_ADDR, data);
+  };
+}
+
+export function useRescueETH() {
+  const { address } = useAccount();
+  return async (amount: bigint) => {
+    const data = encodeFunctionData({
+      abi: parseAbi(["function rescueETH(uint256 amount) external"]),
+      functionName: "rescueETH",
+      args: [amount],
+    });
+    return sendAdminTx(address, PAYOUT_ADDR, data);
   };
 }
 

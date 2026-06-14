@@ -16,6 +16,7 @@ export interface AdminControlsState {
   frozenTeamClaims: string[];
   frozenPrincipalWithdrawals: string[];
   freezeAudits: Record<string, Partial<Record<FreezePermissionType, FreezeAuditEntry>>>;
+  uidMap: Record<string, number>;
 }
 
 const defaultState: AdminControlsState = {
@@ -25,6 +26,7 @@ const defaultState: AdminControlsState = {
   frozenTeamClaims: [],
   frozenPrincipalWithdrawals: [],
   freezeAudits: {},
+  uidMap: {},
 };
 
 // Local cache for fast UI checks, synced from API
@@ -35,24 +37,51 @@ export function readAdminControls(): AdminControlsState {
 }
 
 // ═══════════ API-based operations ═══════════
-async function fetchFreezeList(): Promise<{ frozenPersonalClaims: string[]; frozenTeamClaims: string[]; frozenPrincipalWithdrawals: string[] }> {
+export interface FreezeListItem {
+  walletAddress: string;
+  uid: number | null;
+  personalClaimFrozen: boolean;
+  teamClaimFrozen: boolean;
+  principalWithdrawFrozen: boolean;
+  frozenAt?: number;
+  unfrozenAt?: number;
+}
+
+async function fetchFreezeList(): Promise<{ frozenPersonalClaims: string[]; frozenTeamClaims: string[]; frozenPrincipalWithdrawals: string[]; freezeAudits: AdminControlsState["freezeAudits"]; uidMap: Record<string, number> }> {
   try {
-    const res = await fetch("/api/admin/freeze");
+    const res = await fetch("/api/admin/freeze-list");
     if (!res.ok) throw new Error("API fail");
     const data = await res.json();
+    const items: Array<Record<string, unknown>> = data.items ?? [];
+    const freezeAudits: AdminControlsState["freezeAudits"] = {};
+    const uidMap: Record<string, number> = {};
+    for (const i of items) {
+      const addr = (i.walletAddress as string).toLowerCase();
+      const frozenAt = i.frozenAt ? new Date(i.frozenAt as string).getTime() : undefined;
+      const unfrozenAt = i.unfrozenAt ? new Date(i.unfrozenAt as string).getTime() : undefined;
+      freezeAudits[addr] = {
+        personal: { frozenAt, unfrozenAt },
+        principal: { frozenAt, unfrozenAt },
+      };
+      if (i.uid != null) uidMap[addr] = i.uid as number;
+    }
     return {
-      frozenPersonalClaims: (data.items ?? []).filter((i: Record<string, boolean>) => i.personalClaimFrozen).map((i: Record<string, string>) => i.walletAddress),
-      frozenTeamClaims: (data.items ?? []).filter((i: Record<string, boolean>) => i.teamClaimFrozen).map((i: Record<string, string>) => i.walletAddress),
-      frozenPrincipalWithdrawals: (data.items ?? []).filter((i: Record<string, boolean>) => i.principalWithdrawFrozen).map((i: Record<string, string>) => i.walletAddress),
+      frozenPersonalClaims: items.filter(i => i.personalClaimFrozen).map(i => i.walletAddress as string),
+      frozenTeamClaims: items.filter(i => i.teamClaimFrozen).map(i => i.walletAddress as string),
+      frozenPrincipalWithdrawals: items.filter(i => i.principalWithdrawFrozen).map(i => i.walletAddress as string),
+      freezeAudits,
+      uidMap,
     };
   } catch {
     const raw = localStorage.getItem("vvveco-admin-controls");
-    if (!raw) return { frozenPersonalClaims: [], frozenTeamClaims: [], frozenPrincipalWithdrawals: [] };
+    if (!raw) return { frozenPersonalClaims: [], frozenTeamClaims: [], frozenPrincipalWithdrawals: [], freezeAudits: {}, uidMap: {} };
     const parsed = JSON.parse(raw);
     return {
       frozenPersonalClaims: parsed.frozenPersonalClaims ?? [],
       frozenTeamClaims: parsed.frozenTeamClaims ?? [],
       frozenPrincipalWithdrawals: parsed.frozenPrincipalWithdrawals ?? [],
+      freezeAudits: {},
+      uidMap: {},
     };
   }
 }
@@ -119,6 +148,8 @@ export function useAdminControls() {
       const state: AdminControlsState = {
         ...defaultState,
         ...list,
+        freezeAudits: list.freezeAudits,
+        uidMap: list.uidMap,
         controlledAddresses: [...new Set([...list.frozenPersonalClaims, ...list.frozenTeamClaims, ...list.frozenPrincipalWithdrawals])],
       };
       _cached = state;

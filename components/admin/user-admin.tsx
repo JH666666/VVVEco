@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Copy, Gift, Search, Users, Wallet, Network, Clock, Eye, EyeOff, Pencil } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Gift, Search, Users, Wallet, Network, Clock, Eye, EyeOff, Pencil } from 'lucide-react'
 import { getUserInsight, type UserInsight, type UserListInsight } from '@/lib/admin-user-insights'
 import { formatInteger, formatUsdFull } from '@/lib/global-stats'
 import { useAdminControls } from '@/lib/admin-controls'
@@ -497,6 +497,17 @@ export function UserAdmin() {
 
       {insight && (
         <>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setInsight(null); setSearched(false); setQuery(''); setSelectedViewAddress(''); }}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              返回用户列表
+            </Button>
+            <span className="text-sm text-muted-foreground">{insight.displayAddress}</span>
+          </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Card className="border-border bg-card shadow-card">
               <CardHeader className="pb-3">

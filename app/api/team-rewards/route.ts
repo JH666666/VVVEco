@@ -24,7 +24,6 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
-          claim: { select: { txHash: true, amountVvv: true, createdAt: true } },
           sourceUser: { select: { walletAddress: true, uid: true, inviteCode: true } },
           sourceOrder: { select: { txHash: true, mode: true, usdValue: true } },
         },

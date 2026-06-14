@@ -57,7 +57,6 @@ export async function GET(
         referrer: { select: { walletAddress: true, uid: true } },
         _count: { select: { referrals: true } },
         stakeOrders: {
-          where: { hiddenByAdmin: false },
           orderBy: { createdAt: "desc" },
           include: {
             claimRecords: {
@@ -147,7 +146,6 @@ export async function GET(
         ? await prisma.stakeOrder.findMany({
             where: {
               walletAddress: { in: teamAddresses },
-              hiddenByAdmin: false,
               isWithdrawn: false,
               endTime: { gt: new Date() },
             },

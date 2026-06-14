@@ -12,10 +12,15 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Invalid address" }, { status: 400 });
     }
 
-    const data: Record<string, boolean> = {};
+    const data: Record<string, boolean | Date> = {};
     if (typeof body.personalClaim === "boolean") data.personalClaimFrozen = body.personalClaim;
     if (typeof body.teamClaim === "boolean") data.teamClaimFrozen = body.teamClaim;
     if (typeof body.principalWithdraw === "boolean") data.principalWithdrawFrozen = body.principalWithdraw;
+
+    const isFreezing = body.personalClaim === true || body.teamClaim === true || body.principalWithdraw === true;
+    const isUnfreezing = body.personalClaim === false || body.teamClaim === false || body.principalWithdraw === false;
+    if (isFreezing) data.frozenAt = new Date();
+    if (isUnfreezing) data.unfrozenAt = new Date();
 
     // Upsert freeze status
     const status = await prisma.userFreezeStatus.upsert({

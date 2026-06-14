@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { SIM_VVV_USD_PRICE, useLocalWeb3Sim } from '@/contexts/local-web3-sim-context'
-import { isPersonalClaimFrozen, useAdminControls } from '@/lib/admin-controls'
+import { SIM_VVV_USD_PRICE, useLocalWeb3Sim, type SimClaimRecord } from '@/contexts/local-web3-sim-context'
+import { isPersonalClaimFrozen, isPrincipalWithdrawalFrozen, useAdminControls } from '@/lib/admin-controls'
 import { fetchStakeOrders, fetchClaimRecords, createClaimRecord } from '@/lib/api-client'
-import { useClaimRewards, useWithdrawPrincipal } from '@/lib/contract-hooks'
+import { useClaimRewards, useWithdrawPrincipal, useLatestPrice } from '@/lib/contract-hooks'
 import { useWalletAuth } from '@/contexts/wallet-auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -97,7 +97,7 @@ function formatOrderDate(value: number, lang = 'zh') {
   return new Date(value).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { hour12: false })
 }
 
-function WithdrawButton({ chainOrderId, orderId, isWithdrawn, onSuccess }: { chainOrderId: number; orderId: string; isWithdrawn: boolean; onSuccess?: () => void }) {
+function WithdrawButton({ chainOrderId, orderId, isWithdrawn, frozen, onSuccess }: { chainOrderId: number; orderId: string; isWithdrawn: boolean; frozen?: boolean; onSuccess?: () => void }) {
   const withdraw = useWithdrawPrincipal()
   const { toast } = useToast()
   const { t } = useLanguage()
@@ -119,6 +119,7 @@ function WithdrawButton({ chainOrderId, orderId, isWithdrawn, onSuccess }: { cha
       className="w-full h-9 sm:h-10 text-xs sm:text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md gap-1.5"
       disabled={isPending}
       onClick={async () => {
+        if (frozen) return
         setIsPending(true)
         try {
           const txHash = await withdraw(BigInt(chainOrderId))
@@ -181,11 +182,14 @@ export function Dashboard() {
   const mergedClaims = currentAddress ? (apiClaims.length > 0 ? apiClaims : claims) : []
 
   const realClaim = useClaimRewards()
+  const latestPrice = useLatestPrice()
+  // 链上实时价格（BigInt wei → number USD）；0 时回退到编译期常量
+  const vvvPriceAtClaim = latestPrice > 0n ? Number(latestPrice) / 1e18 : SIM_VVV_USD_PRICE
 
   const refreshData = () => {
     if (!currentAddress) return
-    fetchStakeOrders(currentAddress).then(setApiStakes)
-    fetchClaimRecords(currentAddress).then(setApiClaims)
+    fetchStakeOrders(currentAddress).then(newStakes => { if (newStakes.length > 0) setApiStakes(newStakes) })
+    fetchClaimRecords(currentAddress).then(newClaims => { if (newClaims.length > 0) setApiClaims(newClaims) })
   }
 
   const handleClaimReward = async (order: StakeOrder) => {
@@ -203,14 +207,30 @@ export function Dashboard() {
       const { txHash: tx, logs } = await realClaim(BigInt(order.chainOrderId))
       const nowMs = Date.now()
       const nowStr = new Date(nowMs).toLocaleString("zh-CN", { hour12: false })
-      await createClaimRecord({
+
+      // 乐观更新：链上领取成功后立即更新本地 claim 列表，不等待 DB 确认
+      const optimisticClaim: SimClaimRecord = {
         id: tx,
         orderId: order.id,
         account: currentAddress,
         amount: order.pendingReward,
-        amountVvv: order.mode === 'coin' ? order.pendingReward : order.pendingReward / SIM_VVV_USD_PRICE,
-        amountUsd: order.mode === 'fiat' ? order.pendingReward : order.pendingReward * SIM_VVV_USD_PRICE,
-        priceUsd: SIM_VVV_USD_PRICE,
+        amountVvv: order.mode === 'coin' ? order.pendingReward : order.pendingReward / vvvPriceAtClaim,
+        amountUsd: order.mode === 'fiat' ? order.pendingReward : order.pendingReward * vvvPriceAtClaim,
+        priceUsd: vvvPriceAtClaim,
+        createdAt: nowStr,
+        createdAtMs: nowMs,
+      }
+      setApiClaims(prev => [...prev, optimisticClaim])
+
+      // 写入 DB
+      const saved = await createClaimRecord({
+        id: tx,
+        orderId: order.id,
+        account: currentAddress,
+        amount: order.pendingReward,
+        amountVvv: order.mode === 'coin' ? order.pendingReward : order.pendingReward / vvvPriceAtClaim,
+        amountUsd: order.mode === 'fiat' ? order.pendingReward : order.pendingReward * vvvPriceAtClaim,
+        priceUsd: vvvPriceAtClaim,
         createdAt: nowStr,
         createdAtMs: nowMs,
       })
@@ -235,9 +255,12 @@ export function Dashboard() {
         }).catch(() => {})
       }))
       claimReward(order.id, order.pendingReward)
-      refreshData()
+      // DB 写入成功后从服务端刷新，以覆盖乐观数据
+      if (saved) refreshData()
       toast({ title: t("领取成功", "Claimed"), description: t("收益已领取成功", "Rewards claimed successfully") })
     } catch (e: unknown) {
+      // 链上失败时移除乐观更新
+      setApiClaims(prev => prev.filter(c => c.orderId !== order.id || c.account !== currentAddress))
       toast({
         title: t("领取失败", "Claim Failed"),
         description: (e as Error)?.message?.slice(0, 100) ?? t("交易未完成", "Transaction failed"),
@@ -293,7 +316,7 @@ export function Dashboard() {
         earnedReward: claimedReward,
         pendingReward,
         withdrawn,
-        status: withdrawn ? ('withdrawn' as const) : (isExpired && pendingReward <= 0) ? ('completed' as const) : ('active' as const),
+        status: withdrawn ? ('withdrawn' as const) : (isExpired && pendingReward <= 0) ? ('completed' as const) : isExpired ? ('expired' as const) : ('active' as const),
       }
     })
     .reverse()
@@ -477,9 +500,10 @@ export function Dashboard() {
                           "text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium",
                           order.status === "active" ? "bg-chart-1/15 text-chart-1"
                             : order.status === "withdrawn" ? "bg-muted text-muted-foreground"
+                            : order.status === "expired" ? "bg-orange-500/15 text-orange-500"
                             : "bg-accent/15 text-accent"
                         )}>
-                          {order.status === "active" ? t("进行中", "Active") : order.status === "withdrawn" ? t("已赎回", "Redeemed") : t("可赎回", "Redeemable")}
+                          {order.status === "active" ? t("进行中", "Active") : order.status === "withdrawn" ? t("已赎回", "Redeemed") : order.status === "expired" ? t("已到期", "Expired") : t("可赎回", "Redeemable")}
                         </span>
                       </div>
                       <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
@@ -559,7 +583,7 @@ export function Dashboard() {
 
                 {order.status === 'completed' && (
                   <div className="mt-3 sm:mt-4">
-                    <WithdrawButton chainOrderId={order.chainOrderId} orderId={order.id} isWithdrawn={false} onSuccess={refreshData} />
+                    <WithdrawButton chainOrderId={order.chainOrderId} orderId={order.id} isWithdrawn={false} frozen={isPrincipalWithdrawalFrozen(currentAddress)} onSuccess={refreshData} />
                   </div>
                 )}
 

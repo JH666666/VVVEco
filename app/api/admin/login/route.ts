@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 const ADMIN_SESSION_COOKIE = 'vvveco_admin_session'
-const SESSION_MAX_AGE = 60 * 30  // 30分钟无操作自动退出
+const SESSION_MAX_AGE = 60 * 60 * 8  // 8小时，与 middleware/check-auth 保持一致
 
 function getAdminAccount() { return process.env.ADMIN_ACCOUNT ?? 'vvv_admin' }
 function getAdminPassword() { return process.env.ADMIN_PASSWORD ?? 'YourSecurePassword123!' }

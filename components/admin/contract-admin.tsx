@@ -1,13 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, CheckCircle2, Coins, Copy, KeyRound, Loader2, Lock, Settings2, ShieldCheck, Unlock, Wallet } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, CheckCircle2, Coins, Copy, KeyRound, Loader2, Lock, Settings2, ShieldCheck, Wallet } from 'lucide-react'
 import { VVV_ECO_STAKING_ABI, VVV_ECO_STAKING_CONTRACT, VVV_TOKEN_ADDRESS } from '@/lib/contracts/vvv-eco'
-import { formatSimAddress, readStoredSimAccounts, resolveSimInviteCode } from '@/contexts/local-web3-sim-context'
+import { formatSimAddress, resolveSimInviteCode } from '@/contexts/local-web3-sim-context'
 import { formatEther, parseEther } from 'viem'
-import { useAccount, useChainId, useWriteContract, useBalance } from 'wagmi'
+import { useAccount, useChainId, useBalance } from 'wagmi'
 import { useAdminControls } from '@/lib/admin-controls'
-import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMockPrice, useSetMinStakeUsd, useSetDurationRate, useStakingOwnerData } from '@/lib/contract-hooks'
+import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMockPrice, useSetMinStakeUsd, useSetDurationRate, useStakingOwnerData, useRescueETH } from '@/lib/contract-hooks'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -25,7 +25,6 @@ import {
 
 const PAYOUT_ADDR = (process.env.NEXT_PUBLIC_VVECO_PAYOUT ?? '0x0000000000000000000000000000000000000000') as `0x${string}`
 
-const PAYOUT_ABI = ['function rescueETH(uint256 amount) external'] as const
 
 function shortAddr(addr: string) {
   if (!addr || addr.length < 10) return addr
@@ -206,12 +205,6 @@ function formatControlTime(value?: number) {
   return value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '-'
 }
 
-function getUidByAddress(address: string): number {
-  const accounts = readStoredSimAccounts()
-  const account = accounts.find(item => item.address.toLowerCase() === address.toLowerCase())
-  return account?.uid ?? 0
-}
-
 
 export function ContractAdmin() {
   const { toast } = useToast()
@@ -221,11 +214,13 @@ export function ContractAdmin() {
   const [freezeTarget, setFreezeTarget] = useState("")
   const [payoutAmount, setPayoutAmount] = useState("")
   const [withdrawing, setWithdrawing] = useState(false)
-  const [savingOwner, setSavingOwner] = useState(false)
+  const [freezing, setFreezing] = useState(false)
+  const [showAllRows, setShowAllRows] = useState(false)
+  const [savingKey, setSavingKey] = useState<string | null>(null)
   // Chain reads via wagmi (uses configured transport, auto-refetches on account/chain change)
   const { owner: ownerAddr, refetch: refetchOwner, isPending: ownerPending, isError: ownerError } = useStakingOwnerData()
   const { data: payoutBalanceData, isPending: balancePending, refetch: refetchPayoutBalance } = useBalance({ address: PAYOUT_ADDR, chainId: 84532 })
-  const { writeContractAsync } = useWriteContract()
+  const rescueETHChain = useRescueETH()
   const { address: connectedAddress } = useAccount()
   const currentChainId = useChainId()
   const isBaseSepolia = currentChainId === 84532
@@ -376,8 +371,8 @@ export function ContractAdmin() {
       toast({ title: "请先连接钱包", description: "链上操作需要连接 Owner 钱包", variant: "destructive" })
       return
     }
-    if (savingOwner) return
-    setSavingOwner(true)
+    if (savingKey) return
+    setSavingKey(draftKey)
     try {
       if (draftKey === 'transferOwnership(newOwner)') {
         toast({ title: "转移 Owner 权限中...", description: "请在钱包确认" })
@@ -402,21 +397,24 @@ export function ContractAdmin() {
       } else if (key === "feeWallet") {
         toast({ title: "修改手续费钱包中...", description: "请在钱包确认" })
         await setFeeWalletChain(value)
+        await new Promise(r => setTimeout(r, 2000))
       }
-      await saveContractConfig({ [key]: value, feePercent: Number(contractConfig.feePercent ?? 10) })
-      toast({ title: "参数已更新" })
+      await saveContractConfig({ [key]: key === 'feePercent' ? Number(value) : value, feePercent: key === 'feePercent' ? Number(value) : Number(contractConfig.feePercent ?? 10) })
+      toast({ title: "修改成功", description: `${key} 已更新` })
       setDraftValues(prev => { const next = { ...prev }; delete next[draftKey]; return next })
-      fetchContractConfig().then(setContractConfig)
+      await fetchContractConfig().then(setContractConfig)
       if (draftKey === 'transferOwnership(newOwner)') await refetchOwner()
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? ""
-      if (msg.includes("duplicate call")) {
+      if (msg.includes("user rejected") || msg.includes("User rejected") || msg.includes("ACTION_REJECTED")) {
+        toast({ title: "已取消", description: "用户取消了交易", variant: "destructive" })
+      } else if (msg.includes("duplicate call")) {
         toast({ title: "钱包有待处理交易", description: "请打开钱包 → 找到 Pending 交易 → 取消后重试", variant: "destructive", duration: 8000 })
       } else {
         toast({ title: "操作失败", description: msg.slice(0, 120) || "交易未完成", variant: "destructive" })
       }
     } finally {
-      setSavingOwner(false)
+      setSavingKey(null)
     }
   }
 
@@ -450,12 +448,7 @@ export function ContractAdmin() {
     setWithdrawing(true)
     try {
       toast({ title: "转出中...", description: "请在钱包确认交易" })
-      await writeContractAsync({
-        address: PAYOUT_ADDR,
-        abi: PAYOUT_ABI,
-        functionName: "rescueETH",
-        args: [parseEther(amt)],
-      })
+      await rescueETHChain(parseEther(amt))
       toast({ title: "转出成功", description: `${amt} ETH 已发送至 Owner 地址` })
       setPayoutAmount("")
       refetchPayoutBalance()
@@ -480,6 +473,8 @@ export function ContractAdmin() {
       toast({ title: "操作失败", description: "请输入正确的用户地址", variant: "destructive" })
       return
     }
+    if (freezing) return
+    setFreezing(true)
     try {
       // 1. Call contract
       toast({ title: frozen ? "冻结中..." : "解冻中...", description: "请在钱包确认交易" })
@@ -492,6 +487,8 @@ export function ContractAdmin() {
       toast({ title: frozen ? "冻结成功" : "解冻成功", description: `${formatSimAddress(targetAddress)} ${typeLabel}已${frozen ? "冻结" : "解冻"}（链上+DB）` })
     } catch (e: unknown) {
       toast({ title: "操作失败", description: (e as Error)?.message?.slice(0, 100) ?? "交易未完成", variant: "destructive" })
+    } finally {
+      setFreezing(false)
     }
   }
 
@@ -580,7 +577,7 @@ export function ContractAdmin() {
             <Lock className="h-5 w-5 text-primary" />
             用户操作权限冻结
           </CardTitle>
-          <CardDescription>按用户地址分别冻结领取收益、领取团队收益和本金赎回功能。</CardDescription>
+          <CardDescription>按用户地址分别冻结领取收益和本金赎回功能。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -593,74 +590,31 @@ export function ContractAdmin() {
             />
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-border bg-secondary/20 p-3">
               <p className="mb-3 text-sm font-medium text-foreground">领取收益</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button
-                  variant="destructive"
-                  onClick={() => updateFreezeStatus('personal', true)}
-                  
-                >
-                  <Lock className="mr-2 h-4 w-4" />
-                  冻结
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => updateFreezeStatus('personal', false)}
-                  
-                  className="border-stone-300 bg-stone-100 text-stone-900 hover:bg-stone-200"
-                >
-                  <Unlock className="mr-2 h-4 w-4" />
-                  解冻
-                </Button>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-border bg-secondary/20 p-3">
-              <p className="mb-3 text-sm font-medium text-foreground">领取团队收益</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button
-                  variant="destructive"
-                  onClick={() => updateFreezeStatus('team', true)}
-                  
-                >
-                  <Lock className="mr-2 h-4 w-4" />
-                  冻结
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => updateFreezeStatus('team', false)}
-                  
-                  className="border-stone-300 bg-stone-100 text-stone-900 hover:bg-stone-200"
-                >
-                  <Unlock className="mr-2 h-4 w-4" />
-                  解冻
-                </Button>
-              </div>
+              <Button
+                variant="destructive"
+                disabled={freezing}
+                className="w-full"
+                onClick={() => updateFreezeStatus('personal', true)}
+              >
+                <Lock className="mr-2 h-4 w-4" />
+                冻结
+              </Button>
             </div>
 
             <div className="rounded-lg border border-border bg-secondary/20 p-3">
               <p className="mb-3 text-sm font-medium text-foreground">本金赎回</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button
-                  variant="destructive"
-                  onClick={() => updateFreezeStatus('principal', true)}
-                  
-                >
-                  <Lock className="mr-2 h-4 w-4" />
-                  冻结
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => updateFreezeStatus('principal', false)}
-                  
-                  className="border-stone-300 bg-stone-100 text-stone-900 hover:bg-stone-200"
-                >
-                  <Unlock className="mr-2 h-4 w-4" />
-                  解冻
-                </Button>
-              </div>
+              <Button
+                variant="destructive"
+                disabled={freezing}
+                className="w-full"
+                onClick={() => updateFreezeStatus('principal', true)}
+              >
+                <Lock className="mr-2 h-4 w-4" />
+                冻结
+              </Button>
             </div>
           </div>
 
@@ -679,16 +633,15 @@ export function ContractAdmin() {
                       <TableHead>用户地址</TableHead>
                       <TableHead>冻结类型</TableHead>
                       <TableHead>当前状态</TableHead>
-                      <TableHead>冻结时间</TableHead>
-                      <TableHead>解冻时间</TableHead>
+                      <TableHead>操作时间</TableHead>
                       <TableHead className="text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {permissionRows.map(row => (
+                    {(showAllRows ? permissionRows : permissionRows.slice(0, 10)).map(row => (
                         <TableRow key={`${row.targetAddress}-${row.type}`}>
                           <TableCell className="text-center">
-                            <span className="font-mono text-xs tabular-nums text-muted-foreground">{getUidByAddress(row.targetAddress) || '-'}</span>
+                            <span className="font-mono text-xs tabular-nums text-muted-foreground">{controls.uidMap[row.targetAddress.toLowerCase()] ?? '-'}</span>
                           </TableCell>
                           <TableCell className="font-mono text-xs">{formatSimAddress(row.targetAddress)}</TableCell>
                           <TableCell>{row.label}</TableCell>
@@ -697,8 +650,7 @@ export function ContractAdmin() {
                               {row.frozen ? '已冻结' : '已解冻'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap text-xs">{formatControlTime(row.frozenAt)}</TableCell>
-                          <TableCell className="whitespace-nowrap text-xs">{formatControlTime(row.unfrozenAt)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs">{formatControlTime(row.frozen ? row.frozenAt : row.unfrozenAt)}</TableCell>
                           <TableCell className="text-right">
                             {row.frozen ? (
                               <Button
@@ -724,6 +676,14 @@ export function ContractAdmin() {
                   </TableBody>
                 </Table>
               </div>
+            )}
+            {permissionRows.length > 10 && (
+              <button
+                className="mt-2 w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                onClick={() => setShowAllRows(v => !v)}
+              >
+                {showAllRows ? `收起（共 ${permissionRows.length} 条）` : `展开全部（共 ${permissionRows.length} 条）`}
+              </button>
             )}
           </div>
         </CardContent>
@@ -954,10 +914,10 @@ export function ContractAdmin() {
                 </div>
                 <Button
                   className="w-full"
-                  disabled={!draftVal.trim() || savingOwner}
+                  disabled={!draftVal.trim() || savingKey !== null}
                   onClick={() => saveContractSetting(action.key, draftKey)}
                 >
-                  {savingOwner ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />处理中...</> : draftVal.trim() ? action.buttonLabel : '请输入新值'}
+                  {savingKey === draftKey ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />处理中...</> : draftVal.trim() ? action.buttonLabel : '请输入新值'}
                 </Button>
                 {action.note && (
                   <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
