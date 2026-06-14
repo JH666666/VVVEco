@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, Gift, Loader2, Save, TrendingUp, Users, Wallet, Zap } from "lucide-react";
+import { BarChart3, Gift, Loader2, RotateCcw, Save, TrendingUp, Users, Wallet, Zap } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useGlobalStats, formatInteger, formatUsdFull, type GlobalStatsConfig } from "@/lib/global-stats";
 import { useSetLevelThreshold, useSetLevelRate, useStakingOwner } from "@/lib/contract-hooks";
@@ -261,6 +261,27 @@ export function GlobalStatsAdmin() {
     }
   };
 
+  const [resettingGrowth, setResettingGrowth] = useState(false);
+  const handleResetGrowth = async () => {
+    setResettingGrowth(true);
+    try {
+      // Send current draft base values as-is (do NOT absorb auto-growth into base)
+      // updatedAt = now is set automatically by the API, so auto resets to 0
+      updateConfig(draft);
+      dirtyBaseFields.current = new Set();
+      await fetch("/api/global-stats", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      toast({ title: "累积增长已清空", description: "计时基准已重置，展示值将从基础数值重新开始增长。" });
+    } catch {
+      toast({ title: "清空失败", description: "请检查网络后重试", variant: "destructive" });
+    } finally {
+      setResettingGrowth(false);
+    }
+  };
+
   const [savingGeneration, setSavingGeneration] = useState(false);
 
   const handleSaveGenerationRates = async () => {
@@ -351,9 +372,20 @@ export function GlobalStatsAdmin() {
             <div className="space-y-2"><Label>领取单次最大 USD</Label><Input type="number" min={0} step={10} value={draft.claimedMaxPerEvent} onChange={(e) => updateDraft("claimedMaxPerEvent", e.target.value)} /></div>
             <div className="space-y-2"><Label>地址单次最小 个</Label><Input type="number" min={0} step={1} value={draft.stakersMinPerEvent} onChange={(e) => updateDraft("stakersMinPerEvent", e.target.value, true)} /></div>
             <div className="space-y-2"><Label>地址单次最大 个</Label><Input type="number" min={0} step={1} value={draft.stakersMaxPerEvent} onChange={(e) => updateDraft("stakersMaxPerEvent", e.target.value, true)} /></div>
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 grid gap-2 sm:grid-cols-2">
               <Button className="w-full" onClick={handleSaveGrowth}>
                 <Save className="mr-2 h-4 w-4" />保存随机增长设置
+              </Button>
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={resettingGrowth}
+                onClick={handleResetGrowth}
+              >
+                {resettingGrowth
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />清空中...</>
+                  : <><RotateCcw className="mr-2 h-4 w-4" />清空累积增长</>
+                }
               </Button>
             </div>
             </>}
