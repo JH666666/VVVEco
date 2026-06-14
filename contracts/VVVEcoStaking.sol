@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./IPriceOracle.sol";
 
 /**
  * @title VVVEcoStaking
@@ -98,8 +99,12 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
     ///         The root itself has no parent (referrer = address(0)).
     address public rootReferrer;
 
-    uint256 public mockPrice   = 15 * 10**16;  // VVV/USD, 18 dec  ($0.15)
     uint256 public minStakeUsd = 100 ether;    // $100 (18 dec)
+
+    // ── Price oracle ──────────────────────────────────────────────────────────
+    IAeroPool      public pricePool;    // Aerodrome vAMM VVV/WETH  (token0=WETH, token1=VVV)
+    IChainlinkFeed public ethUsdFeed;   // Chainlink ETH/USD (8 dec)
+    uint256        public maxPriceAge = 3600; // max Chainlink staleness in seconds
 
     mapping(address => UserInfo)  public users;
     mapping(address => Order[])   public userOrders;
@@ -147,7 +152,6 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
     );
     event RewardClaimed(address indexed user, uint256 vvvGross);
     event PrincipalWithdrawn(address indexed user, uint256 orderId, uint256 vvvAmount);
-    event PriceUpdated(uint256 newPrice);
     event FrozenStatusChanged(address indexed target, bool frozen);
     event DurationRateUpdated(uint256 duration, uint256 rate);
     event LevelThresholdUpdated(uint8 level, uint256 threshold);
@@ -176,12 +180,16 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
     constructor(
         address _vvvToken,
         address _treasury,
-        address _payout
+        address _payout,
+        address _pricePool,
+        address _ethUsdFeed
     ) Ownable(msg.sender) {
         vvvToken     = IERC20(_vvvToken);
         treasury     = ITreasury(_treasury);
         payout       = IPayout(_payout);
         rootReferrer = msg.sender; // deployer is root by default
+        pricePool    = IAeroPool(_pricePool);
+        ethUsdFeed   = IChainlinkFeed(_ethUsdFeed);
 
         durationRates[7]  = 7;   // 0.7 %/day
         durationRates[15] = 8;   // 0.8 %/day
@@ -376,7 +384,7 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
      * @notice Redeem staked principal after order expiry.
      *
      *  Coin-based: returns the original vvvAmountIn VVV.
-     *  Fiat-based: returns usdValue worth of VVV at the current mockPrice.
+     *  Fiat-based: returns usdValue worth of VVV at the current price.
      *
      *  Auto-settles any remaining unclaimed rewards (propagates to uplines).
      *  Principal redemption does NOT trigger team/invite reward propagation.
@@ -605,7 +613,22 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
         }
     }
 
-    function getLatestPrice() public view returns (uint256) { return mockPrice; }
+    /**
+     * @notice Returns VVV/USD price in 18 decimals.
+     *         Formula: (WETH_reserve / VVV_reserve) × ETH/USD
+     *         Pool: token0=WETH (r0), token1=VVV (r1)
+     */
+    function getLatestPrice() public view returns (uint256) {
+        (uint256 r0, uint256 r1, ) = pricePool.getReserves();
+        require(r0 > 0 && r1 > 0, "Price: pool empty");
+
+        (, int256 ethUsd, , uint256 updatedAt, ) = ethUsdFeed.latestRoundData();
+        require(ethUsd > 0, "Price: invalid ETH/USD");
+        require(block.timestamp - updatedAt <= maxPriceAge, "Price: Chainlink stale");
+
+        // r0 (WETH, 18 dec) * ethUsd (8 dec) * 1e10 / r1 (VVV, 18 dec) → 18 dec
+        return r0 * uint256(ethUsd) * 1e10 / r1;
+    }
 
     // ─────────────────────────────────────────
     //  Internal helpers
@@ -658,10 +681,18 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
         payout = IPayout(_p);
     }
 
-    function setMockPrice(uint256 _p) external onlyOwner {
-        require(_p > 0, "Staking: zero price");
-        mockPrice = _p;
-        emit PriceUpdated(_p);
+    function setPricePool(address _pool) external onlyOwner {
+        require(_pool != address(0), "Staking: zero address");
+        pricePool = IAeroPool(_pool);
+    }
+
+    function setEthUsdFeed(address _feed) external onlyOwner {
+        require(_feed != address(0), "Staking: zero address");
+        ethUsdFeed = IChainlinkFeed(_feed);
+    }
+
+    function setMaxPriceAge(uint256 _secs) external onlyOwner {
+        maxPriceAge = _secs;
     }
 
     function setMinStakeUsd(uint256 _min) external onlyOwner {
