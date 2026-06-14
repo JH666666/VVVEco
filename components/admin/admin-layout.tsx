@@ -126,6 +126,21 @@ function AdminShell({ children }: AdminLayoutProps) {
   // 路由切换时自动关闭侧边栏
   useEffect(() => { setSidebarOpen(false) }, [pathname])
 
+  // 每5分钟 ping 一次，保持 session 存活；失败则跳转登录页
+  useEffect(() => {
+    const ping = async () => {
+      try {
+        const res = await fetch('/api/admin/check-auth', { credentials: 'include' })
+        if (!res.ok) window.location.href = '/admin'
+      } catch {
+        // 网络短暂异常，不强制退出
+      }
+    }
+    ping()
+    const id = setInterval(ping, 5 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
+
   const toggleTheme = () => {
     const nextIsDark = !isDark
     setIsDark(nextIsDark)

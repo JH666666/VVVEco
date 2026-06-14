@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 const ADMIN_SESSION_COOKIE = 'vvveco_admin_session'
-const SESSION_MAX_AGE = 60 * 30  // 30分钟无操作自动退出
+const SESSION_MAX_AGE = 60 * 60 * 8  // 8小时无操作自动退出
 
 export async function GET() {
   const ok = await isAdminAuthenticated()

@@ -1,34 +1,41 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, http, encodeFunctionData, parseAbi } from "viem";
-import { baseSepolia } from "viem/chains";
 
-const STAKING_ADDR = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xf1F2A60EdD2110a42F5Ec9d760348C0fB4Bc1659") as `0x${string}`;
-const RPC_URL = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || "https://sepolia.base.org";
+// V1=$0 V2=$10K V3=$20K V4=$30K V5=$50K V6=$100K V7=$150K V8=$200K
+const LEVEL_THRESHOLDS = [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000];
 
-const publicClient = createPublicClient({
-  chain: baseSepolia,
-  transport: http(RPC_URL),
-});
-
-// Read on-chain users[address].level (uint8 at slot index 2 of UserInfo struct)
-async function getOnChainLevel(wallet: `0x${string}`): Promise<number> {
-  try {
-    const data = encodeFunctionData({
-      abi: parseAbi(["function users(address) view returns (address referrer, uint256 teamVolume7, uint8 level, uint256 rewardClaimed)"]),
-      functionName: "users",
-      args: [wallet],
-    });
-    const result = await publicClient.call({ to: STAKING_ADDR, data });
-    if (!result.data || result.data === "0x") return 1;
-    // Decode: referrer(32) + teamVolume7(32) + level(32, but uint8) + rewardClaimed(32)
-    const hex = result.data.slice(2); // remove 0x
-    const levelHex = hex.slice(64 * 2, 64 * 3); // 3rd slot
-    const level = parseInt(levelHex, 16);
-    return level >= 1 && level <= 8 ? level : 1;
-  } catch {
-    return 1;
+function calcLevel(teamUsd: number): number {
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (teamUsd >= LEVEL_THRESHOLDS[i]) return i + 1;
   }
+  return 0;
+}
+
+// BFS 7层下级活跃订单 USD 总量（与 users/[wallet] 详情页保持一致）
+async function getTeamVolume7(walletAddress: string): Promise<number> {
+  let frontier = [walletAddress];
+  const visited = new Set([walletAddress]);
+  let total = 0;
+  const now = new Date();
+
+  for (let depth = 0; depth < 7 && frontier.length > 0; depth++) {
+    const children = await prisma.user.findMany({
+      where: { referrerAddress: { in: frontier } },
+      select: { walletAddress: true, stakeOrders: { select: { usdValue: true, isWithdrawn: true, endTime: true } } },
+    });
+    if (children.length === 0) break;
+    const nextFrontier: string[] = [];
+    for (const child of children) {
+      if (visited.has(child.walletAddress)) continue;
+      visited.add(child.walletAddress);
+      nextFrontier.push(child.walletAddress);
+      for (const o of child.stakeOrders) {
+        if (!o.isWithdrawn && o.endTime > now) total += o.usdValue;
+      }
+    }
+    frontier = nextFrontier;
+  }
+  return total;
 }
 
 // GET /api/admin/users?page=1&pageSize=10&q=&registeredStart=&registeredEnd=&minStake=&maxStake=
@@ -76,9 +83,9 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ]);
 
-    // Batch read on-chain levels in parallel
-    const chainLevels = await Promise.all(
-      users.map(u => getOnChainLevel(u.walletAddress as `0x${string}`))
+    // 从 DB BFS 7层计算团队业绩和等级（与用户详情页一致，不依赖链上状态）
+    const teamVolumes = await Promise.all(
+      users.map(u => getTeamVolume7(u.walletAddress))
     );
 
     const now = new Date();
@@ -86,7 +93,8 @@ export async function GET(request: NextRequest) {
       const totalStakedUsd = user.stakeOrders.reduce((sum, o) => sum + o.usdValue, 0);
       const activeOrders = user.stakeOrders.filter((o) => !o.isWithdrawn && o.endTime > now);
       const totalRedeemedUsd = user.stakeOrders.filter((o) => o.isWithdrawn).reduce((sum, o) => sum + o.usdValue, 0);
-      const chainLevel = chainLevels[i];
+      const teamVolume = teamVolumes[i];
+      const effectiveLevel = calcLevel(teamVolume);
 
       // 已领取 = 所有 claim records 的 amountUsd 之和
       const totalClaimedUsd = user.stakeOrders.reduce(
@@ -121,8 +129,8 @@ export async function GET(request: NextRequest) {
         totalRedeemedUsd,
         totalClaimedUsd,
         totalPendingUsd,
-        chainLevel,
-        effectiveLevel: chainLevel,
+        teamVolume,
+        effectiveLevel,
         orderCount: user.stakeOrders.length,
         activeOrderCount: activeOrders.length,
       };

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BarChart3, Gift, Loader2, RotateCcw, Save, TrendingUp, Users, Wallet, Zap } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BarChart3, Gift, Loader2, Save, TrendingUp, Users, Wallet, Zap } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useGlobalStats, formatInteger, formatUsdFull, type GlobalStatsConfig } from "@/lib/global-stats";
 import { useSetLevelThreshold, useSetLevelRate, useStakingOwner } from "@/lib/contract-hooks";
@@ -19,9 +19,13 @@ function toEditable(config: GlobalStatsConfig): EditableGlobalStats {
     baseStakedUsd: config.baseStakedUsd,
     baseClaimedUsd: config.baseClaimedUsd,
     baseStakers: config.baseStakers,
-    stakedGrowthUsdPerHour: config.stakedGrowthUsdPerHour,
-    claimedGrowthUsdPerHour: config.claimedGrowthUsdPerHour,
-    stakersGrowthPerDay: config.stakersGrowthPerDay,
+    stakedMinPerEvent: config.stakedMinPerEvent,
+    stakedMaxPerEvent: config.stakedMaxPerEvent,
+    claimedMinPerEvent: config.claimedMinPerEvent,
+    claimedMaxPerEvent: config.claimedMaxPerEvent,
+    stakersMinPerEvent: config.stakersMinPerEvent,
+    stakersMaxPerEvent: config.stakersMaxPerEvent,
+    eventsPerHour: config.eventsPerHour,
   };
 }
 
@@ -32,7 +36,7 @@ function parseField(value: string, integer = false) {
 }
 
 export function GlobalStatsAdmin() {
-  const { config, computed, updateConfig, resetConfig } = useGlobalStats();
+  const { config, computed, updateConfig } = useGlobalStats();
   const { toast } = useToast();
   const { address } = useAccount();
 
@@ -41,6 +45,9 @@ export function GlobalStatsAdmin() {
   const isOwner = address ? address.toLowerCase() === chainOwner.toLowerCase() : false;
 
   const [draft, setDraft] = useState<EditableGlobalStats>(() => toEditable(config));
+  const [isConfigLoading, setIsConfigLoading] = useState(true);
+  // Track which base fields the admin has explicitly edited since last load/save
+  const dirtyBaseFields = useRef<Set<'baseStakedUsd' | 'baseClaimedUsd' | 'baseStakers'>>(new Set());
   const [rewardDraft, setRewardDraft] = useState({
     generationRates: [15, 10, 5] as number[],
     levelRates: [10, 20, 30, 40, 50, 60, 70, 80] as number[],
@@ -50,9 +57,30 @@ export function GlobalStatsAdmin() {
     periodUnits: ["day", "day", "day", "day"] as string[],
   });
 
+  // One-time fetch to populate form with real DB values on mount
   useEffect(() => {
-    setDraft(toEditable(config));
-  }, [config]);
+    fetch("/api/global-stats")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.config) {
+          const c = data.config;
+          setDraft({
+            baseStakedUsd: Number(c.baseStakedUsd) || 0,
+            baseClaimedUsd: Number(c.baseClaimedUsd) || 0,
+            baseStakers: Math.floor(Number(c.baseStakers)) || 0,
+            stakedMinPerEvent: Number(c.stakedMinPerEvent) || 100,
+            stakedMaxPerEvent: Number(c.stakedMaxPerEvent) || 500,
+            claimedMinPerEvent: Number(c.claimedMinPerEvent) || 10,
+            claimedMaxPerEvent: Number(c.claimedMaxPerEvent) || 100,
+            stakersMinPerEvent: Math.floor(Number(c.stakersMinPerEvent)) || 1,
+            stakersMaxPerEvent: Math.floor(Number(c.stakersMaxPerEvent)) || 5,
+            eventsPerHour: Number(c.eventsPerHour) || 10,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsConfigLoading(false));
+  }, []); // empty deps: runs exactly once on mount, never overwrites user input
 
   // Fetch generation/period from DB API
   useEffect(() => {
@@ -93,7 +121,13 @@ export function GlobalStatsAdmin() {
   const [batchWriting, setBatchWriting] = useState(false);
   const [batchProgress, setBatchProgress] = useState("");
 
+  const BASE_KEYS = ['baseStakedUsd', 'baseClaimedUsd', 'baseStakers'] as const;
+  type BaseKey = typeof BASE_KEYS[number];
+
   const updateDraft = (key: keyof EditableGlobalStats, value: string, integer = false) => {
+    if ((BASE_KEYS as readonly string[]).includes(key)) {
+      dirtyBaseFields.current.add(key as BaseKey);
+    }
     setDraft((current) => ({ ...current, [key]: parseField(value, integer) }));
   };
 
@@ -194,23 +228,36 @@ export function GlobalStatsAdmin() {
   };
 
   const handleSaveGrowth = async () => {
-    updateConfig(draft);
+    // For each base field:
+    //   - Admin explicitly changed it → use admin's input (respect intent)
+    //   - Admin did NOT change it (only changed growth params) → absorb accumulated
+    //     autoGrowth into base so display doesn't drop after updatedAt resets.
+    //     Formula: newBase = currentDisplay - real  (real is re-added by computeGlobalStats)
+    const dirty = dirtyBaseFields.current;
+    const resolvedBase = {
+      baseStakedUsd: dirty.has('baseStakedUsd')
+        ? draft.baseStakedUsd
+        : Math.floor(Math.max(0, computed.displayStakedUsd - computed.realStakedUsd)),
+      baseClaimedUsd: dirty.has('baseClaimedUsd')
+        ? draft.baseClaimedUsd
+        : Math.floor(Math.max(0, computed.displayClaimedUsd - computed.realClaimedUsd)),
+      baseStakers: dirty.has('baseStakers')
+        ? draft.baseStakers
+        : Math.floor(Math.max(0, computed.displayStakers - computed.realStakerCount)),
+    };
+    const payload = { ...draft, ...resolvedBase };
+    updateConfig(payload);
+    setDraft((d) => ({ ...d, ...resolvedBase }));
+    dirtyBaseFields.current = new Set(); // reset after save
     try {
       await fetch("/api/global-stats", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          baseStakedUsd: draft.baseStakedUsd,
-          baseClaimedUsd: draft.baseClaimedUsd,
-          baseStakers: draft.baseStakers,
-          stakedGrowthUsdPerHour: draft.stakedGrowthUsdPerHour,
-          claimedGrowthUsdPerHour: draft.claimedGrowthUsdPerHour,
-          stakersGrowthPerDay: draft.stakersGrowthPerDay,
-        }),
+        body: JSON.stringify(payload),
       });
-      toast({ title: "增长设置已保存", description: "已同步至数据库，前端即时生效。" });
+      toast({ title: "随机增长设置已保存", description: "基准已更新，官网展示值不会回落。" });
     } catch {
-      toast({ title: "增长设置已保存（本地）", description: "数据库同步失败，仅本地生效。", variant: "destructive" });
+      toast({ title: "随机增长设置已保存（本地）", description: "数据库同步失败，仅本地生效。", variant: "destructive" });
     }
   };
 
@@ -237,9 +284,6 @@ export function GlobalStatsAdmin() {
     }
   };
 
-  const handleReset = () => {
-    resetConfig();
-  };
 
   return (
     <div className="space-y-6 lg:space-y-8">
@@ -255,23 +299,29 @@ export function GlobalStatsAdmin() {
             )}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleReset}><RotateCcw className="mr-2 h-4 w-4" />重置默认值</Button>
-        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-border bg-card shadow-card">
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Wallet className="h-5 w-5 text-primary" />全网质押金额</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-semibold text-foreground">{formatUsdFull(computed.displayStakedUsd)}</p><p className="mt-2 text-xs text-muted-foreground">真实质押 {formatUsdFull(computed.realStakedUsd)}</p></CardContent>
+          <CardContent>
+            {isConfigLoading ? <div className="h-8 w-32 rounded bg-muted animate-pulse" /> : <p className="text-2xl font-semibold text-foreground">{formatUsdFull(computed.displayStakedUsd)}</p>}
+            <p className="mt-2 text-xs text-muted-foreground">真实质押 {formatUsdFull(computed.realStakedUsd)}</p>
+          </CardContent>
         </Card>
         <Card className="border-border bg-card shadow-card">
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Gift className="h-5 w-5 text-primary" />全网领取收益</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-semibold text-foreground">{formatUsdFull(computed.displayClaimedUsd)}</p><p className="mt-2 text-xs text-muted-foreground">真实领取 {formatUsdFull(computed.realClaimedUsd)}</p></CardContent>
+          <CardContent>
+            {isConfigLoading ? <div className="h-8 w-32 rounded bg-muted animate-pulse" /> : <p className="text-2xl font-semibold text-foreground">{formatUsdFull(computed.displayClaimedUsd)}</p>}
+            <p className="mt-2 text-xs text-muted-foreground">真实领取 {formatUsdFull(computed.realClaimedUsd)}</p>
+          </CardContent>
         </Card>
         <Card className="border-border bg-card shadow-card">
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5 text-primary" />质押地址数</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-semibold text-foreground">{formatInteger(computed.displayStakers)}</p><p className="mt-2 text-xs text-muted-foreground">真实地址 {formatInteger(computed.realStakerCount)}</p></CardContent>
+          <CardContent>
+            {isConfigLoading ? <div className="h-8 w-20 rounded bg-muted animate-pulse" /> : <p className="text-2xl font-semibold text-foreground">{formatInteger(computed.displayStakers)}</p>}
+            <p className="mt-2 text-xs text-muted-foreground">真实地址 {formatInteger(computed.realStakerCount)}</p>
+          </CardContent>
         </Card>
       </div>
 
@@ -281,24 +331,32 @@ export function GlobalStatsAdmin() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实质押金额</span><Badge variant="secondary">{formatUsdFull(computed.realStakedUsd)}</Badge></div>
             <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实领取收益</span><Badge variant="secondary">{formatUsdFull(computed.realClaimedUsd)}</Badge></div>
+            <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实待领取收益</span><Badge variant="secondary">{formatUsdFull(computed.realPendingUsd)}</Badge></div>
             <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实质押地址数</span><Badge variant="secondary">{formatInteger(computed.realStakerCount)}</Badge></div>
           </CardContent>
         </Card>
 
         <Card className="border-border bg-card shadow-card">
-          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><TrendingUp className="h-5 w-5 text-primary" />数值与增长速度</CardTitle><CardDescription>保存后从当前时间重新开始按设置速度增长。</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><TrendingUp className="h-5 w-5 text-primary" />随机增长模型</CardTitle><CardDescription>保存后时间基准重置，新增量按每次随机事件叠加。真实 DB 数据自动叠加到展示值。</CardDescription></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label>基础质押金额 USD</Label><Input type="number" min={0} value={draft.baseStakedUsd} onChange={(e) => updateDraft("baseStakedUsd", e.target.value)} /></div>
-            <div className="space-y-2"><Label>基础领取收益 USD</Label><Input type="number" min={0} value={draft.baseClaimedUsd} onChange={(e) => updateDraft("baseClaimedUsd", e.target.value)} /></div>
+            {isConfigLoading && <div className="sm:col-span-2 h-64 rounded-lg bg-muted animate-pulse" />}
+            {!isConfigLoading && <>
+            <div className="space-y-2"><Label>基础质押金额 USD</Label><Input type="number" min={0} step={100} value={draft.baseStakedUsd} onChange={(e) => updateDraft("baseStakedUsd", e.target.value)} /></div>
+            <div className="space-y-2"><Label>基础领取收益 USD</Label><Input type="number" min={0} step={10} value={draft.baseClaimedUsd} onChange={(e) => updateDraft("baseClaimedUsd", e.target.value)} /></div>
             <div className="space-y-2"><Label>基础质押地址数</Label><Input type="number" min={0} step={1} value={draft.baseStakers} onChange={(e) => updateDraft("baseStakers", e.target.value, true)} /></div>
-            <div className="space-y-2"><Label>地址增长速度 个/天</Label><Input type="number" min={0} step={1} value={draft.stakersGrowthPerDay} onChange={(e) => updateDraft("stakersGrowthPerDay", e.target.value, true)} /></div>
-            <div className="space-y-2"><Label>质押金额增长速度 USD/小时</Label><Input type="number" min={0} value={draft.stakedGrowthUsdPerHour} onChange={(e) => updateDraft("stakedGrowthUsdPerHour", e.target.value)} /></div>
-            <div className="space-y-2"><Label>领取收益增长速度 USD/小时</Label><Input type="number" min={0} value={draft.claimedGrowthUsdPerHour} onChange={(e) => updateDraft("claimedGrowthUsdPerHour", e.target.value)} /></div>
+            <div className="space-y-2"><Label>每小时事件次数</Label><Input type="number" min={1} step={1} value={draft.eventsPerHour} onChange={(e) => updateDraft("eventsPerHour", e.target.value)} /></div>
+            <div className="space-y-2"><Label>质押单次最小 USD</Label><Input type="number" min={0} step={100} value={draft.stakedMinPerEvent} onChange={(e) => updateDraft("stakedMinPerEvent", e.target.value)} /></div>
+            <div className="space-y-2"><Label>质押单次最大 USD</Label><Input type="number" min={0} step={100} value={draft.stakedMaxPerEvent} onChange={(e) => updateDraft("stakedMaxPerEvent", e.target.value)} /></div>
+            <div className="space-y-2"><Label>领取单次最小 USD</Label><Input type="number" min={0} step={10} value={draft.claimedMinPerEvent} onChange={(e) => updateDraft("claimedMinPerEvent", e.target.value)} /></div>
+            <div className="space-y-2"><Label>领取单次最大 USD</Label><Input type="number" min={0} step={10} value={draft.claimedMaxPerEvent} onChange={(e) => updateDraft("claimedMaxPerEvent", e.target.value)} /></div>
+            <div className="space-y-2"><Label>地址单次最小 个</Label><Input type="number" min={0} step={1} value={draft.stakersMinPerEvent} onChange={(e) => updateDraft("stakersMinPerEvent", e.target.value, true)} /></div>
+            <div className="space-y-2"><Label>地址单次最大 个</Label><Input type="number" min={0} step={1} value={draft.stakersMaxPerEvent} onChange={(e) => updateDraft("stakersMaxPerEvent", e.target.value, true)} /></div>
             <div className="sm:col-span-2">
               <Button className="w-full" onClick={handleSaveGrowth}>
-                <Save className="mr-2 h-4 w-4" />保存增长设置
+                <Save className="mr-2 h-4 w-4" />保存随机增长设置
               </Button>
             </div>
+            </>}
           </CardContent>
         </Card>
       </div>

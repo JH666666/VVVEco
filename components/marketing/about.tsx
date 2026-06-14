@@ -2,12 +2,21 @@
 
 import { Shield, Zap, Globe, Wallet } from 'lucide-react'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useLanguage } from './language-provider'
-import { formatInteger, formatUsdFull, useGlobalStats } from '@/lib/global-stats'
+import { formatInteger, formatUsdFull } from '@/lib/global-stats'
+import { useGlobalStatsContext } from '@/contexts/global-stats-context'
 
 export function About() {
   const { t } = useLanguage()
-  const { computed } = useGlobalStats()
+  const { computed, isLoading } = useGlobalStatsContext()
+  const [minStakeUsd, setMinStakeUsd] = useState<number | null>(null)
+  useEffect(() => {
+    fetch('/api/admin/chain-params')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setMinStakeUsd(d?.minStakeUsd ? Math.round(Number(d.minStakeUsd)) : 10))
+      .catch(() => setMinStakeUsd(10))
+  }, [])
 
   return (
     <section id="about" className="py-24 px-4">
@@ -95,15 +104,15 @@ export function About() {
             <div className="space-y-6">
               <div className="flex justify-between items-center pb-4 border-b border-border">
                 <span className="text-muted-foreground">{t("Total Staked", "全球质押金额")}</span>
-                <span className="font-medium text-foreground">{formatUsdFull(computed.displayStakedUsd)}</span>
+                {isLoading ? <div className="h-5 w-24 rounded bg-muted animate-pulse" /> : <span className="font-medium text-foreground">{formatUsdFull(computed.displayStakedUsd)}</span>}
               </div>
               <div className="flex justify-between items-center pb-4 border-b border-border">
                 <span className="text-muted-foreground">{t("Total Claimed", "全球领取金额")}</span>
-                <span className="font-medium text-foreground">{formatUsdFull(computed.displayClaimedUsd)}</span>
+                {isLoading ? <div className="h-5 w-24 rounded bg-muted animate-pulse" /> : <span className="font-medium text-foreground">{formatUsdFull(computed.displayClaimedUsd)}</span>}
               </div>
               <div className="flex justify-between items-center pb-4 border-b border-border">
                 <span className="text-muted-foreground">{t("Staking Addresses", "全球质押地址")}</span>
-                <span className="font-medium text-foreground">{formatInteger(computed.displayStakers)}</span>
+                {isLoading ? <div className="h-5 w-16 rounded bg-muted animate-pulse" /> : <span className="font-medium text-foreground">{formatInteger(computed.displayStakers)}</span>}
               </div>
               <div className="flex justify-between items-center pb-4 border-b border-border">
                 <span className="text-muted-foreground">{t("Max Daily Rate", "最高日收益率")}</span>
@@ -111,7 +120,7 @@ export function About() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">{t("Min Stake", "最低质押门槛")}</span>
-                <span className="font-medium text-foreground">$100</span>
+                {minStakeUsd === null ? <div className="h-5 w-12 rounded bg-muted animate-pulse" /> : <span className="font-medium text-foreground">${minStakeUsd}</span>}
               </div>
             </div>
             <Link

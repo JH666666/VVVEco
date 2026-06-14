@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, ArrowUpRight, CheckCircle2, Coins, Copy, KeyRound, Loader2, Lock, Settings2, ShieldCheck, Unlock, Wallet } from 'lucide-react'
 import { VVV_ECO_STAKING_ABI, VVV_ECO_STAKING_CONTRACT, VVV_TOKEN_ADDRESS } from '@/lib/contracts/vvv-eco'
 import { formatSimAddress, readStoredSimAccounts, resolveSimInviteCode } from '@/contexts/local-web3-sim-context'
 import { formatEther, parseEther } from 'viem'
 import { useAccount, useChainId, useWriteContract, useBalance } from 'wagmi'
 import { useAdminControls } from '@/lib/admin-controls'
-import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMockPrice, useStakingOwnerData, useLatestPriceData } from '@/lib/contract-hooks'
+import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMockPrice, useSetMinStakeUsd, useSetDurationRate, useStakingOwnerData } from '@/lib/contract-hooks'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -32,7 +32,7 @@ function shortAddr(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`
 }
 
-type OwnerActionKey = 'owner' | 'projectWallet' | 'feeWallet' | 'feePercent'
+type OwnerActionKey = 'owner' | 'projectWallet' | 'feeWallet' | 'feePercent' | 'minStakeUsd'
 
 const ownerActions: Array<{
   key: OwnerActionKey
@@ -91,6 +91,18 @@ const ownerActions: Array<{
     buttonLabel: '保存手续费比例',
   },
   {
+    key: 'minStakeUsd',
+    icon: Settings2,
+    title: '最低质押金额',
+    subtitle: '用户每笔质押的最低 USD 金额（链上参数）',
+    description: 'setMinStakeUsd(minUsd)',
+    currentValueLabel: '当前最低质押金额',
+    label: '新最低质押金额（USD）',
+    placeholder: '',
+    buttonLabel: '更新最低质押金额',
+    note: '⚠️ 链上操作，需 Owner 钱包确认。同步更新前端 staking 页面的提示文字。',
+  },
+  {
     key: 'feePercent',
     icon: Coins,
     title: '测试价格模拟',
@@ -98,7 +110,7 @@ const ownerActions: Array<{
     description: 'setMockPrice(newPrice)',
     currentValueLabel: '当前模拟价格',
     label: '新模拟价格（USD）',
-    placeholder: '0.15',
+    placeholder: '',
     buttonLabel: '更新模拟价格',
     note: '⚠️ 仅测试网有效。修改后会影响金本位订单的收益和本金计算。',
   },
@@ -209,16 +221,27 @@ export function ContractAdmin() {
   const [freezeTarget, setFreezeTarget] = useState("")
   const [payoutAmount, setPayoutAmount] = useState("")
   const [withdrawing, setWithdrawing] = useState(false)
+  const [savingOwner, setSavingOwner] = useState(false)
   // Chain reads via wagmi (uses configured transport, auto-refetches on account/chain change)
   const { owner: ownerAddr, refetch: refetchOwner, isPending: ownerPending, isError: ownerError } = useStakingOwnerData()
   const { data: payoutBalanceData, isPending: balancePending, refetch: refetchPayoutBalance } = useBalance({ address: PAYOUT_ADDR, chainId: 84532 })
-  const { price: latestPriceRaw, refetch: refetchPrice } = useLatestPriceData()
   const { writeContractAsync } = useWriteContract()
   const { address: connectedAddress } = useAccount()
   const currentChainId = useChainId()
   const isBaseSepolia = currentChainId === 84532
   const transferOwnershipChain = useTransferOwnership()
   const setMockPriceChain = useSetMockPrice()
+  const setMinStakeUsdChain = useSetMinStakeUsd()
+
+  // minStakeUsd and mockPrice: read from server-side API (avoids wagmi client-side read failures)
+  const [chainParams, setChainParams] = useState<{ minStakeUsd: string; mockPrice: string } | null>(null)
+  const fetchChainParams = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/chain-params')
+      if (res.ok) setChainParams(await res.json())
+    } catch { /* ignore */ }
+  }, [])
+  useEffect(() => { fetchChainParams() }, [fetchChainParams])
   const isOwnerWallet = !ownerPending && !ownerError && Boolean(connectedAddress && ownerAddr && connectedAddress.toLowerCase() === ownerAddr.toLowerCase())
   const editableOwnerActions = ownerActions.filter(
     a => a.description !== 'setMockPrice(newPrice)' || isBaseSepolia
@@ -235,35 +258,45 @@ export function ContractAdmin() {
     }
   }, [connectedAddress, refetchOwner])
 
-  // currentValueForKey: owner & mockPrice read live from chain; others read from DB config
+  // currentValueForKey: reads from server-side chain API or wagmi where available
   const currentValueForKey = (key: OwnerActionKey, description: string): string => {
     if (key === 'owner') {
       if (ownerError) return ''
-      return ownerAddr  // '' while pending → shows 加载中...
+      return ownerAddr
     }
     if (description === 'setMockPrice(newPrice)') {
-      if (!latestPriceRaw) return ''
-      const usd = Number(latestPriceRaw) / 1e18
-      return `$${usd.toFixed(4)}`
+      if (!chainParams) return ''
+      return `$${chainParams.mockPrice}`
+    }
+    if (key === 'minStakeUsd') {
+      if (!chainParams) return ''
+      return `$${chainParams.minStakeUsd}`
     }
     return String(contractConfig[key] ?? '')
   }
 
   const { controls, freezePersonalClaim, freezeTeamClaim, freezePrincipalWithdrawal } = useAdminControls()
+  const setDurationRateChain = useSetDurationRate()
   const [periodConfig, setPeriodConfig] = useState({
-    periodRates: [0.7, 0.8, 0.9, 1.0] as number[],
-    periodDurations: [7, 15, 30, 60] as number[],
+    periodRates: [1, 1, 1, 1] as number[],
+    periodDurations: [1, 2, 3, 4] as number[],
     periodUnits: ["day", "day", "day", "day"] as string[],
   })
+  // track last-committed durations so we can clear stale chain entries on duration change
+  const committedDurations = useRef<number[]>([1, 2, 3, 4])
 
   useEffect(() => {
     fetch("/api/config/reward")
       .then((r) => r.json())
-      .then((data) => setPeriodConfig({
-        periodRates: data.periodRates ?? periodConfig.periodRates,
-        periodDurations: data.periodDurations ?? periodConfig.periodDurations,
-        periodUnits: data.periodUnits ?? periodConfig.periodUnits,
-      }))
+      .then((data) => {
+        const loaded = {
+          periodRates: data.periodRates ?? [1, 1, 1, 1],
+          periodDurations: data.periodDurations ?? [1, 2, 3, 4],
+          periodUnits: data.periodUnits ?? ["day", "day", "day", "day"],
+        }
+        setPeriodConfig(loaded)
+        committedDurations.current = [...loaded.periodDurations]
+      })
       .catch(() => {})
   }, [])
   const abiFunctions = useMemo(
@@ -343,14 +376,23 @@ export function ContractAdmin() {
       toast({ title: "请先连接钱包", description: "链上操作需要连接 Owner 钱包", variant: "destructive" })
       return
     }
+    if (savingOwner) return
+    setSavingOwner(true)
     try {
       if (draftKey === 'transferOwnership(newOwner)') {
         toast({ title: "转移 Owner 权限中...", description: "请在钱包确认" })
         await transferOwnershipChain(value as `0x${string}`)
       } else if (draftKey === 'setMockPrice(newPrice)') {
         toast({ title: "更新价格中...", description: "请在钱包确认" })
-        const priceWei = BigInt(Math.round(parseFloat(value) * 1e18))
+        const priceWei = parseEther(value)
         await setMockPriceChain(priceWei)
+        await new Promise(r => setTimeout(r, 2000))
+        await fetchChainParams()
+      } else if (key === "minStakeUsd") {
+        toast({ title: "更新最低质押金额中...", description: "请在钱包确认" })
+        await setMinStakeUsdChain(Number(value))
+        await new Promise(r => setTimeout(r, 2000))
+        await fetchChainParams()
       } else if (key === "feePercent") {
         toast({ title: "修改手续费中...", description: "请在钱包确认" })
         await setFeePercentChain(Number(value))
@@ -366,9 +408,15 @@ export function ContractAdmin() {
       setDraftValues(prev => { const next = { ...prev }; delete next[draftKey]; return next })
       fetchContractConfig().then(setContractConfig)
       if (draftKey === 'transferOwnership(newOwner)') await refetchOwner()
-      if (draftKey === 'setMockPrice(newPrice)') await refetchPrice()
     } catch (e: unknown) {
-      toast({ title: "操作失败", description: (e as Error)?.message?.slice(0, 100) ?? "交易未完成", variant: "destructive" })
+      const msg = (e as Error)?.message ?? ""
+      if (msg.includes("duplicate call")) {
+        toast({ title: "钱包有待处理交易", description: "请打开钱包 → 找到 Pending 交易 → 取消后重试", variant: "destructive", duration: 8000 })
+      } else {
+        toast({ title: "操作失败", description: msg.slice(0, 120) || "交易未完成", variant: "destructive" })
+      }
+    } finally {
+      setSavingOwner(false)
     }
   }
 
@@ -464,8 +512,28 @@ export function ContractAdmin() {
   }
 
   const savePeriodConfig = async () => {
+    if (!connectedAddress) {
+      toast({ title: "请先连接 Owner 钱包", description: "链上写入需要 Owner 权限", variant: "destructive" })
+      return
+    }
     setSavingPeriod(true)
     try {
+      // 1. 清除旧的链上 duration（仅当天数发生变化时）
+      const oldDurations = committedDurations.current
+      for (let i = 0; i < oldDurations.length; i++) {
+        if (oldDurations[i] !== periodConfig.periodDurations[i]) {
+          toast({ title: `清除旧周期 ${oldDurations[i]} 天...`, description: "请在钱包确认" })
+          await setDurationRateChain(oldDurations[i], 0)
+        }
+      }
+      // 2. 设置新的链上 duration + rate（逐个确认）
+      for (let i = 0; i < periodConfig.periodDurations.length; i++) {
+        const duration = periodConfig.periodDurations[i]
+        const ratePermille = Math.round(periodConfig.periodRates[i] * 10)
+        toast({ title: `设置周期 ${duration} 天 / ${periodConfig.periodRates[i]}%...`, description: "请在钱包确认" })
+        await setDurationRateChain(duration, ratePermille)
+      }
+      // 3. 同步写入 DB
       await fetch("/api/config/reward", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -475,9 +543,15 @@ export function ContractAdmin() {
           periodUnits: periodConfig.periodUnits,
         }),
       })
-      toast({ title: "周期配置已保存", description: "费率和周期数值已写入数据库，即时生效。" })
-    } catch {
-      toast({ title: "保存失败", description: "请检查网络后重试", variant: "destructive" })
+      committedDurations.current = [...periodConfig.periodDurations]
+      toast({ title: "周期配置已保存", description: "链上参数与数据库已同步更新。" })
+    } catch (e: unknown) {
+      const msg2 = (e as Error)?.message ?? ""
+      if (msg2.includes("duplicate call")) {
+        toast({ title: "钱包有待处理交易", description: "请打开钱包 → 找到 Pending 交易 → 取消后重试", variant: "destructive", duration: 8000 })
+      } else {
+        toast({ title: "保存失败", description: msg2.slice(0, 120) || "交易未完成", variant: "destructive" })
+      }
     } finally {
       setSavingPeriod(false)
     }
@@ -716,7 +790,7 @@ export function ContractAdmin() {
         <Card className="bg-card border-border shadow-card">
           <CardHeader>
             <CardTitle className="text-lg">周期费率</CardTitle>
-            <CardDescription>合约使用千分比日收益率。修改后点击保存，无需链上确认（DB 存储）。</CardDescription>
+            <CardDescription>链上参数（setDurationRate）+ DB 双写。保存时需 Owner 钱包逐笔确认，每个周期一笔交易。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Table>
@@ -875,14 +949,15 @@ export function ContractAdmin() {
                     value={draftVal}
                     onChange={(event) => setDraftValues(prev => ({ ...prev, [draftKey]: event.target.value }))}
                     placeholder={action.placeholder}
+                    autoComplete="off"
                   />
                 </div>
                 <Button
                   className="w-full"
-                  disabled={!draftVal.trim()}
+                  disabled={!draftVal.trim() || savingOwner}
                   onClick={() => saveContractSetting(action.key, draftKey)}
                 >
-                  {draftVal.trim() ? action.buttonLabel : '请输入新值'}
+                  {savingOwner ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />处理中...</> : draftVal.trim() ? action.buttonLabel : '请输入新值'}
                 </Button>
                 {action.note && (
                   <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">

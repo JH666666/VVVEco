@@ -3,11 +3,12 @@
 import { ArrowRight, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { useLanguage } from './language-provider'
-import { formatInteger, formatUsdCompact, useGlobalStats } from '@/lib/global-stats'
+import { formatInteger, formatUsdCompact } from '@/lib/global-stats'
+import { useGlobalStatsContext } from '@/contexts/global-stats-context'
 
 export function Hero() {
   const { t } = useLanguage()
-  const { computed } = useGlobalStats()
+  const { computed, isLoading } = useGlobalStatsContext()
   const contractAddress = "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf"
 
   const copyAddress = () => {
@@ -79,15 +80,24 @@ export function Hero() {
 
         <div className="grid grid-cols-3 gap-8 sm:gap-16 md:gap-20 mt-16 pt-12 border-t border-border max-w-3xl mx-auto">
           <div className="text-center">
-            <div className="font-serif text-xl sm:text-2xl md:text-3xl font-medium text-foreground whitespace-nowrap">{formatUsdCompact(computed.displayStakedUsd)}</div>
+            {isLoading
+              ? <div className="h-8 w-20 mx-auto rounded bg-muted animate-pulse" />
+              : <div className="font-serif text-xl sm:text-2xl md:text-3xl font-medium text-foreground whitespace-nowrap">{formatUsdCompact(computed.displayStakedUsd)}</div>
+            }
             <div className="text-xs sm:text-sm text-muted-foreground mt-1">{t("Total Staked", "全球质押金额")}</div>
           </div>
           <div className="text-center">
-            <div className="font-serif text-xl sm:text-2xl md:text-3xl font-medium text-foreground whitespace-nowrap">{formatUsdCompact(computed.displayClaimedUsd)}</div>
+            {isLoading
+              ? <div className="h-8 w-20 mx-auto rounded bg-muted animate-pulse" />
+              : <div className="font-serif text-xl sm:text-2xl md:text-3xl font-medium text-foreground whitespace-nowrap">{formatUsdCompact(computed.displayClaimedUsd)}</div>
+            }
             <div className="text-xs sm:text-sm text-muted-foreground mt-1">{t("Claimed", "全球领取金额")}</div>
           </div>
           <div className="text-center">
-            <div className="font-serif text-xl sm:text-2xl md:text-3xl font-medium text-foreground whitespace-nowrap">{formatInteger(computed.displayStakers)}</div>
+            {isLoading
+              ? <div className="h-8 w-16 mx-auto rounded bg-muted animate-pulse" />
+              : <div className="font-serif text-xl sm:text-2xl md:text-3xl font-medium text-foreground whitespace-nowrap">{formatInteger(computed.displayStakers)}</div>
+            }
             <div className="text-xs sm:text-sm text-muted-foreground mt-1">{t("Stakers", "全球质押地址")}</div>
           </div>
         </div>

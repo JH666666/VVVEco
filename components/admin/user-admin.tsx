@@ -55,7 +55,7 @@ export function UserAdmin() {
   const [selectedViewAddress, setSelectedViewAddress] = useState('')
   const [nicknames, setNicknames] = useState<Record<string, string>>({})
   const [copiedAddress, setCopiedAddress] = useState('')
-  const pageSize = 10
+  const [pageSize, setPageSize] = useState(20)
 
   useEffect(() => {
     try {
@@ -414,7 +414,7 @@ export function UserAdmin() {
                       <TableCell className="font-mono text-xs">{user.inviteCode}</TableCell>
                       <TableCell className="font-mono text-xs">{user.referrerDisplay}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">V{user.effectiveLevel}</Badge>
+                        <Badge variant="secondary">{user.effectiveLevel > 0 ? `V${user.effectiveLevel}` : '未达级'}</Badge>
                       </TableCell>
                       <TableCell>{formatUsdFull(user.totalStakedUsd)}</TableCell>
                       <TableCell>
@@ -450,9 +450,19 @@ export function UserAdmin() {
                 </TableBody>
               </Table>
               <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  每页显示 {pageSize} 条，当前第 {safePage} / {displayTotalPages} 页，共 {formatInteger(total)} 个用户
-                </p>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <span>每页</span>
+                  {[20, 50, 100].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => { setPageSize(n); setPage(1) }}
+                      className={`px-2 py-0.5 rounded border text-xs font-medium transition-colors ${pageSize === n ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:border-primary'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <span>条，当前第 {safePage} / {displayTotalPages} 页，共 {formatInteger(total)} 个用户</span>
+                </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -507,7 +517,7 @@ export function UserAdmin() {
                 <p className="text-xs text-muted-foreground">注册时间 {insight.registeredAt}</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">邀请码 {insight.inviteCode || '-'}</Badge>
-                  <Badge variant="secondary">链上等级 V{insight.effectiveLevel}</Badge>
+                  <Badge variant="secondary">链上等级 {insight.effectiveLevel > 0 ? `V${insight.effectiveLevel}` : '未达级'}</Badge>
                 </div>
               </CardContent>
             </Card>

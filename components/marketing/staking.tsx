@@ -2,6 +2,7 @@
 
 import { ArrowRight, Coins, DollarSign, Clock, Users, Shield, Gift, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useLanguage } from './language-provider'
 import { useRewardConfig } from '@/lib/reward-config'
 
@@ -14,13 +15,26 @@ function formatLevelThreshold(value: number) {
 export function Staking() {
   const { t } = useLanguage()
   const { config: rewardConfig } = useRewardConfig()
+  const [minStakeUsd, setMinStakeUsd] = useState(10)
+  useEffect(() => {
+    fetch('/api/admin/chain-params')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.minStakeUsd) setMinStakeUsd(Number(d.minStakeUsd)) })
+      .catch(() => {})
+  }, [])
 
-  const periods = [
-    { days: 7, rate: '0.7%', total: '+4.9%' },
-    { days: 15, rate: '0.8%', total: '+12%' },
-    { days: 30, rate: '0.9%', total: '+27%' },
-    { days: 60, rate: '1.0%', total: '+60%' },
-  ]
+  const periods = rewardConfig.periodDurations.map((days, i) => {
+    const rate = rewardConfig.periodRates[i]
+    const unit = rewardConfig.periodUnits[i]
+    const durationDays = unit === 'hour' ? days / 24 : days
+    const totalPct = (durationDays * rate).toFixed(1)
+    return {
+      days,
+      unit,
+      rate: `${rate}%`,
+      total: `+${totalPct}%`,
+    }
+  })
 
   const levels = [
     { level: 'V1', rate: `${rewardConfig.levelRates[0]}%`, threshold: formatLevelThreshold(rewardConfig.levelThresholds[0]) },
@@ -130,7 +144,7 @@ export function Staking() {
             ))}
           </div>
           <p className="text-sm text-muted-foreground mt-4 text-center">
-            {t("Min $100 | Principal unlocked at maturity, 0 fee withdrawal", "最低质押 $100 | 本金到期解锁，全额提取 0 手续费")}
+            {t(`Min $${minStakeUsd} | Principal unlocked at maturity, 0 fee withdrawal`, `最低质押 $${minStakeUsd} | 本金到期解锁，全额提取 0 手续费`)}
           </p>
         </div>
 

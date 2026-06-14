@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
           create: {
             walletAddress: rootAddr,
             uid: 100000,
-            inviteCode: "VVVROOT00",
+            inviteCode: "VVVROOT0",
             referrerAddress: null,
           },
         });

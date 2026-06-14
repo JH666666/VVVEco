@@ -70,10 +70,10 @@ interface StakePeriod {
 }
 
 const defaultStakePeriods: StakePeriod[] = [
-  { duration: 7, unit: 'day', durationDays: 7, dailyRate: 0.7, totalReturn: 4.9 },
-  { duration: 15, unit: 'day', durationDays: 15, dailyRate: 0.8, totalReturn: 12 },
-  { duration: 30, unit: 'day', durationDays: 30, dailyRate: 0.9, totalReturn: 27 },
-  { duration: 60, unit: 'day', durationDays: 60, dailyRate: 1, totalReturn: 60 },
+  { duration: 1, unit: 'day', durationDays: 1, dailyRate: 1, totalReturn: 1 },
+  { duration: 2, unit: 'day', durationDays: 2, dailyRate: 1, totalReturn: 2 },
+  { duration: 3, unit: 'day', durationDays: 3, dailyRate: 1, totalReturn: 3 },
+  { duration: 4, unit: 'day', durationDays: 4, dailyRate: 1, totalReturn: 4 },
 ]
 
 function getPeriodLabel(period: StakePeriod, t: (zh: string, en: string) => string) {
@@ -112,6 +112,13 @@ export function StakingHub() {
   const [selectedPeriod, setSelectedPeriod] = useState<StakePeriod>(defaultStakePeriods[1])
   const [stakeAmount, setStakeAmount] = useState('')
   const [isStaking, setIsStaking] = useState(false)
+  const [minStakeUsd, setMinStakeUsd] = useState(10)
+  useEffect(() => {
+    fetch('/api/admin/chain-params')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.minStakeUsd) setMinStakeUsd(Number(d.minStakeUsd)) })
+      .catch(() => {})
+  }, [])
   useEffect(() => {
     setSelectedPeriod(current => stakePeriods.find(period => period.duration === current.duration && period.unit === current.unit) ?? stakePeriods[1])
   }, [stakePeriods])
@@ -198,7 +205,7 @@ export function StakingHub() {
     ? Number(formatUnits(realBalance, 18))
     : 0
   const availableUsdBalance = availableVvvBalance * vvvPrice
-  const stakeDisabled = !address || !isBaseSepolia || usdValue < 100 || (stakeMode === 'coin' ? numericStakeAmount > availableVvvBalance : numericStakeAmount > availableUsdBalance)
+  const stakeDisabled = !address || !isBaseSepolia || usdValue < minStakeUsd || (stakeMode === 'coin' ? numericStakeAmount > availableVvvBalance : numericStakeAmount > availableUsdBalance)
 
 
   const handleBindInvite = async () => {
@@ -620,7 +627,7 @@ export function StakingHub() {
                 </span>
                 <span className="text-muted-foreground flex items-center gap-1">
                   <Info className="h-3 w-3" />
-                  {t('最低质押 $100', 'Min. stake $100')}
+                  {t(`最低质押 $${minStakeUsd}`, `Min. stake $${minStakeUsd}`)}
                 </span>
               </div>
             </div>

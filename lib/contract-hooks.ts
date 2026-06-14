@@ -28,7 +28,7 @@ async function waitForRawReceipt(txHash: string, maxWaitMs = 120_000): Promise<R
       /* ignore polling errors */
     }
   }
-  return null;
+  throw new Error("交易等待超时，请在钱包中确认是否已上链");
 }
 
 // Base Sepolia deployed addresses — env var takes priority, hardcoded fallback prevents zero-address bugs
@@ -171,13 +171,14 @@ export function useVVVAllowance(spender: `0x${string}`) {
 
 // ═══════════════ Read Staking ═══════════════
 export function useLatestPrice() {
-  const { data } = useReadContract({
-    address: STAKING_ADDR,
-    abi: STAKING_ABI,
-    functionName: "getLatestPrice",
-    chainId: 84532,
-  });
-  return (data as bigint) ?? parseEther("0.2");
+  const [price, setPrice] = useState<bigint>(0n);
+  useEffect(() => {
+    fetch("/api/admin/chain-params")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.mockPrice) setPrice(parseEther(d.mockPrice)); })
+      .catch(() => {});
+  }, []);
+  return price;
 }
 
 export function useLatestPriceData() {
@@ -191,24 +192,26 @@ export function useLatestPriceData() {
 }
 
 export function useSetMockPrice() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (newPrice: bigint) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setMockPrice(uint256 newPrice)"]),
       functionName: "setMockPrice",
       args: [newPrice],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 
 export function useMinStakeUsd() {
-  const { data } = useReadContract({
+  const { data, refetch } = useReadContract({
     address: STAKING_ADDR,
     abi: STAKING_ABI,
     functionName: "minStakeUsd",
+    chainId: 84532,
+    query: { retry: 3, retryDelay: 1500 },
   });
-  return (data as bigint) ?? 0n;
+  return { value: (data as bigint) ?? 0n, refetch };
 }
 
 export function useDurationRate(days: number) {
@@ -255,34 +258,42 @@ export function useLevelRate(level: number) {
 }
 
 export function useStakingOwner() {
-  const { data } = useReadContract({
-    address: STAKING_ADDR,
-    abi: STAKING_ABI,
-    functionName: "owner",
-  });
-  return (data as string) ?? "";
+  const [owner, setOwner] = useState("");
+  useEffect(() => {
+    fetch("/api/admin/chain-params")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.owner) setOwner(d.owner); })
+      .catch(() => {});
+  }, []);
+  return owner;
 }
 
 export function useStakingOwnerData() {
-  const { data, refetch, isPending, isError } = useReadContract({
-    address: STAKING_ADDR,
-    abi: STAKING_ABI,
-    functionName: "owner",
-    chainId: 84532,
-    query: { retry: 3, retryDelay: 1500 },
-  });
-  return { owner: (data as string) ?? "", refetch, isPending, isError };
+  const [owner, setOwner] = useState("");
+  const [isPending, setIsPending] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const refetch = useCallback(() => {
+    setIsPending(true);
+    setIsError(false);
+    fetch("/api/admin/chain-params")
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => { setOwner(d.owner ?? ""); setIsError(!d.owner); })
+      .catch(() => setIsError(true))
+      .finally(() => setIsPending(false));
+  }, []);
+  useEffect(() => { refetch(); }, [refetch]);
+  return { owner, refetch, isPending, isError };
 }
 
 export function useTransferOwnership() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (newOwner: `0x${string}`) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function transferOwnership(address newOwner)"]),
       functionName: "transferOwnership",
       args: [newOwner],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 
@@ -366,87 +377,127 @@ export function useWithdrawPrincipal() {
 }
 
 export function useSetLevelThreshold() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (level: number, thresholdUsd: number) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setLevelThreshold(uint256 level, uint256 threshold)"]),
       functionName: "setLevelThreshold",
-      args: [level, BigInt(Math.floor(thresholdUsd * 1e18))],
+      args: [BigInt(level), BigInt(Math.floor(thresholdUsd * 1e18))],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 
 export function useSetLevelRate() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (level: number, rate: number) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setLevelRate(uint256 level, uint256 rate)"]),
       functionName: "setLevelRate",
-      args: [level, BigInt(rate)],
+      args: [BigInt(level), BigInt(rate)],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 
-// Admin write hooks
+// Admin write hooks — use window.ethereum.request + encodeFunctionData to avoid wagmi string-ABI parse error
+function getEth() {
+  const eth = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>).ethereum : null;
+  if (!eth) throw new Error("未找到钱包，请使用钱包浏览器访问");
+  return eth as { request: (args: unknown) => Promise<string> };
+}
+
+// 发送管理员交易：显式带 nonce 避免钱包去重误判
+async function sendAdminTx(from: string | undefined, to: string, data: string): Promise<string> {
+  const eth = getEth();
+  const nonce = await eth.request({ method: "eth_getTransactionCount", params: [from, "pending"] } as unknown as Parameters<typeof eth.request>[0]);
+  const txHash = await eth.request({ method: "eth_sendTransaction", params: [{ from, to, data, nonce }] });
+  await waitForRawReceipt(txHash);
+  return txHash;
+}
+
 export function useSetFreezeStatus() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (target: string, frozen: boolean) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setFreezeStatus(address target, bool frozen)"]),
       functionName: "setFreezeStatus",
       args: [target as `0x${string}`, frozen],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 
 export function useSetFeePercent() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (fee: number) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setFeePercent(uint256 newFee)"]),
       functionName: "setFeePercent",
       args: [BigInt(fee)],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 
 export function useSetProjectWallet() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (wallet: string) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setProjectWallet(address newWallet)"]),
       functionName: "setProjectWallet",
       args: [wallet as `0x${string}`],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 
 export function useSetFeeWallet() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (wallet: string) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setFeeWallet(address newFeeWallet)"]),
       functionName: "setFeeWallet",
       args: [wallet as `0x${string}`],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 
 export function useSetOwner() {
-  const { writeContractAsync } = useWriteContract();
+  const { address } = useAccount();
   return async (newOwner: string) => {
-    return writeContractAsync({
-      address: STAKING_ADDR,
-      abi: STAKING_ABI,
+    const data = encodeFunctionData({
+      abi: parseAbi(["function transferOwnership(address newOwner)"]),
       functionName: "transferOwnership",
       args: [newOwner as `0x${string}`],
     });
+    return sendAdminTx(address, STAKING_ADDR, data);
+  };
+}
+
+export function useSetMinStakeUsd() {
+  const { address } = useAccount();
+  return async (minUsd: number) => {
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setMinStakeUsd(uint256 min)"]),
+      functionName: "setMinStakeUsd",
+      args: [BigInt(Math.round(minUsd)) * BigInt("1000000000000000000")],
+    });
+    return sendAdminTx(address, STAKING_ADDR, data);
+  };
+}
+
+export function useSetDurationRate() {
+  const { address } = useAccount();
+  // ratePermille = dailyRatePct * 10  (e.g. 1% → 10)
+  return async (durationDays: number, ratePermille: number) => {
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setDurationRate(uint256 _durationDays, uint256 _rateNew)"]),
+      functionName: "setDurationRate",
+      args: [BigInt(durationDays), BigInt(ratePermille)],
+    });
+    return sendAdminTx(address, STAKING_ADDR, data);
   };
 }
 

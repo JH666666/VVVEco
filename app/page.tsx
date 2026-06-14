@@ -12,10 +12,12 @@ import { Staking } from '@/components/marketing/staking'
 import { Team } from '@/components/marketing/team'
 import { Timeline } from '@/components/marketing/timeline'
 import { LanguageProvider } from '@/components/marketing/language-provider'
+import { GlobalStatsProvider } from '@/contexts/global-stats-context'
 
 export default function Home() {
   return (
     <LanguageProvider>
+      <GlobalStatsProvider>
       <main className="min-h-screen">
         <Header />
         <Hero />
@@ -31,6 +33,7 @@ export default function Home() {
         <GlobalStats />
         <Footer />
       </main>
+      </GlobalStatsProvider>
     </LanguageProvider>
   )
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const ADMIN_SESSION_COOKIE = 'vvveco_admin_session'
-const SESSION_MAX_AGE = 60 * 30 // 30分钟无操作自动退出
+const SESSION_MAX_AGE = 60 * 60 * 8 // 8小时无操作自动退出
 
 function getAdminAccount() { return process.env.ADMIN_ACCOUNT ?? 'vvv_admin' }
 function getSessionSecret() { return process.env.ADMIN_SESSION_SECRET ?? 'vvveco-local-admin-session-secret' }
@@ -62,5 +62,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/web', '/admin/contract', '/admin/global', '/admin/users', '/admin/orders', '/admin/social'],
+  matcher: [
+    '/admin/web', '/admin/contract', '/admin/global', '/admin/users', '/admin/orders', '/admin/social',
+    // RSC payload requests for client-side navigation (Next.js App Router)
+    '/_next/data/:path*/admin/:page*',
+  ],
 }
