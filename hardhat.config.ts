@@ -20,6 +20,12 @@ const config: HardhatUserConfig = {
       chainId: 84532,
       accounts,
     },
+    baseMainnet: {
+      type: "http",
+      url: process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org",
+      chainId: 8453,
+      accounts,
+    },
   },
 };
 
