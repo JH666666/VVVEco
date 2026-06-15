@@ -118,8 +118,11 @@ contract AerodromeAdapter is ISwapRouter, Ownable, ReentrancyGuard {
         uint256 numerator   = reserveIn * amountOut * 10000;
         uint256 denominator = (reserveOut - amountOut) * (10000 - feeBps);
 
+        // Add 1% buffer so the fee swap (executed after net swap shifts reserves)
+        // still passes amountOutMin even when pool state has changed within the tx.
+        uint256 base = numerator / denominator + 1;
         uint256[] memory amounts = new uint256[](2);
-        amounts[0] = numerator / denominator + 1;
+        amounts[0] = base + (base / 100);
         amounts[1] = amountOut;
         return amounts;
     }

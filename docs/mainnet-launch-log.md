@@ -75,6 +75,56 @@ function swapExactETHForTokens(
 | Pool reserves | WETH 2614 / VVV 283826，fee = 30bps |
 | getAmountsOut 交叉验证 | 误差 0.0000%，完全精确 |
 
+---
+
+## 2026-06-15 — AerodromeAdapter v3：fee swap 修复（1% buffer）
+
+### 问题描述
+
+用户 VVV 已到账，但 FeeWallet（`0xb32134...`）始终未收到手续费 VVV。
+链上每笔 RewardPaid tx 同时出现 `PayoutQueued(user, 0, feeVvv, "fee swap failed")`，
+`pendingFeeForUser[user]` 持续累积（累计 ~0.00248536 VVV）。
+
+### 根本原因
+
+`_tryExecute` 在同一笔 tx 内连续执行两次 swap：
+1. **net swap**：`getAmountsIn(netVvv)` → `ethForNet`（按原始 reserves 计算） → swap 成功 → pool reserves 改变
+2. **fee swap**：`getAmountsIn(feeVvv)` → `ethForFee`（也按原始 reserves 计算）→ 但此时 pool reserves 已被 net swap 改变
+
+Net swap 消耗了池中少量 VVV，导致 fee swap 时 `swapExactETHForTokens` 的实际输出：
+
+```
+feeVvvActual = 151,828,702,239,645 wei
+FEE_VVV min  = 151,828,703,703,703 wei
+shortfall    = 1,464,058 wei  ← amountOutMin 检查失败
+```
+
+fee swap revert → catch → `pendingFeeForUser += feeVvv` → "fee swap failed"
+
+### 修复方案
+
+`AerodromeAdapter.getAmountsIn` 加 1% buffer，覆盖 net swap 造成的 reserve 偏移：
+
+```solidity
+uint256 base = numerator / denominator + 1;
+amounts[0] = base + (base / 100); // +1% buffer
+```
+
+效果验证：
+- net swap 后，fee swap 实际输出 = 0.0001533470 VVV ≥ FEE_VVV 0.0001518287 VVV ✅
+- 每笔 claim 额外消耗 ETH < 0.00000083 ETH ≈ 可忽略
+- 多余 ETH 全部转化为 VVV（用户及 feeWallet 各自略多收 ~1%）
+
+### 部署记录
+
+| 项目 | 值 |
+|---|---|
+| 新 AerodromeAdapter v3 | `0x0EBa8c690a11bc1F1B7Db909E7D0748d770F1ac6` |
+| Payout.setRouter | ✅ 已更新 |
+| Treasury.setRouter | ✅ 已更新 |
+
+---
+
 ### 上线确认
 
 - 首笔真实领取 tx：`0x4eed10fa4704b3493220c07ad6f3d2a008433b947a0eef7c19d844bb00d89bc8`（此 tx 仍为旧 adapter，"swap failed"）
