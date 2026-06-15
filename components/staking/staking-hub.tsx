@@ -125,7 +125,7 @@ export function StakingHub() {
 
   const { signedAddress: address } = useWalletAuth()
   const chainId = useChainId()
-  const isBaseSepolia = chainId === 84532
+  const isBase = chainId === 8453
   const realApprove = useApproveVVV()
   const realStake = useStake()
   const { balance: realBalance, isPending: balancePending, isError: balanceError, refetch: refetchBalance } = useVVVBalanceData()
@@ -201,11 +201,11 @@ export function StakingHub() {
     ? vvvAmount * (selectedPeriod.totalReturn / 100)
     : usdValue * (selectedPeriod.totalReturn / 100)
   // formatUnits handles large BigInt safely without float precision loss
-  const availableVvvBalance = (address && isBaseSepolia && !balancePending && !balanceError)
+  const availableVvvBalance = (address && isBase && !balancePending && !balanceError)
     ? Number(formatUnits(realBalance, 18))
     : 0
   const availableUsdBalance = availableVvvBalance * vvvPrice
-  const stakeDisabled = !address || !isBaseSepolia || usdValue < minStakeUsd || (stakeMode === 'coin' ? numericStakeAmount > availableVvvBalance : numericStakeAmount > availableUsdBalance)
+  const stakeDisabled = !address || !isBase || usdValue < minStakeUsd || (stakeMode === 'coin' ? numericStakeAmount > availableVvvBalance : numericStakeAmount > availableUsdBalance)
 
 
   const handleBindInvite = async () => {
@@ -578,7 +578,7 @@ export function StakingHub() {
                 <span className="text-muted-foreground">
                   {!address
                     ? t('请连接钱包', 'Please connect wallet')
-                    : !isBaseSepolia
+                    : !isBase
                     ? t(`请切换到 Base Sepolia（当前 chainId: ${chainId}）`, `Please switch to Base Sepolia (current chainId: ${chainId})`)
                     : balancePending
                     ? t('读取余额中...', 'Loading balance...')
@@ -612,7 +612,7 @@ export function StakingHub() {
                     variant="ghost"
                     size="sm"
                     className="h-7 sm:h-8 text-xs text-primary hover:text-primary hover:bg-primary/10 px-2 font-medium"
-                    disabled={!address || !isBaseSepolia || balancePending || balanceError || availableVvvBalance === 0}
+                    disabled={!address || !isBase || balancePending || balanceError || availableVvvBalance === 0}
                     onClick={() => setStakeAmount(stakeMode === 'coin' ? String(availableVvvBalance) : availableUsdBalance.toFixed(2))}
                   >
                     MAX

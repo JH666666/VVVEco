@@ -3,17 +3,17 @@
  * Uses viem public client to read contract state — never called from browser.
  */
 import { createPublicClient, http } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 
 const STAKING_ADDR = (
-  process.env.NEXT_PUBLIC_VVECO_STAKING ?? "0x707AeF5E4331c45F1b11aA50EB452b396cE69DD9"
+  process.env.NEXT_PUBLIC_VVECO_STAKING ?? "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34"
 ) as `0x${string}`;
 
 const RPC_URL =
-  process.env.BASE_SEPOLIA_RPC ?? "https://sepolia.base.org";
+  process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org";
 
 const client = createPublicClient({
-  chain: baseSepolia,
+  chain: base,
   transport: http(RPC_URL),
 });
 

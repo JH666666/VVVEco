@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http, parseAbiItem } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 
-const STAKING = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xf1F2A60EdD2110a42F5Ec9d760348C0fB4Bc1659") as `0x${string}`;
-const RPC_URL = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || "https://sepolia.base.org";
-const DEPLOY_BLOCK = 42_713_088n;
+const STAKING = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34") as `0x${string}`;
+const RPC_URL = process.env.NEXT_PUBLIC_BASE_MAINNET_RPC || "https://mainnet.base.org";
+const DEPLOY_BLOCK = 47_346_653n;
 const CHUNK = 1990n;
 const TTL_MS = 300_000; // 5 分钟缓存，团队奖励不频繁变动
 const CONCURRENCY = 5;  // 最多同时 5 个并发块查询
@@ -12,7 +12,7 @@ const CONCURRENCY = 5;  // 最多同时 5 个并发块查询
 const EVENT_ABI = parseAbiItem("event TeamRewardAccrued(address indexed recipient, address indexed claimer, uint256 bonus)");
 
 const publicClient = createPublicClient({
-  chain: baseSepolia,
+  chain: base,
   transport: http(RPC_URL, { retryCount: 3, retryDelay: 500 }),
 });
 

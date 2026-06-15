@@ -16,7 +16,7 @@ export type VvvEcoAbiItem = {
 export const VVV_ECO_STAKING_CONTRACT = {
   name: 'VVVValueEcoStakingFinal',
   network: 'Base',
-  chainId: 84532,
+  chainId: 8453,
   address: '',
   sourceFile: '../VVV_Eco_Final.sol.txt',
 } as const
@@ -100,13 +100,6 @@ export const VVV_ECO_STAKING_ABI: readonly VvvEcoAbiItem[] = [
   },
   {
     type: 'function',
-    name: 'setMockPrice',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: '_newPrice', type: 'uint256' }],
-    outputs: [],
-  },
-  {
-    type: 'function',
     name: 'withdrawSurplusETH',
     stateMutability: 'nonpayable',
     inputs: [{ name: '_amount', type: 'uint256' }],
@@ -116,7 +109,6 @@ export const VVV_ECO_STAKING_ABI: readonly VvvEcoAbiItem[] = [
   { type: 'function', name: 'projectWallet', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'feeWallet', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'vvvToken', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
-  { type: 'function', name: 'mockPrice', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'minStakeUsd', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'feePercent', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {

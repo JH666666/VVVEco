@@ -16,7 +16,7 @@ const STAKING_CONTRACT = (
   process.env.NEXT_PUBLIC_VVECO_STAKING ?? ""
 ).toLowerCase();
 
-const RPC_URL = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC ?? "https://sepolia.base.org";
+const RPC_URL = process.env.NEXT_PUBLIC_BASE_MAINNET_RPC ?? "https://mainnet.base.org";
 
 // Addresses that are known local/test addresses — skip verification
 const LOCAL_BYPASS_PREFIXES = ["0x0000000000000000000000000000000000000000"];

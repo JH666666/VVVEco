@@ -64,7 +64,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   )
 }
 
-const BASE_SEPOLIA_ID = 84532
+const BASE_MAINNET_ID = 8453
 
 function parseChainId(id: string): number {
   if (!id) return -1
@@ -75,7 +75,7 @@ function AdminWalletButton() {
   const { address, chainId, connectWallet, disconnectWallet, isConnected } = useAdminWallet()
 
   if (isConnected) {
-    const isCorrectChain = parseChainId(chainId) === BASE_SEPOLIA_ID
+    const isCorrectChain = parseChainId(chainId) === BASE_MAINNET_ID
     return (
       <div className="flex items-center gap-2">
         <span
@@ -86,7 +86,7 @@ function AdminWalletButton() {
               : 'bg-red-500/20 text-red-400',
           )}
         >
-          {isCorrectChain ? 'Base Sepolia' : '错误链'}
+          {isCorrectChain ? 'Base' : '错误链'}
         </span>
         <button
           type="button"

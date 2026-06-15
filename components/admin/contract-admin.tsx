@@ -7,7 +7,7 @@ import { formatSimAddress, resolveSimInviteCode } from '@/contexts/local-web3-si
 import { formatEther, parseEther } from 'viem'
 import { useAccount, useChainId, useBalance } from 'wagmi'
 import { useAdminControls } from '@/lib/admin-controls'
-import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMockPrice, useSetMinStakeUsd, useSetDurationRate, useStakingOwnerData, useRescueETH } from '@/lib/contract-hooks'
+import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMinStakeUsd, useSetDurationRate, useStakingOwnerData, useRescueETH } from '@/lib/contract-hooks'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -100,18 +100,6 @@ const ownerActions: Array<{
     placeholder: '',
     buttonLabel: '更新最低质押金额',
     note: '⚠️ 链上操作，需 Owner 钱包确认。同步更新前端 staking 页面的提示文字。',
-  },
-  {
-    key: 'feePercent',
-    icon: Coins,
-    title: '测试价格模拟',
-    subtitle: '仅用于测试网模拟 VVV 价格，正式主网不会使用此价格。',
-    description: 'setMockPrice(newPrice)',
-    currentValueLabel: '当前模拟价格',
-    label: '新模拟价格（USD）',
-    placeholder: '',
-    buttonLabel: '更新模拟价格',
-    note: '⚠️ 仅测试网有效。修改后会影响金本位订单的收益和本金计算。',
   },
 ]
 
@@ -219,17 +207,16 @@ export function ContractAdmin() {
   const [savingKey, setSavingKey] = useState<string | null>(null)
   // Chain reads via wagmi (uses configured transport, auto-refetches on account/chain change)
   const { owner: ownerAddr, refetch: refetchOwner, isPending: ownerPending, isError: ownerError } = useStakingOwnerData()
-  const { data: payoutBalanceData, isPending: balancePending, refetch: refetchPayoutBalance } = useBalance({ address: PAYOUT_ADDR, chainId: 84532 })
+  const { data: payoutBalanceData, isPending: balancePending, refetch: refetchPayoutBalance } = useBalance({ address: PAYOUT_ADDR, chainId: 8453 })
   const rescueETHChain = useRescueETH()
   const { address: connectedAddress } = useAccount()
   const currentChainId = useChainId()
-  const isBaseSepolia = currentChainId === 84532
+  const isBaseMainnet = currentChainId === 8453
   const transferOwnershipChain = useTransferOwnership()
-  const setMockPriceChain = useSetMockPrice()
   const setMinStakeUsdChain = useSetMinStakeUsd()
 
-  // minStakeUsd and mockPrice: read from server-side API (avoids wagmi client-side read failures)
-  const [chainParams, setChainParams] = useState<{ minStakeUsd: string; mockPrice: string } | null>(null)
+  // minStakeUsd and currentPrice: read from server-side API (avoids wagmi client-side read failures)
+  const [chainParams, setChainParams] = useState<{ minStakeUsd: string; currentPrice: string } | null>(null)
   const fetchChainParams = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/chain-params')
@@ -238,9 +225,7 @@ export function ContractAdmin() {
   }, [])
   useEffect(() => { fetchChainParams() }, [fetchChainParams])
   const isOwnerWallet = !ownerPending && !ownerError && Boolean(connectedAddress && ownerAddr && connectedAddress.toLowerCase() === ownerAddr.toLowerCase())
-  const editableOwnerActions = ownerActions.filter(
-    a => a.description !== 'setMockPrice(newPrice)' || isBaseSepolia
-  )
+  const editableOwnerActions = ownerActions
 
   useEffect(() => {
     fetchContractConfig().then(setContractConfig)
@@ -258,10 +243,6 @@ export function ContractAdmin() {
     if (key === 'owner') {
       if (ownerError) return ''
       return ownerAddr
-    }
-    if (description === 'setMockPrice(newPrice)') {
-      if (!chainParams) return ''
-      return `$${chainParams.mockPrice}`
     }
     if (key === 'minStakeUsd') {
       if (!chainParams) return ''
@@ -377,12 +358,6 @@ export function ContractAdmin() {
       if (draftKey === 'transferOwnership(newOwner)') {
         toast({ title: "转移 Owner 权限中...", description: "请在钱包确认" })
         await transferOwnershipChain(value as `0x${string}`)
-      } else if (draftKey === 'setMockPrice(newPrice)') {
-        toast({ title: "更新价格中...", description: "请在钱包确认" })
-        const priceWei = parseEther(value)
-        await setMockPriceChain(priceWei)
-        await new Promise(r => setTimeout(r, 2000))
-        await fetchChainParams()
       } else if (key === "minStakeUsd") {
         toast({ title: "更新最低质押金额中...", description: "请在钱包确认" })
         await setMinStakeUsdChain(Number(value))

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAccount, useConnect, useDisconnect, useSignMessage, useSwitchChain } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { baseSepolia } from "wagmi/chains";
+import { base } from "wagmi/chains";
 import { cn } from "@/lib/utils";
 import { useWalletAuth } from "@/contexts/wallet-auth-context";
 
@@ -242,7 +242,7 @@ export function WalletButton({ className, size = "md" }: WalletButtonProps) {
       }
       pendingSignRef.current = true;
       connect(
-        { connector: injected(), chainId: baseSepolia.id },
+        { connector: injected(), chainId: base.id },
         { onError: () => { pendingSignRef.current = false; setDialogError("钱包连接失败，请重试"); } }
       );
     }
@@ -275,17 +275,17 @@ export function WalletButton({ className, size = "md" }: WalletButtonProps) {
       />
 
       {/* 已签名但链不对 */}
-      {isSigned && (!chain || chain.id !== baseSepolia.id) && (
+      {isSigned && (!chain || chain.id !== base.id) && (
         <button
-          onClick={() => switchChain({ chainId: baseSepolia.id })}
-          className={cn(base, sizes[size], "bg-yellow-500 text-white hover:bg-yellow-600", className)}
+          onClick={() => switchChain({ chainId: base.id })}
+          className={cn("rounded-full font-medium transition-colors", sizes[size], "bg-yellow-500 text-white hover:bg-yellow-600", className)}
         >
-          切换到 Base Sepolia
+          切换到 Base
         </button>
       )}
 
       {/* 已签名，链正确 */}
-      {isSigned && signedAddress && chain?.id === baseSepolia.id && (
+      {isSigned && signedAddress && chain?.id === base.id && (
         <button
           onClick={() => { disconnect(); clearAuth(); }}
           className={cn(base, sizes[size], "inline-flex items-center gap-1.5 border border-border bg-background hover:bg-secondary font-mono", className)}

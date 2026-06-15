@@ -31,11 +31,11 @@ async function waitForRawReceipt(txHash: string, maxWaitMs = 120_000): Promise<R
   throw new Error("交易等待超时，请在钱包中确认是否已上链");
 }
 
-// Base Sepolia deployed addresses — env var takes priority, hardcoded fallback prevents zero-address bugs
-export const VVV_TOKEN_ADDR = (process.env.NEXT_PUBLIC_VVV_TOKEN || "0x3C03096D6174b7d6Cc6d5f1e442f43B269Bc3A30") as `0x${string}`;
-export const STAKING_ADDR   = (process.env.NEXT_PUBLIC_VVECO_STAKING  || "0x707AeF5E4331c45F1b11aA50EB452b396cE69DD9") as `0x${string}`;
-export const PAYOUT_ADDR    = (process.env.NEXT_PUBLIC_VVECO_PAYOUT   || "0x6cb514724C355Be8A2d19D1228DF8300cBb1CbA6") as `0x${string}`;
-export const TREASURY_ADDR  = (process.env.NEXT_PUBLIC_VVECO_TREASURY || "0xD9247b65A641c67b4Db600494af67E0De6e17e72") as `0x${string}`;
+// Base Mainnet deployed addresses — env var takes priority, hardcoded fallback prevents zero-address bugs
+export const VVV_TOKEN_ADDR = (process.env.NEXT_PUBLIC_VVV_TOKEN || "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf") as `0x${string}`;
+export const STAKING_ADDR   = (process.env.NEXT_PUBLIC_VVECO_STAKING  || "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34") as `0x${string}`;
+export const PAYOUT_ADDR    = (process.env.NEXT_PUBLIC_VVECO_PAYOUT   || "0xc9102200271245660AB1C640CEB502936BDe04E1") as `0x${string}`;
+export const TREASURY_ADDR  = (process.env.NEXT_PUBLIC_VVECO_TREASURY || "0xA223C9e22532a7d985004fe3714AB3D873F4c3a2") as `0x${string}`;
 
 const VVV_ABI = [
   "function balanceOf(address) view returns (uint256)",
@@ -76,7 +76,6 @@ const STAKING_ABI = [
   "function setLevelThreshold(uint8 level, uint256 threshold)",
   "function setLevelRate(uint8 level, uint256 rate)",
   "function setFreezeStatus(address target, bool frozen)",
-  "function setMockPrice(uint256 newPrice)",
   "function setMinStakeUsd(uint256 min)",
   "function setProjectWallet(address newWallet)",
   "function setFeeWallet(address newWallet)",
@@ -92,7 +91,7 @@ export function useVVVBalance() {
     abi: VVV_ABI,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    chainId: 84532,
+    chainId: 8453,
   });
   return (data as bigint) ?? 0n;
 }
@@ -107,7 +106,7 @@ export function useVVVBalanceData() {
   const refetch = useCallback(() => setTick(t => t + 1), []);
 
   useEffect(() => {
-    if (!address || chainId !== 84532) {
+    if (!address || chainId !== 8453) {
       setBalance(0n); setIsPending(false); setIsError(false); return;
     }
     let cancelled = false;
@@ -132,9 +131,9 @@ export function useVVVBalanceData() {
       }
       // 2. 备用：公共 RPC
       for (const rpc of [
-        'https://sepolia.base.org',
-        'https://base-sepolia-rpc.publicnode.com',
-        'https://rpc.ankr.com/base_sepolia',
+        'https://mainnet.base.org',
+        'https://base-rpc.publicnode.com',
+        'https://rpc.ankr.com/base',
       ]) {
         if (cancelled) return;
         try {
@@ -171,7 +170,7 @@ export function useVVVAllowance(spender: `0x${string}`) {
   return (data as bigint) ?? 0n;
 }
 
-const PRICE_CACHE_KEY = "vvveco-mock-price";
+const PRICE_CACHE_KEY = "vvveco-price";
 
 // ═══════════════ Read Staking ═══════════════
 export function useLatestPrice() {
@@ -185,9 +184,9 @@ export function useLatestPrice() {
     fetch("/api/admin/chain-params")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.mockPrice) {
-          setPrice(parseEther(d.mockPrice));
-          window.localStorage.setItem(PRICE_CACHE_KEY, String(d.mockPrice));
+        if (d?.currentPrice) {
+          setPrice(parseEther(d.currentPrice));
+          window.localStorage.setItem(PRICE_CACHE_KEY, String(d.currentPrice));
         }
       })
       .catch(() => {});
@@ -200,21 +199,9 @@ export function useLatestPriceData() {
     address: STAKING_ADDR,
     abi: STAKING_ABI,
     functionName: "getLatestPrice",
-    chainId: 84532,
+    chainId: 8453,
   });
   return { price: (data as bigint) ?? 0n, refetch };
-}
-
-export function useSetMockPrice() {
-  const { address } = useAccount();
-  return async (newPrice: bigint) => {
-    const data = encodeFunctionData({
-      abi: parseAbi(["function setMockPrice(uint256 newPrice)"]),
-      functionName: "setMockPrice",
-      args: [newPrice],
-    });
-    return sendAdminTx(address, STAKING_ADDR, data);
-  };
 }
 
 export function useMinStakeUsd() {
@@ -222,7 +209,7 @@ export function useMinStakeUsd() {
     address: STAKING_ADDR,
     abi: STAKING_ABI,
     functionName: "minStakeUsd",
-    chainId: 84532,
+    chainId: 8453,
     query: { retry: 3, retryDelay: 1500 },
   });
   return { value: (data as bigint) ?? 0n, refetch };

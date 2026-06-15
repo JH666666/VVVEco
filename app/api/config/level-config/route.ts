@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, http, parseAbi } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 
-const STAKING = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xf1F2A60EdD2110a42F5Ec9d760348C0fB4Bc1659") as `0x${string}`;
+const STAKING = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34") as `0x${string}`;
 
 const abi = parseAbi([
   "function levelThresholds(uint256) view returns (uint256)",
@@ -10,8 +10,8 @@ const abi = parseAbi([
 ]);
 
 const client = createPublicClient({
-  chain: baseSepolia,
-  transport: http(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || "https://sepolia.base.org"),
+  chain: base,
+  transport: http(process.env.BASE_MAINNET_RPC || "https://mainnet.base.org"),
 });
 
 export async function GET() {

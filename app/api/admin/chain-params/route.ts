@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, http, formatEther } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 
-const STAKING_ADDR = "0x707AeF5E4331c45F1b11aA50EB452b396cE69DD9" as `0x${string}`;
+const STAKING_ADDR = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34") as `0x${string}`;
 
 const ABI = [
   { name: "minStakeUsd", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
@@ -11,11 +11,11 @@ const ABI = [
 ] as const;
 
 const client = createPublicClient({
-  chain: baseSepolia,
-  transport: http(process.env.BASE_SEPOLIA_RPC ?? "https://sepolia.base.org"),
+  chain: base,
+  transport: http(process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org"),
 });
 
-// GET /api/admin/chain-params — returns minStakeUsd and mockPrice from chain
+// GET /api/admin/chain-params — returns minStakeUsd and currentPrice (real-time Aerodrome+Chainlink) from chain
 export async function GET() {
   try {
     const [minStakeRaw, priceRaw, ownerAddr] = await Promise.all([
@@ -25,7 +25,7 @@ export async function GET() {
     ]);
     return NextResponse.json({
       minStakeUsd: formatEther(minStakeRaw),
-      mockPrice: formatEther(priceRaw),
+      currentPrice: formatEther(priceRaw),
       owner: ownerAddr,
     });
   } catch (e) {
