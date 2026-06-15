@@ -216,13 +216,28 @@ export function useMinStakeUsd() {
 }
 
 export function useDurationRate(days: number) {
-  const { data } = useReadContract({
-    address: STAKING_ADDR,
-    abi: STAKING_ABI,
-    functionName: "durationRates",
-    args: [BigInt(days)],
-  });
-  return data ? Number(data) / 10 : undefined;
+  const [rate, setRate] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    setRate(undefined);
+    if (!days) return;
+    const controller = new AbortController();
+    const selector = '0x2b9e3b25';
+    const arg = BigInt(days).toString(16).padStart(64, '0');
+    const calldata = selector + arg;
+    const body = JSON.stringify({
+      jsonrpc: '2.0', id: 1, method: 'eth_call',
+      params: [{ to: STAKING_ADDR, data: calldata }, 'latest'],
+    });
+    fetch('https://mainnet.base.org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal: controller.signal })
+      .then(r => r.json())
+      .then(json => {
+        const hex = json?.result;
+        if (hex && hex !== '0x') setRate(Number(BigInt(hex)) / 10);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [days]);
+  return rate;
 }
 
 export function useIsFrozen(wallet?: `0x${string}`) {
@@ -258,32 +273,21 @@ export function useLevelRate(level: number) {
   return data ? Number(data) : undefined;
 }
 
+const OWNER_ABI = [{ name: "owner", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }] as const;
+
 export function useStakingOwner() {
-  const [owner, setOwner] = useState("");
-  useEffect(() => {
-    fetch("/api/admin/chain-params")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.owner) setOwner(d.owner); })
-      .catch(() => {});
-  }, []);
-  return owner;
+  const { data } = useReadContract({ address: STAKING_ADDR, abi: OWNER_ABI, functionName: "owner", chainId: 8453 });
+  return (data as string | undefined) ?? "";
 }
 
 export function useStakingOwnerData() {
-  const [owner, setOwner] = useState("");
-  const [isPending, setIsPending] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const refetch = useCallback(() => {
-    setIsPending(true);
-    setIsError(false);
-    fetch("/api/admin/chain-params")
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => { setOwner(d.owner ?? ""); setIsError(!d.owner); })
-      .catch(() => setIsError(true))
-      .finally(() => setIsPending(false));
-  }, []);
-  useEffect(() => { refetch(); }, [refetch]);
-  return { owner, refetch, isPending, isError };
+  const { data, isPending, isError, refetch } = useReadContract({ address: STAKING_ADDR, abi: OWNER_ABI, functionName: "owner", chainId: 8453 });
+  return {
+    owner: (data as string | undefined) ?? "",
+    refetch: async () => { await refetch(); },
+    isPending,
+    isError,
+  };
 }
 
 export function useTransferOwnership() {
@@ -341,7 +345,8 @@ export function useStake() {
 
 export function useClaimRewards() {
   const { address } = useAccount();
-  return async (orderId: bigint) => {
+  return async (orderId: bigint, pendingReward?: number) => {
+    console.log('[claim] start', { functionName: 'claimOrderReward', args: [orderId.toString()], userAddress: address, pendingReward });
     const eth = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>).ethereum : null;
     if (!eth) throw new Error("未找到钱包，请使用钱包浏览器访问");
     const data = encodeFunctionData({
@@ -353,8 +358,13 @@ export function useClaimRewards() {
       method: "eth_sendTransaction",
       params: [{ from: address, to: STAKING_ADDR, data }],
     });
+    console.log('[claim] txHash:', txHash);
+    if (!txHash) throw new Error("交易未提交，钱包未返回交易 hash");
     const receipt = await waitForRawReceipt(txHash);
-    return { txHash, logs: receipt?.logs ?? [] };
+    if (!receipt) throw new Error("交易确认失败，未获取到链上回执");
+    if (receipt.status !== "0x1") throw new Error(`交易执行失败（status=${receipt.status}）`);
+    console.log('[claim] receipt.status:', receipt.status, 'logs count:', receipt.logs?.length ?? 0);
+    return { txHash, logs: receipt.logs ?? [] };
   };
 }
 
@@ -411,8 +421,12 @@ function getEth() {
 // 发送管理员交易：显式带 nonce，让 TP 钱包把每次调用视为独立交易，避免 "duplicate call detected" 去重误判
 async function sendAdminTx(from: string | undefined, to: string, data: string): Promise<string> {
   const eth = getEth();
-  const nonce = await eth.request({ method: "eth_getTransactionCount", params: [from, "pending"] } as unknown as Parameters<typeof eth.request>[0]);
-  const txHash = await eth.request({ method: "eth_sendTransaction", params: [{ from, to, data, nonce }] });
+  // wagmi 未接管 admin 钱包时 from 为 undefined，回退到 eth_accounts 取当前账户
+  if (!from) {
+    const accounts = (await eth.request({ method: "eth_accounts" } as unknown as Parameters<typeof eth.request>[0])) as unknown as string[];
+    from = accounts?.[0];
+  }
+  const txHash = await eth.request({ method: "eth_sendTransaction", params: [{ from, to, data }] });
   await waitForRawReceipt(txHash);
   return txHash;
 }
@@ -472,6 +486,18 @@ export function useRescueETH() {
       abi: parseAbi(["function rescueETH(uint256 amount) external"]),
       functionName: "rescueETH",
       args: [amount],
+    });
+    return sendAdminTx(address, PAYOUT_ADDR, data);
+  };
+}
+
+export function useFlushQueue() {
+  const { address } = useAccount();
+  return async (user: string) => {
+    const data = encodeFunctionData({
+      abi: parseAbi(["function flushQueue(address user)"]),
+      functionName: "flushQueue",
+      args: [user as `0x${string}`],
     });
     return sendAdminTx(address, PAYOUT_ADDR, data);
   };
@@ -563,7 +589,7 @@ export function usePendingTeamReward(user?: `0x${string}`) {
     abi: STAKING_ABI,
     functionName: "pendingTeamReward",
     args: target ? [target] : undefined,
-    query: { refetchInterval: 15_000 },
+    query: { refetchInterval: 60_000 },
   });
   return { pendingVvv: (data as bigint) ?? 0n, refetch };
 }

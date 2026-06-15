@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { SIM_VVV_USD_PRICE, useLocalWeb3Sim, type SimClaimRecord } from '@/contexts/local-web3-sim-context'
 import { isPersonalClaimFrozen, isPrincipalWithdrawalFrozen, useAdminControls } from '@/lib/admin-controls'
 import { fetchStakeOrders, fetchClaimRecords, createClaimRecord } from '@/lib/api-client'
-import { useClaimRewards, useWithdrawPrincipal, useLatestPrice } from '@/lib/contract-hooks'
+import { useClaimRewards, useWithdrawPrincipal, useLatestPrice, PAYOUT_ADDR } from '@/lib/contract-hooks'
 import { useWalletAuth } from '@/contexts/wallet-auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -129,7 +129,7 @@ function WithdrawButton({ chainOrderId, orderId, isWithdrawn, frozen, onSuccess 
             body: JSON.stringify({ txHash: orderId, withdrawnTx: typeof txHash === "string" ? txHash : null }),
           })
           setWithdrawn(true)
-          toast({ title: t("本金已赎回", "Principal Redeemed"), description: t("本金已退回钱包", "Principal returned to wallet") })
+          toast({ title: t("赎回成功", "Redeemed") })
           onSuccess?.()
         } catch (e: unknown) {
           toast({ title: t("赎回失败", "Redeem Failed"), description: (e as Error)?.message?.slice(0, 100) ?? t("交易未完成", "Transaction failed"), variant: "destructive" })
@@ -198,17 +198,43 @@ export function Dashboard() {
       return
     }
     if (order.pendingReward <= 0) {
-      toast({ title: t("领取失败", "Claim Failed"), description: t("当前暂无可领取收益", "No pending rewards"), variant: "destructive" })
+      toast({ title: t("暂无可领取收益", "No Pending Rewards"), description: t("当前订单收益为 0，暂不可领取", "No rewards available for this order"), variant: "destructive" })
       return
     }
+    console.log('[claim] user:', currentAddress, 'orderId:', order.chainOrderId, 'pendingReward:', order.pendingReward)
     const TEAM_REWARD_TOPIC = "0xe07f61c526a4ace6d1e5cad0a84eddbf8e2733ce8383b0b2f1d76f07fb1cab49"
+    const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
     setClaimingOrderIds(prev => new Set(prev).add(order.id))
     try {
-      const { txHash: tx, logs } = await realClaim(BigInt(order.chainOrderId))
-      const nowMs = Date.now()
-      const nowStr = new Date(nowMs).toLocaleString("zh-CN", { hour12: false })
+      const { txHash: tx, logs } = await realClaim(BigInt(order.chainOrderId), order.pendingReward)
+      console.log('[claim] txHash:', tx, 'logs:', logs.length)
 
-      // 乐观更新：链上领取成功后立即更新本地 claim 列表，不等待 DB 确认
+      // VVVPayout 合约事件 topic（按合约源码定义）
+      const TOPIC_REWARD_PAID   = "0xa4b7979b77c5bef65740b7e1d7a09534eadc2803d5c1cfdae60fa28226be6da2"
+      const TOPIC_PAYOUT_QUEUED = "0xcdef26d95faf8a39763982c3e5ec41373bac21e6a955e3a210ada7f9c8d6152d"
+
+      // logs.address 可能大小写不一，统一 toLowerCase 后对比
+      const payoutLogs = logs.filter(l => l.address?.toLowerCase() === PAYOUT_ADDR.toLowerCase())
+      const topic0s    = payoutLogs.map(l => l.topics[0]?.toLowerCase())
+      console.log('[claim] payoutLogs:', payoutLogs.length, 'topics:', topic0s, 'allLogs:', logs.map(l => l.address))
+
+      const isRewardPaid = topic0s.includes(TOPIC_REWARD_PAID)
+      const isQueued     = topic0s.includes(TOPIC_PAYOUT_QUEUED)
+
+      // 没有任何出款事件：链上未出款，不写 DB，不显示成功
+      if (!isRewardPaid && !isQueued) {
+        console.warn('[claim] no payout event detected. payoutLogs:', payoutLogs.length, 'all log addrs:', logs.map(l => l.address))
+        toast({
+          title: t("出款事件未检测到", "Payout event not detected"),
+          description: t("Staking 已记账，但未检测到出款事件，请联系客服并提供 tx: " + tx, "Staking recorded but no payout event. Contact support with tx: " + tx),
+          variant: "destructive",
+        })
+        return
+      }
+
+      // 有出款事件才写 DB 和乐观更新
+      const nowMs  = Date.now()
+      const nowStr = new Date(nowMs).toLocaleString("zh-CN", { hour12: false })
       const optimisticClaim: SimClaimRecord = {
         id: tx,
         orderId: order.id,
@@ -222,7 +248,6 @@ export function Dashboard() {
       }
       setApiClaims(prev => [...prev, optimisticClaim])
 
-      // 写入 DB
       const saved = await createClaimRecord({
         id: tx,
         orderId: order.id,
@@ -234,6 +259,7 @@ export function Dashboard() {
         createdAt: nowStr,
         createdAtMs: nowMs,
       })
+
       // 解析 TeamRewardAccrued 事件，写入上级团队奖励记录
       const teamLogs = logs.filter(l => l.topics[0]?.toLowerCase() === TEAM_REWARD_TOPIC)
       await Promise.allSettled(teamLogs.map(l => {
@@ -255,15 +281,21 @@ export function Dashboard() {
         }).catch(() => {})
       }))
       claimReward(order.id, order.pendingReward)
-      // DB 写入成功后从服务端刷新，以覆盖乐观数据
       if (saved) refreshData()
-      toast({ title: t("领取成功", "Claimed"), description: t("收益已领取成功", "Rewards claimed successfully") })
+
+      if (isRewardPaid) {
+        toast({ title: t("领取成功", "Claimed") })
+      } else {
+        // isQueued
+        toast({ title: t("领取处理中", "Processing") })
+      }
     } catch (e: unknown) {
-      // 链上失败时移除乐观更新
       setApiClaims(prev => prev.filter(c => c.orderId !== order.id || c.account !== currentAddress))
+      const msg = (e as Error)?.message ?? ""
+      console.error('[claim] error:', msg)
       toast({
         title: t("领取失败", "Claim Failed"),
-        description: (e as Error)?.message?.slice(0, 100) ?? t("交易未完成", "Transaction failed"),
+        description: msg.slice(0, 120) || t("交易未完成", "Transaction failed"),
         variant: "destructive",
       })
     } finally {
