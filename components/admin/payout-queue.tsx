@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Clock, Loader2, RefreshCw, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -105,6 +105,9 @@ export function PayoutQueue() {
   // flush-all progress
   const [flushAllProgress, setFlushAllProgress] = useState<{ current: number; total: number } | null>(null)
 
+  // Ref-based lock to prevent duplicate MetaMask submissions across render cycles
+  const flushLockRef = useRef(false)
+
   // expanded rows
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -133,6 +136,8 @@ export function PayoutQueue() {
   }
 
   const handleFlush = async (user: string) => {
+    if (flushLockRef.current) return
+    flushLockRef.current = true
     setFlushingUser(user)
     try {
       await flushQueue(user)
@@ -146,18 +151,20 @@ export function PayoutQueue() {
         toast({ title: 'Flush 失败', description: msg.slice(0, 120), variant: 'destructive' })
       }
     } finally {
+      flushLockRef.current = false
       setFlushingUser(null)
     }
   }
 
   const handleFlushAll = async () => {
-    if (!data) return
+    if (flushLockRef.current || !data) return
     const pending = data.items.filter(i => i.status === 'pending')
     if (pending.length === 0) {
       toast({ title: '无待处理用户' })
       return
     }
 
+    flushLockRef.current = true
     setFlushAllProgress({ current: 0, total: pending.length })
     let successCount = 0
 
@@ -178,6 +185,7 @@ export function PayoutQueue() {
       }
     }
 
+    flushLockRef.current = false
     setFlushAllProgress(null)
     toast({ title: `Flush All 完成`, description: `成功 ${successCount}/${pending.length} 笔` })
     await fetchData()

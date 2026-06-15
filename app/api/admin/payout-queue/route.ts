@@ -50,17 +50,30 @@ export async function GET() {
       allLogs.push(...chunk);
     }
 
-    const [ethBalRes, vvvPriceRes, ethUsdRes] = await Promise.allSettled([
-      client.readContract({ address: PAYOUT_ADDR,  abi: PAYOUT_ABI,        functionName: "ethBalance"      }),
-      client.readContract({ address: STAKING_ADDR, abi: STAKING_PRICE_ABI, functionName: "getLatestPrice"  }),
-      client.readContract({ address: ETH_USD_FEED, abi: CHAINLINK_ABI,     functionName: "latestRoundData" }),
+    // Fetch contract state concurrently; retry ethBalance once on failure
+    // (getLogs pagination may exhaust public RPC rate limit before this call)
+    async function readEthBalance(): Promise<bigint> {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          return await client.readContract({ address: PAYOUT_ADDR, abi: PAYOUT_ABI, functionName: "ethBalance" }) as bigint;
+        } catch {
+          if (attempt < 2) await new Promise(r => setTimeout(r, 600));
+        }
+      }
+      return await client.getBalance({ address: PAYOUT_ADDR });
+    }
+
+    const [ethBalanceRaw, vvvPriceRes, ethUsdRes] = await Promise.all([
+      readEthBalance(),
+      client.readContract({ address: STAKING_ADDR, abi: STAKING_PRICE_ABI, functionName: "getLatestPrice"  }).catch(() => 0n),
+      client.readContract({ address: ETH_USD_FEED, abi: CHAINLINK_ABI,     functionName: "latestRoundData" }).catch(() => null),
     ]);
 
     const logs        = allLogs;
-    const ethBalance  = ethBalRes.status  === "fulfilled" ? (ethBalRes.value  as bigint) : 0n;
-    const vvvUsdPrice = vvvPriceRes.status === "fulfilled" ? (vvvPriceRes.value as bigint) : 0n;
-    const ethUsdAnswer = ethUsdRes.status === "fulfilled"
-      ? ((ethUsdRes.value as [bigint, bigint, bigint, bigint, bigint])[1])
+    const ethBalance   = ethBalanceRaw;
+    const vvvUsdPrice  = (vvvPriceRes as bigint) ?? 0n;
+    const ethUsdAnswer = ethUsdRes
+      ? ((ethUsdRes as [bigint, bigint, bigint, bigint, bigint])[1])
       : 0n;
 
     // Block timestamps (batch, tolerate failures)
