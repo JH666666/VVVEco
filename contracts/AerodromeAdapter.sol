@@ -8,6 +8,18 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ISwapRouter.sol";
 import "./IAerodromeRouter.sol";
 
+// Minimal interface for reading Aerodrome volatile pool reserves
+interface IAerodromePool {
+    function getReserves() external view returns (uint256 reserve0, uint256 reserve1, uint256 blockTimestampLast);
+    function token0() external view returns (address);
+}
+
+// Minimal interface for Aerodrome factory pool lookup and fee
+interface IAerodromeFactory {
+    function getPool(address tokenA, address tokenB, bool stable) external view returns (address);
+    function getFee(address pool, bool stable) external view returns (uint256);
+}
+
 /**
  * @title AerodromeAdapter
  * @notice Implements the V2-style ISwapRouter interface (address[] path) and translates
@@ -18,6 +30,9 @@ import "./IAerodromeRouter.sol";
  *  Both     call getAmountsOut / getAmountsIn for quotes
  *
  *  path[] parameters from callers are ignored; routes are built from immutable config.
+ *
+ *  NOTE: Aerodrome Router on Base does not implement getAmountsIn. We compute it
+ *        directly from the pool's reserves using the standard volatile AMM formula.
  */
 contract AerodromeAdapter is ISwapRouter, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -70,15 +85,11 @@ contract AerodromeAdapter is ISwapRouter, Ownable, ReentrancyGuard {
         address to,
         uint256 deadline
     ) external payable override nonReentrant returns (uint256[] memory amounts) {
+        // Aerodrome Router does not support swapETHForExactTokens (reverts).
+        // Use swapExactETHForTokens instead: spend all msg.value, amountOut is the minimum.
+        // getAmountsIn rounds up by 1 wei so within the same tx the output is always >= amountOut.
         IAerodromeRouter.Route[] memory routes = _wethToVvvRoutes();
-        amounts = aeroRouter.swapETHForExactTokens{value: msg.value}(amountOut, routes, to, deadline);
-
-        // Refund excess ETH to caller (Payout)
-        uint256 ethUsed = amounts[0];
-        if (msg.value > ethUsed) {
-            (bool ok, ) = payable(msg.sender).call{value: msg.value - ethUsed}("");
-            require(ok, "Adapter: ETH refund failed");
-        }
+        amounts = aeroRouter.swapExactETHForTokens{value: msg.value}(amountOut, routes, to, deadline);
     }
 
     // ─── ISwapRouter: quotes ──────────────────────────────────────────────────
@@ -92,7 +103,25 @@ contract AerodromeAdapter is ISwapRouter, Ownable, ReentrancyGuard {
     function getAmountsIn(uint256 amountOut, address[] calldata)
         external view override returns (uint256[] memory)
     {
-        return aeroRouter.getAmountsIn(amountOut, _wethToVvvRoutes());
+        // Aerodrome Router on Base does not implement getAmountsIn — it reverts.
+        // Compute directly from the pool's reserves using the volatile AMM formula:
+        //   amountIn = reserveIn * amountOut * 10000 / ((reserveOut - amountOut) * (10000 - feeBps)) + 1
+        address poolAddr    = IAerodromeFactory(factory).getPool(weth, vvvToken, stable);
+        IAerodromePool pool = IAerodromePool(poolAddr);
+        (uint256 r0, uint256 r1,) = pool.getReserves();
+
+        bool    wethIsToken0 = pool.token0() == weth;
+        uint256 reserveIn    = wethIsToken0 ? r0 : r1;
+        uint256 reserveOut   = wethIsToken0 ? r1 : r0;
+
+        uint256 feeBps      = IAerodromeFactory(factory).getFee(poolAddr, stable);
+        uint256 numerator   = reserveIn * amountOut * 10000;
+        uint256 denominator = (reserveOut - amountOut) * (10000 - feeBps);
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = numerator / denominator + 1;
+        amounts[1] = amountOut;
+        return amounts;
     }
 
     // ─── Internal ─────────────────────────────────────────────────────────────
