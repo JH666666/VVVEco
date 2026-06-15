@@ -1,0 +1,31 @@
+{
+  "network": "base-mainnet",
+  "chainId": 8453,
+  "deployedAt": "2026-06-15T07:59:00.000Z",
+  "deployedAtBlock": 47346653,
+  "deployer": "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3",
+  "contracts": {
+    "AerodromeAdapter": "0xF354f1c63Dc284d0D70e8c72F563Ffa5c7Bf0fB8",
+    "VVVTreasury":      "0xA223C9e22532a7d985004fe3714AB3D873F4c3a2",
+    "VVVPayout":        "0xc9102200271245660AB1C640CEB502936BDe04E1",
+    "VVVEcoStaking":    "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34"
+  },
+  "externalContracts": {
+    "VVVToken":    "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf",
+    "WETH":        "0x4200000000000000000000000000000000000006",
+    "AeroRouter":  "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",
+    "AeroFactory": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+    "PricePool":   "0x01784ef301D79e4B2DF3a21ad9a536d4cF09A5Ce",
+    "EthUsdFeed":  "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
+  },
+  "config": {
+    "projectWallet": "0xa8c9118d6cf6164EBDC2aB99F19A9B36F599f191",
+    "feeWallet":     "0xb32134EA32276dD8cB7Ec689958d8cb9BaD60506",
+    "rootReferrer":  "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3",
+    "feePercent":    10
+  },
+  "warnings": {
+    "payoutFunded": false,
+    "payoutNote":   "Run: cast send <payoutAddr> 'depositETH()' --value 0.5ether before going live"
+  }
+}
