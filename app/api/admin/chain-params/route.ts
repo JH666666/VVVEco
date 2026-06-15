@@ -15,21 +15,21 @@ const client = createPublicClient({
   transport: http(process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org"),
 });
 
-// GET /api/admin/chain-params — returns minStakeUsd and currentPrice (real-time Aerodrome+Chainlink) from chain
+// GET /api/admin/chain-params — each call is independent; one failure won't block owner/minStake
 export async function GET() {
-  try {
-    const [minStakeRaw, priceRaw, ownerAddr] = await Promise.all([
-      client.readContract({ address: STAKING_ADDR, abi: ABI, functionName: "minStakeUsd" }),
-      client.readContract({ address: STAKING_ADDR, abi: ABI, functionName: "getLatestPrice" }),
-      client.readContract({ address: STAKING_ADDR, abi: ABI, functionName: "owner" }),
-    ]);
-    return NextResponse.json({
-      minStakeUsd: formatEther(minStakeRaw),
-      currentPrice: formatEther(priceRaw),
-      owner: ownerAddr,
-    });
-  } catch (e) {
-    console.error("chain-params error:", e);
-    return NextResponse.json({ error: "chain read failed" }, { status: 500 });
-  }
+  const [minStakeRes, priceRes, ownerRes] = await Promise.allSettled([
+    client.readContract({ address: STAKING_ADDR, abi: ABI, functionName: "minStakeUsd" }),
+    client.readContract({ address: STAKING_ADDR, abi: ABI, functionName: "getLatestPrice" }),
+    client.readContract({ address: STAKING_ADDR, abi: ABI, functionName: "owner" }),
+  ]);
+
+  if (minStakeRes.status === "rejected") console.error("chain-params minStakeUsd:", minStakeRes.reason);
+  if (priceRes.status === "rejected")    console.error("chain-params getLatestPrice:", priceRes.reason);
+  if (ownerRes.status === "rejected")    console.error("chain-params owner:", ownerRes.reason);
+
+  return NextResponse.json({
+    minStakeUsd:  minStakeRes.status === "fulfilled" ? formatEther(minStakeRes.value) : null,
+    currentPrice: priceRes.status    === "fulfilled" ? formatEther(priceRes.value)    : null,
+    owner:        ownerRes.status    === "fulfilled" ? ownerRes.value                  : null,
+  });
 }

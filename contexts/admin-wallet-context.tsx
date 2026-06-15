@@ -1,6 +1,7 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { useAccount, useChainId, useDisconnect } from 'wagmi'
 import { useStakingOwner } from '@/lib/contract-hooks'
 
 interface AdminWalletContextValue {
@@ -22,8 +23,6 @@ export function truncateAddress(address: string) {
 
 type EthProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
-  on?: (event: string, handler: (...args: unknown[]) => void) => void
-  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void
 }
 
 function getEth(): EthProvider | undefined {
@@ -32,44 +31,15 @@ function getEth(): EthProvider | undefined {
 }
 
 export function AdminWalletProvider({ children }: { children: ReactNode }) {
-  const [address, setAddress] = useState('')
-  const [chainId, setChainId] = useState('')
+  // 直接读 wagmi 状态，不主动向 TP 发任何请求
+  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount()
+  const wagmiChainId = useChainId()
+  const { disconnect } = useDisconnect()
   const chainOwner = useStakingOwner()
 
-  useEffect(() => {
-    const eth = getEth()
-    if (!eth) return
-
-    // 恢复已连接的账户，并读取当前链 ID
-    eth.request({ method: 'eth_accounts' })
-      .then(res => {
-        const accounts = res as string[]
-        if (accounts.length > 0) setAddress(accounts[0])
-      })
-      .catch(() => {})
-
-    eth.request({ method: 'eth_chainId' })
-      .then(res => setChainId(String(res ?? '')))
-      .catch(() => {})
-
-    const onAccounts = (...args: unknown[]) => {
-      const accounts = args[0] as string[]
-      setAddress(accounts?.[0] ?? '')
-    }
-    const onChain = (...args: unknown[]) => {
-      setChainId(String(args[0] ?? ''))
-    }
-
-    eth.on?.('accountsChanged', onAccounts)
-    eth.on?.('chainChanged', onChain)
-
-    return () => {
-      eth.removeListener?.('accountsChanged', onAccounts)
-      eth.removeListener?.('chainChanged', onChain)
-    }
-  }, [])
-
-  const isConnected = Boolean(address)
+  const address = wagmiAddress ?? ''
+  const chainId = wagmiChainId ? String(wagmiChainId) : ''
+  const isConnected = wagmiConnected && Boolean(wagmiAddress)
 
   const value = useMemo<AdminWalletContextValue>(() => ({
     address,
@@ -79,6 +49,7 @@ export function AdminWalletProvider({ children }: { children: ReactNode }) {
       ? address.toLowerCase() === chainOwner.toLowerCase()
       : false,
     ownerAddress: chainOwner,
+    // 只有用户点击"连接钱包"才调用，不自动触发
     connectWallet: async () => {
       const eth = getEth()
       if (!eth) {
@@ -86,39 +57,33 @@ export function AdminWalletProvider({ children }: { children: ReactNode }) {
         return
       }
       try {
-        const accounts = await eth.request({ method: 'eth_requestAccounts' }) as string[]
-        if (accounts?.length > 0) setAddress(accounts[0])
-
-        // 自动切换到 Base Sepolia
+        await eth.request({ method: 'eth_requestAccounts' })
+        // 连接成功后切换到 Base Mainnet
         try {
           await eth.request({
             method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x14a34' }],
+            params: [{ chainId: '0x2105' }],
           })
         } catch (switchErr) {
-          // 链不存在时尝试添加
           if ((switchErr as { code?: number }).code === 4902) {
             await eth.request({
               method: 'wallet_addEthereumChain',
               params: [{
-                chainId: '0x14a34',
-                chainName: 'Base Sepolia',
+                chainId: '0x2105',
+                chainName: 'Base',
                 nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
-                rpcUrls: ['https://sepolia.base.org'],
-                blockExplorerUrls: ['https://sepolia.basescan.org'],
+                rpcUrls: ['https://mainnet.base.org'],
+                blockExplorerUrls: ['https://basescan.org'],
               }],
             })
           }
         }
-
-        const chain = await eth.request({ method: 'eth_chainId' })
-        setChainId(String(chain ?? ''))
       } catch {
-        // user rejected or already pending
+        // 用户拒绝或已在处理中
       }
     },
-    disconnectWallet: () => setAddress(''),
-  }), [address, chainId, isConnected, chainOwner])
+    disconnectWallet: () => disconnect(),
+  }), [address, chainId, isConnected, chainOwner, disconnect])
 
   return (
     <AdminWalletContext.Provider value={value}>

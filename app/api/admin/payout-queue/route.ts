@@ -6,8 +6,9 @@ const PAYOUT_ADDR  = (process.env.NEXT_PUBLIC_VVECO_PAYOUT  || "0xc9102200271245
 const STAKING_ADDR = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34") as `0x${string}`;
 // Chainlink ETH/USD on Base Mainnet
 const ETH_USD_FEED = "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70" as `0x${string}`;
-// fromBlock for getLogs — set PAYOUT_DEPLOY_BLOCK in .env to exact deploy block
-const DEPLOY_BLOCK = BigInt(process.env.PAYOUT_DEPLOY_BLOCK ?? "28000000");
+// Payout contract deployed at block 47346661 on Base Mainnet
+const DEPLOY_BLOCK = BigInt(process.env.PAYOUT_DEPLOY_BLOCK ?? "47346661");
+const PAGE_SIZE    = 9000n; // public RPC max is 10k; stay under
 
 const client = createPublicClient({
   chain: base,
@@ -39,18 +40,23 @@ const CHAINLINK_ABI = [
 
 export async function GET() {
   try {
-    const [logsRes, ethBalRes, vvvPriceRes, ethUsdRes] = await Promise.allSettled([
-      client.getLogs({
-        address: PAYOUT_ADDR,
-        event: parseAbiItem("event PayoutQueued(address indexed user, uint256 netVvv, uint256 feeVvv, string reason)"),
-        fromBlock: DEPLOY_BLOCK,
-      }),
+    // Paginate getLogs in 9k-block chunks (public RPC limit is 10k)
+    const currentBlock = await client.getBlockNumber();
+    const payoutEvent  = parseAbiItem("event PayoutQueued(address indexed user, uint256 netVvv, uint256 feeVvv, string reason)");
+    const allLogs: Awaited<ReturnType<typeof client.getLogs>> = [];
+    for (let from = DEPLOY_BLOCK; from <= currentBlock; from += PAGE_SIZE) {
+      const to = from + PAGE_SIZE - 1n < currentBlock ? from + PAGE_SIZE - 1n : currentBlock;
+      const chunk = await client.getLogs({ address: PAYOUT_ADDR, event: payoutEvent, fromBlock: from, toBlock: to }).catch(() => []);
+      allLogs.push(...chunk);
+    }
+
+    const [ethBalRes, vvvPriceRes, ethUsdRes] = await Promise.allSettled([
       client.readContract({ address: PAYOUT_ADDR,  abi: PAYOUT_ABI,        functionName: "ethBalance"      }),
       client.readContract({ address: STAKING_ADDR, abi: STAKING_PRICE_ABI, functionName: "getLatestPrice"  }),
       client.readContract({ address: ETH_USD_FEED, abi: CHAINLINK_ABI,     functionName: "latestRoundData" }),
     ]);
 
-    const logs        = logsRes.status    === "fulfilled" ? logsRes.value    : [];
+    const logs        = allLogs;
     const ethBalance  = ethBalRes.status  === "fulfilled" ? (ethBalRes.value  as bigint) : 0n;
     const vvvUsdPrice = vvvPriceRes.status === "fulfilled" ? (vvvPriceRes.value as bigint) : 0n;
     const ethUsdAnswer = ethUsdRes.status === "fulfilled"

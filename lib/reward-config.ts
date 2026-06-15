@@ -19,8 +19,8 @@ export function getDefaultRewardConfig(): RewardConfig {
     generationRates: [15, 10, 5],
     levelRates: [10, 20, 30, 40, 50, 60, 70, 80],
     levelThresholds: [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000],
-    periodRates: [1, 1, 1, 1],
-    periodDurations: [1, 2, 3, 4],
+    periodRates: [0.7, 0.8, 0.9, 1],
+    periodDurations: [7, 15, 30, 60],
     periodUnits: ['day', 'day', 'day', 'day'],
   }
 }

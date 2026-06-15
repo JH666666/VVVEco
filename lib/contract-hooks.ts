@@ -215,28 +215,46 @@ export function useMinStakeUsd() {
   return { value: (data as bigint) ?? 0n, refetch };
 }
 
-export function useDurationRate(days: number) {
-  const [rate, setRate] = useState<number | undefined>(undefined);
+// undefined = loading, null = failed, number = success
+export function useDurationRate(days: number, delayMs = 0) {
+  const [rate, setRate] = useState<number | null | undefined>(undefined);
   useEffect(() => {
     setRate(undefined);
     if (!days) return;
+    let cancelled = false;
     const controller = new AbortController();
-    const selector = '0x2b9e3b25';
-    const arg = BigInt(days).toString(16).padStart(64, '0');
-    const calldata = selector + arg;
-    const body = JSON.stringify({
-      jsonrpc: '2.0', id: 1, method: 'eth_call',
-      params: [{ to: STAKING_ADDR, data: calldata }, 'latest'],
-    });
-    fetch('https://mainnet.base.org', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal: controller.signal })
-      .then(r => r.json())
-      .then(json => {
+    const run = async () => {
+      if (delayMs > 0) {
+        await new Promise(r => setTimeout(r, delayMs));
+        if (cancelled) return;
+      }
+      const calldata = '0x2b9e3b25' + BigInt(days).toString(16).padStart(64, '0');
+      const body = JSON.stringify({
+        jsonrpc: '2.0', id: 1, method: 'eth_call',
+        params: [{ to: STAKING_ADDR, data: calldata }, 'latest'],
+      });
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch('https://mainnet.base.org', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body, signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (cancelled) return;
+        if (res.status === 429) { setRate(null); return; }
+        const json = await res.json();
+        if (cancelled) return;
+        if (json?.error) { setRate(null); return; }
         const hex = json?.result;
         if (hex && hex !== '0x') setRate(Number(BigInt(hex)) / 10);
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [days]);
+        else setRate(null);
+      } catch {
+        if (!cancelled) setRate(null);
+      }
+    };
+    run();
+    return () => { cancelled = true; controller.abort(); };
+  }, [days, delayMs]);
   return rate;
 }
 

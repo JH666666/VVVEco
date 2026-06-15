@@ -8,7 +8,7 @@ import { createStakeOrder, registerUser } from '@/lib/api-client'
 import { useChainId } from 'wagmi'
 import { useWalletAuth } from '@/contexts/wallet-auth-context'
 import { encodeFunctionData, parseAbi, formatUnits } from 'viem'
-import { useApproveVVV, useStake, useVVVBalanceData, useLatestPrice, VVV_TOKEN_ADDR, STAKING_ADDR } from '@/lib/contract-hooks'
+import { useApproveVVV, useStake, useVVVBalanceData, useLatestPrice, useMinStakeUsd, VVV_TOKEN_ADDR, STAKING_ADDR } from '@/lib/contract-hooks'
 import { useLanguage } from '@/contexts/language-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -108,17 +108,32 @@ export function StakingHub() {
     }),
     [config.periodDurations, config.periodRates, config.periodUnits],
   )
+  // Price chart state
+  const TF_LABELS      = ['分', '时', '天', '周', '月']
+  const TF_KEYS        = ['minute', 'hour', 'day', 'week', 'month']
+  const TF_CHANGE_LABEL = ['1h', '2d', '30d', '3m', '1y']
+  const [selectedTf, setSelectedTf] = useState(2) // default: 天
+  const [pricePoints, setPricePoints] = useState<{ ts: number; price: number }[]>([])
+  const [change24h, setChange24h] = useState<number | null>(null)
+  const [chartLoading, setChartLoading] = useState(true)
+
+  useEffect(() => {
+    setChartLoading(true)
+    fetch(`/api/price-history?tf=${TF_KEYS[selectedTf]}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.prices?.length) { setPricePoints(d.prices); setChange24h(d.change24h) }
+      })
+      .catch(() => {})
+      .finally(() => setChartLoading(false))
+  }, [selectedTf])
+
   const [stakeMode, setStakeMode] = useState<StakeMode>('coin')
   const [selectedPeriod, setSelectedPeriod] = useState<StakePeriod>(defaultStakePeriods[1])
   const [stakeAmount, setStakeAmount] = useState('')
   const [isStaking, setIsStaking] = useState(false)
-  const [minStakeUsd, setMinStakeUsd] = useState(10)
-  useEffect(() => {
-    fetch('/api/admin/chain-params')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.minStakeUsd) setMinStakeUsd(Number(d.minStakeUsd)) })
-      .catch(() => {})
-  }, [])
+  const { value: minStakeUsdRaw } = useMinStakeUsd()
+  const minStakeUsd = minStakeUsdRaw > 0n ? Math.round(Number(minStakeUsdRaw) / 1e18) : 10
   useEffect(() => {
     setSelectedPeriod(current => stakePeriods.find(period => period.duration === current.duration && period.unit === current.unit) ?? stakePeriods[1])
   }, [stakePeriods])
@@ -370,97 +385,99 @@ export function StakingHub() {
             </div>
             <div className="text-right">
               <p className="text-lg sm:text-xl font-semibold text-foreground">${vvvPrice.toFixed(2)}</p>
-              <p className="text-xs text-chart-1">+5.23% (24h)</p>
+              <p className={cn('text-xs', change24h === null ? 'text-muted-foreground' : change24h >= 0 ? 'text-chart-1' : 'text-destructive')}>
+                {change24h === null ? '...' : `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}% (${TF_CHANGE_LABEL[selectedTf]})`}
+              </p>
             </div>
           </div>
-          
+
           {/* Time Period Tabs */}
           <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
-            {(t('分,时,天,周,月', 'Min,Hr,Day,Week,Month')).split(',').map((period, i) => (
+            {TF_LABELS.map((label, i) => (
               <button
-                key={period}
+                key={label}
+                onClick={() => setSelectedTf(i)}
                 className={cn(
                   'px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition-colors',
-                  i === 2 
-                    ? 'bg-primary text-primary-foreground' 
+                  i === selectedTf
+                    ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-secondary'
                 )}
               >
-                {period}
+                {label}
               </button>
             ))}
           </div>
 
           {/* Chart Area */}
-          <div className="relative">
-            {/* Chart with Y-axis on right */}
-            <div className="flex">
-              <div className="flex-1 relative h-[140px] sm:h-[160px]">
-                {/* Horizontal grid lines */}
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                  <div className="border-t border-dashed border-border/40 w-full" />
-                  <div className="border-t border-dashed border-border/40 w-full" />
-                  <div className="border-t border-dashed border-border/40 w-full" />
-                  <div className="border-t border-dashed border-border/40 w-full" />
-                  <div className="border-t border-border/40 w-full" />
-                </div>
-                
-                {/* Vertical grid lines */}
-                <div className="absolute inset-0 flex justify-between pointer-events-none">
-                  <div className="border-l border-dashed border-border/30 h-full" />
-                  <div className="border-l border-dashed border-border/30 h-full" />
-                  <div className="border-l border-dashed border-border/30 h-full" />
-                  <div className="border-l border-dashed border-border/30 h-full" />
-                  <div className="border-l border-dashed border-border/30 h-full" />
-                  <div className="border-l border-dashed border-border/30 h-full" />
-                </div>
+          {(() => {
+            const pts = pricePoints
+            const hasData = pts.length >= 2 && !chartLoading
+            const minP = hasData ? Math.min(...pts.map(p => p.price)) : 0
+            const maxP = hasData ? Math.max(...pts.map(p => p.price)) : 1
+            const range = maxP - minP || 1
+            const PAD = 5
+            const svgPts = hasData ? pts.map((p, i) => {
+              const x = (i / (pts.length - 1)) * 200
+              const y = PAD + (1 - (p.price - minP) / range) * (100 - PAD * 2)
+              return `${x.toFixed(1)},${y.toFixed(1)}`
+            }) : []
+            const linePath = svgPts.length ? `M${svgPts.join(' L')}` : ''
+            const areaPath = linePath ? `${linePath} L200,100 L0,100 Z` : ''
 
-                {/* Line chart SVG */}
-                <svg className="w-full h-full relative z-10" viewBox="0 0 200 100" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#22c55e" stopOpacity="0.4" />
-                      <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
-                    </linearGradient>
-                  </defs>
-                  {/* Area fill */}
-                  <path
-                    d="M0,60 L15,55 L25,58 L35,45 L50,50 L65,40 L80,45 L95,35 L110,42 L125,38 L140,30 L155,35 L170,25 L185,30 L200,20 L200,100 L0,100 Z"
-                    fill="url(#areaGradient)"
-                  />
-                  {/* Line */}
-                  <path
-                    d="M0,60 L15,55 L25,58 L35,45 L50,50 L65,40 L80,45 L95,35 L110,42 L125,38 L140,30 L155,35 L170,25 L185,30 L200,20"
-                    fill="none"
-                    stroke="#22c55e"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+            // X-axis: 6 evenly spaced labels
+            const xLabels = hasData ? [0, 1, 2, 3, 4, 5].map(i => {
+              const idx = Math.round(i * (pts.length - 1) / 5)
+              const d = new Date(pts[idx].ts)
+              if (selectedTf <= 1) return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`
+              return `${(d.getMonth()+1)}/${d.getDate()}`
+            }) : []
+
+            // Y-axis: 5 price labels
+            const yLabels = hasData ? [0,1,2,3,4].map(i => {
+              const price = maxP - (i / 4) * range
+              return price >= 1 ? `$${price.toFixed(2)}` : `$${price.toFixed(4)}`
+            }) : []
+
+            return (
+              <div className="relative">
+                <div className="flex">
+                  <div className="flex-1 relative h-[140px] sm:h-[160px]">
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                      {[0,1,2,3,4].map(i => <div key={i} className="border-t border-dashed border-border/40 w-full" />)}
+                    </div>
+                    <div className="absolute inset-0 flex justify-between pointer-events-none">
+                      {[0,1,2,3,4,5].map(i => <div key={i} className="border-l border-dashed border-border/30 h-full" />)}
+                    </div>
+                    {chartLoading ? (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      </div>
+                    ) : hasData ? (
+                      <svg className="w-full h-full relative z-10" viewBox="0 0 200 100" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.4" />
+                            <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
+                          </linearGradient>
+                        </defs>
+                        <path d={areaPath} fill="url(#areaGradient)" />
+                        <path d={linePath} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">暂无数据</div>
+                    )}
+                  </div>
+                  <div className="flex flex-col justify-between text-[10px] text-muted-foreground pl-2 py-0">
+                    {yLabels.map((l, i) => <span key={i}>{l}</span>)}
+                  </div>
+                </div>
+                <div className="flex justify-between mt-2 text-[10px] text-muted-foreground pr-8">
+                  {xLabels.map((l, i) => <span key={i}>{l}</span>)}
+                </div>
               </div>
-              
-              {/* Y-axis labels on right */}
-              <div className="flex flex-col justify-between text-[10px] text-muted-foreground pl-2 py-0">
-                <span>$0.28</span>
-                <span>$0.26</span>
-                <span>$0.25</span>
-                <span>$0.24</span>
-                <span>$0.22</span>
-              </div>
-            </div>
-            
-            {/* X-axis labels */}
-            <div className="flex justify-between mt-2 text-[10px] text-muted-foreground pr-8">
-              <span>22</span>
-              <span>23</span>
-              <span>24</span>
-              <span>25</span>
-              <span>26</span>
-              <span>27</span>
-              <span>{t('今天', 'Today')}</span>
-            </div>
-          </div>
+            )
+          })()}
         </CardContent>
       </Card>
 

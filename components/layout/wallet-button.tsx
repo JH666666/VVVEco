@@ -248,7 +248,7 @@ export function WalletButton({ className, size = "md" }: WalletButtonProps) {
     }
   };
 
-  const base = "rounded-full font-medium transition-colors";
+  const btnBase = "rounded-full font-medium transition-colors";
   const sizes = { sm: "h-8 px-3 text-xs", md: "h-10 px-4 text-sm" };
 
   // SSR 占位，避免 hydration 不匹配
@@ -256,7 +256,7 @@ export function WalletButton({ className, size = "md" }: WalletButtonProps) {
     return (
       <div className="inline-flex items-center gap-1.5">
         <BaseIcon size={size} />
-        <button className={cn(base, sizes[size], "bg-primary text-primary-foreground hover:bg-primary/90", className)}>
+        <button className={cn(btnBase, sizes[size], "bg-primary text-primary-foreground hover:bg-primary/90", className)}>
           连接钱包
         </button>
       </div>
@@ -288,7 +288,7 @@ export function WalletButton({ className, size = "md" }: WalletButtonProps) {
       {isSigned && signedAddress && chain?.id === base.id && (
         <button
           onClick={() => { disconnect(); clearAuth(); }}
-          className={cn(base, sizes[size], "inline-flex items-center gap-1.5 border border-border bg-background hover:bg-secondary font-mono", className)}
+          className={cn(btnBase, sizes[size], "inline-flex items-center gap-1.5 border border-border bg-background hover:bg-secondary font-mono", className)}
         >
           <BaseIcon size={size} />
           {shortAddress(signedAddress)}
@@ -302,7 +302,7 @@ export function WalletButton({ className, size = "md" }: WalletButtonProps) {
           <button
             onClick={handleConnect}
             style={{ touchAction: "manipulation" }}
-            className={cn(base, sizes[size], "bg-primary text-primary-foreground hover:bg-primary/90", className)}
+            className={cn(btnBase, sizes[size], "bg-primary text-primary-foreground hover:bg-primary/90", className)}
           >
             连接钱包
           </button>

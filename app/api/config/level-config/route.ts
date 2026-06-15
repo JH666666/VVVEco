@@ -21,16 +21,26 @@ export async function GET() {
       client.readContract({ address: STAKING, abi, functionName: "levelRates", args: [BigInt(level)] }),
     ]);
 
-    const results = await Promise.all(calls);
+    // allSettled: 单个 RPC 429/失败不影响其他结果
+    const results = await Promise.allSettled(calls);
 
     const levelThresholds: number[] = [];
     const levelRates: number[] = [];
     for (let i = 0; i < 8; i++) {
-      levelThresholds.push(Math.round(Number(results[i * 2]) / 1e18));
-      levelRates.push(Number(results[i * 2 + 1]));
+      const thresholdResult = results[i * 2];
+      const rateResult = results[i * 2 + 1];
+      levelThresholds.push(
+        thresholdResult.status === "fulfilled"
+          ? Math.round(Number(thresholdResult.value) / 1e18)
+          : 0,
+      );
+      levelRates.push(
+        rateResult.status === "fulfilled" ? Number(rateResult.value) : 0,
+      );
     }
 
-    return NextResponse.json({ levelThresholds, levelRates });
+    const anyFailed = results.some((r) => r.status === "rejected");
+    return NextResponse.json({ levelThresholds, levelRates, partial: anyFailed });
   } catch (e) {
     console.error("level-config error:", e);
     return NextResponse.json({ error: "fetch failed" }, { status: 500 });

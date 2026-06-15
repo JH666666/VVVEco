@@ -1,13 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowUpRight, CheckCircle2, Coins, Copy, KeyRound, Loader2, Lock, Settings2, ShieldCheck, Wallet } from 'lucide-react'
 import { VVV_ECO_STAKING_ABI, VVV_ECO_STAKING_CONTRACT, VVV_TOKEN_ADDRESS } from '@/lib/contracts/vvv-eco'
 import { formatSimAddress, resolveSimInviteCode } from '@/contexts/local-web3-sim-context'
 import { formatEther, parseEther } from 'viem'
-import { useAccount, useChainId, useBalance } from 'wagmi'
+import { useChainId, useBalance } from 'wagmi'
+import { useAdminWallet } from '@/contexts/admin-wallet-context'
 import { useAdminControls } from '@/lib/admin-controls'
-import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMinStakeUsd, useSetDurationRate, useStakingOwnerData, useRescueETH } from '@/lib/contract-hooks'
+import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMinStakeUsd, useStakingOwnerData, useRescueETH } from '@/lib/contract-hooks'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -135,7 +136,7 @@ function OwnerStatusBadge({ ownerAddr, ownerPending, ownerError }: {
   ownerPending: boolean
   ownerError: boolean
 }) {
-  const { address } = useAccount()
+  const { address } = useAdminWallet()
 
   if (!address) return null
 
@@ -209,7 +210,7 @@ export function ContractAdmin() {
   const { owner: ownerAddr, refetch: refetchOwner, isPending: ownerPending, isError: ownerError } = useStakingOwnerData()
   const { data: payoutBalanceData, isPending: balancePending, refetch: refetchPayoutBalance } = useBalance({ address: PAYOUT_ADDR, chainId: 8453 })
   const rescueETHChain = useRescueETH()
-  const { address: connectedAddress } = useAccount()
+  const { address: connectedAddress } = useAdminWallet()
   const currentChainId = useChainId()
   const isBaseMainnet = currentChainId === 8453
   const transferOwnershipChain = useTransferOwnership()
@@ -252,29 +253,6 @@ export function ContractAdmin() {
   }
 
   const { controls, freezePersonalClaim, freezeTeamClaim, freezePrincipalWithdrawal } = useAdminControls()
-  const setDurationRateChain = useSetDurationRate()
-  const [periodConfig, setPeriodConfig] = useState({
-    periodRates: [1, 1, 1, 1] as number[],
-    periodDurations: [1, 2, 3, 4] as number[],
-    periodUnits: ["day", "day", "day", "day"] as string[],
-  })
-  // track last-committed durations so we can clear stale chain entries on duration change
-  const committedDurations = useRef<number[]>([1, 2, 3, 4])
-
-  useEffect(() => {
-    fetch("/api/config/reward")
-      .then((r) => r.json())
-      .then((data) => {
-        const loaded = {
-          periodRates: data.periodRates ?? [1, 1, 1, 1],
-          periodDurations: data.periodDurations ?? [1, 2, 3, 4],
-          periodUnits: data.periodUnits ?? ["day", "day", "day", "day"],
-        }
-        setPeriodConfig(loaded)
-        committedDurations.current = [...loaded.periodDurations]
-      })
-      .catch(() => {})
-  }, [])
   const abiFunctions = useMemo(
     () => VVV_ECO_STAKING_ABI.filter(item => item.type === 'function' && item.name),
     [],
@@ -384,7 +362,9 @@ export function ContractAdmin() {
       if (msg.includes("user rejected") || msg.includes("User rejected") || msg.includes("ACTION_REJECTED")) {
         toast({ title: "已取消", description: "用户取消了交易", variant: "destructive" })
       } else if (msg.includes("duplicate call")) {
-        toast({ title: "钱包有待处理交易", description: "请打开钱包 → 找到 Pending 交易 → 取消后重试", variant: "destructive", duration: 8000 })
+        // TX 已提交到链上，TP 防重复机制误报——不视为失败，保持 loading 防二次点击
+        toast({ title: "交易已提交", description: "等待区块确认，请稍候..." })
+        await new Promise(r => setTimeout(r, 15000))  // 等 15s 再释放按钮
       } else {
         toast({ title: "操作失败", description: msg.slice(0, 120) || "交易未完成", variant: "destructive" })
       }
@@ -421,6 +401,7 @@ export function ContractAdmin() {
       return
     }
     setWithdrawing(true)
+    const balanceBefore = payoutBalanceData?.value ?? 0n
     try {
       toast({ title: "转出中...", description: "请在钱包确认交易" })
       await rescueETHChain(parseEther(amt))
@@ -428,7 +409,16 @@ export function ContractAdmin() {
       setPayoutAmount("")
       refetchPayoutBalance()
     } catch (e: unknown) {
-      toast({ title: "转出失败", description: (e as Error)?.message?.slice(0, 100) ?? "交易未完成", variant: "destructive" })
+      const msg = (e as Error)?.message ?? ""
+      if (msg.includes("user rejected") || msg.includes("User rejected") || msg.includes("ACTION_REJECTED")) {
+        toast({ title: "已取消", description: "用户取消了交易", variant: "destructive" })
+      } else if (msg.includes("duplicate call")) {
+        // TX 已提交到链上，TP 防重复机制误报——不视为失败
+        toast({ title: "交易已提交", description: "等待区块确认，请稍候..." })
+        await new Promise(r => setTimeout(r, 15000))
+      } else {
+        toast({ title: "转出失败", description: msg.slice(0, 100) || "交易未完成", variant: "destructive" })
+      }
     } finally {
       setWithdrawing(false)
     }
@@ -464,68 +454,6 @@ export function ContractAdmin() {
       toast({ title: "操作失败", description: (e as Error)?.message?.slice(0, 100) ?? "交易未完成", variant: "destructive" })
     } finally {
       setFreezing(false)
-    }
-  }
-
-  const [savingPeriod, setSavingPeriod] = useState(false)
-
-  const updatePeriodRate = (index: number, value: string) => {
-    const nextRate = Math.max(0, Number(value) || 0)
-    const nextRates = [...periodConfig.periodRates]
-    nextRates[index] = nextRate
-    setPeriodConfig((p) => ({ ...p, periodRates: nextRates }))
-  }
-
-  const updatePeriodDuration = (index: number, value: string) => {
-    const nextDuration = Math.max(1, Number(value) || 1)
-    const nextDurations = [...periodConfig.periodDurations]
-    nextDurations[index] = nextDuration
-    setPeriodConfig((p) => ({ ...p, periodDurations: nextDurations }))
-  }
-
-  const savePeriodConfig = async () => {
-    if (!connectedAddress) {
-      toast({ title: "请先连接 Owner 钱包", description: "链上写入需要 Owner 权限", variant: "destructive" })
-      return
-    }
-    setSavingPeriod(true)
-    try {
-      // 1. 清除旧的链上 duration（仅当天数发生变化时）
-      const oldDurations = committedDurations.current
-      for (let i = 0; i < oldDurations.length; i++) {
-        if (oldDurations[i] !== periodConfig.periodDurations[i]) {
-          toast({ title: `清除旧周期 ${oldDurations[i]} 天...`, description: "请在钱包确认" })
-          await setDurationRateChain(oldDurations[i], 0)
-        }
-      }
-      // 2. 设置新的链上 duration + rate（逐个确认）
-      for (let i = 0; i < periodConfig.periodDurations.length; i++) {
-        const duration = periodConfig.periodDurations[i]
-        const ratePermille = Math.round(periodConfig.periodRates[i] * 10)
-        toast({ title: `设置周期 ${duration} 天 / ${periodConfig.periodRates[i]}%...`, description: "请在钱包确认" })
-        await setDurationRateChain(duration, ratePermille)
-      }
-      // 3. 同步写入 DB
-      await fetch("/api/config/reward", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          periodRates: periodConfig.periodRates,
-          periodDurations: periodConfig.periodDurations,
-          periodUnits: periodConfig.periodUnits,
-        }),
-      })
-      committedDurations.current = [...periodConfig.periodDurations]
-      toast({ title: "周期配置已保存", description: "链上参数与数据库已同步更新。" })
-    } catch (e: unknown) {
-      const msg2 = (e as Error)?.message ?? ""
-      if (msg2.includes("duplicate call")) {
-        toast({ title: "钱包有待处理交易", description: "请打开钱包 → 找到 Pending 交易 → 取消后重试", variant: "destructive", duration: 8000 })
-      } else {
-        toast({ title: "保存失败", description: msg2.slice(0, 120) || "交易未完成", variant: "destructive" })
-      }
-    } finally {
-      setSavingPeriod(false)
     }
   }
 
@@ -664,120 +592,58 @@ export function ContractAdmin() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-        <Card className="bg-card border-border shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              合约绑定
-            </CardTitle>
-            <CardDescription>绑定 Staking、出款合约、VVV Token 与价格/兑换路由地址。</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Staking contract</Label>
-              <Input
-                value={String(contractConfig.stakingContract ?? "")}
-                onChange={(event) => updateConfigField("stakingContract", event.target.value)}
-                placeholder="0x..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Payout contract</Label>
-              <Input
-                value={String(contractConfig.payoutContract ?? "")}
-                onChange={(event) => updateConfigField("payoutContract", event.target.value)}
-                placeholder="0x..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>VVV token</Label>
-              <Input
-                value={String(contractConfig.vvvToken ?? "")}
-                onChange={(event) => updateConfigField("vvvToken", event.target.value)}
-                placeholder="0x..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Price / swap router</Label>
-              <Input
-                value={String(contractConfig.priceRouter ?? "")}
-                onChange={(event) => updateConfigField("priceRouter", event.target.value)}
-                placeholder="0x..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Network</Label>
-              <Input value={`${VVV_ECO_STAKING_CONTRACT.network} (${VVV_ECO_STAKING_CONTRACT.chainId})`} readOnly />
-            </div>
-            <div className="space-y-2">
-              <Label>ABI functions</Label>
-              <Input value={`${abiFunctions.length} linked`} readOnly />
-            </div>
-            <div className="sm:col-span-2">
-              <Button className="w-full" onClick={saveContractBindings} >
-                保存合约绑定
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border shadow-card">
-          <CardHeader>
-            <CardTitle className="text-lg">周期费率</CardTitle>
-            <CardDescription>链上参数（setDurationRate）+ DB 双写。保存时需 Owner 钱包逐笔确认，每个周期一笔交易。</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>周期</TableHead>
-                  <TableHead>日收益</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {periodConfig.periodDurations.map((duration, index) => {
-                  const dailyRate = periodConfig.periodRates[index]
-
-                  return (
-                  <TableRow key={index}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={1}
-                          step="1"
-                          value={duration}
-                          onChange={event => updatePeriodDuration(index, event.target.value)}
-                          className="h-9 w-20"
-                        />
-                        <span className="text-sm text-muted-foreground">天</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={0}
-                          step="0.1"
-                          value={dailyRate}
-                          onChange={event => updatePeriodRate(index, event.target.value)}
-                          className="h-9 w-24"
-                        />
-                        <span className="text-sm text-muted-foreground">%</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-            <Button onClick={savePeriodConfig} disabled={savingPeriod} className="w-full">
-              {savingPeriod ? '保存中...' : '保存周期配置'}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      {(() => {
+        const action = editableOwnerActions.find(a => a.key === 'minStakeUsd')
+        if (!action) return null
+        const draftKey = action.description
+        const draftVal = draftValues[draftKey] ?? ''
+        const currentVal = currentValueForKey(action.key, action.description)
+        return (
+          <Card className="bg-card border-border shadow-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <action.icon className="h-5 w-5 text-primary" />
+                {action.title}
+              </CardTitle>
+              <CardDescription>{action.subtitle}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                <div className="rounded-lg border border-border bg-secondary/20 px-4 py-3 sm:min-w-40">
+                  <p className="text-xs text-muted-foreground">{action.currentValueLabel}</p>
+                  <p className="mt-1 font-mono text-2xl font-semibold text-foreground">
+                    {currentVal || <span className="text-base italic text-muted-foreground">加载中...</span>}
+                  </p>
+                </div>
+                <div className="flex flex-1 gap-3 items-end">
+                  <div className="flex-1 space-y-2">
+                    <Label>{action.label}</Label>
+                    <Input
+                      type="number"
+                      value={draftVal}
+                      onChange={(event) => setDraftValues(prev => ({ ...prev, [draftKey]: event.target.value }))}
+                      placeholder={action.placeholder}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <Button
+                    disabled={!draftVal.trim() || savingKey !== null}
+                    onClick={() => saveContractSetting(action.key, draftKey)}
+                    className="shrink-0"
+                  >
+                    {savingKey === draftKey ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />处理中...</> : draftVal.trim() ? action.buttonLabel : '请输入新值'}
+                  </Button>
+                </div>
+              </div>
+              {action.note && (
+                <p className="mt-4 border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
+                  {action.note}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       <Card className="bg-card border-border shadow-card">
         <CardHeader>
@@ -822,7 +688,6 @@ export function ContractAdmin() {
               </div>
             </div>
           </div>
-
           <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
             <div className="space-y-2">
               <Label>转出金额 (ETH)</Label>
@@ -858,7 +723,7 @@ export function ContractAdmin() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {editableOwnerActions.map(action => {
+        {editableOwnerActions.filter(a => a.key !== 'minStakeUsd').map(action => {
           const draftKey = action.description
           const draftVal = draftValues[draftKey] ?? ''
           const currentVal = currentValueForKey(action.key, action.description)
@@ -916,6 +781,63 @@ export function ContractAdmin() {
               {item.name}
             </Badge>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-border shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            合约绑定
+          </CardTitle>
+          <CardDescription>绑定 Staking、出款合约、VVV Token 与价格/兑换路由地址。</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Staking contract</Label>
+            <Input
+              value={String(contractConfig.stakingContract ?? "")}
+              onChange={(event) => updateConfigField("stakingContract", event.target.value)}
+              placeholder="0x..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Payout contract</Label>
+            <Input
+              value={String(contractConfig.payoutContract ?? "")}
+              onChange={(event) => updateConfigField("payoutContract", event.target.value)}
+              placeholder="0x..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>VVV token</Label>
+            <Input
+              value={String(contractConfig.vvvToken ?? "")}
+              onChange={(event) => updateConfigField("vvvToken", event.target.value)}
+              placeholder="0x..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Price / swap router</Label>
+            <Input
+              value={String(contractConfig.priceRouter ?? "")}
+              onChange={(event) => updateConfigField("priceRouter", event.target.value)}
+              placeholder="0x..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Network</Label>
+            <Input value={`${VVV_ECO_STAKING_CONTRACT.network} (${VVV_ECO_STAKING_CONTRACT.chainId})`} readOnly />
+          </div>
+          <div className="space-y-2">
+            <Label>ABI functions</Label>
+            <Input value={`${abiFunctions.length} linked`} readOnly />
+          </div>
+          <div className="sm:col-span-2">
+            <Button className="w-full" onClick={saveContractBindings}>
+              保存合约绑定
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
