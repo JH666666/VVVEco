@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BarChart3, Gift, Loader2, RotateCcw, Save, TrendingUp, Users, Wallet, Zap } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useGlobalStats, formatInteger, formatUsdFull, type GlobalStatsConfig } from "@/lib/global-stats";
-import { useSetLevelThreshold, useSetLevelRate, useSetDurationRate, useDurationRate, useStakingOwner } from "@/lib/contract-hooks";
+import { useSetLevelThreshold, useSetLevelRate, useSetDurationRate, useSetInviteRate, useDurationRate, useStakingOwner } from "@/lib/contract-hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -102,7 +102,10 @@ export function GlobalStatsAdmin() {
       .catch(() => {});
   }, []);
 
-  // Fetch level config from chain via server-side API
+  // chain invite rates: undefined=loading, null=RPC failed, number=ok (index 0=gen1,1=gen2,2=gen3)
+  const [chainInviteRates, setChainInviteRates] = useState<(number | null | undefined)[]>([undefined, undefined, undefined]);
+
+  // Fetch level + invite config from chain
   useEffect(() => {
     fetch("/api/config/level-config")
       .then((r) => r.json())
@@ -114,8 +117,13 @@ export function GlobalStatsAdmin() {
             levelRates: data.levelRates,
           }));
         }
+        if (Array.isArray(data.inviteRates)) {
+          setChainInviteRates(data.inviteRates);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        setChainInviteRates([null, null, null]);
+      });
   }, []);
 
   // Read on-chain duration rates using savedDurations (DB state), staggered to avoid 429
@@ -129,6 +137,7 @@ export function GlobalStatsAdmin() {
   const setLevelThreshold = useSetLevelThreshold();
   const setLevelRate = useSetLevelRate();
   const setDurationRate = useSetDurationRate();
+  const setInviteRate = useSetInviteRate();
 
   const [batchWriting, setBatchWriting] = useState(false);
   const [batchProgress, setBatchProgress] = useState("");
@@ -295,12 +304,26 @@ export function GlobalStatsAdmin() {
   };
 
   const [savingGeneration, setSavingGeneration] = useState(false);
+  const [savingInviteProgress, setSavingInviteProgress] = useState("");
   const [savingPeriod, setSavingPeriod] = useState(false);
   const [savingPeriodProgress, setSavingPeriodProgress] = useState("");
 
-  const handleSaveGenerationRates = async () => {
+  const handleSyncInviteRates = async () => {
+    if (!isOwner) {
+      toast({ title: "权限不足", description: `链上 Owner: ${chainOwner.slice(0, 6)}...${chainOwner.slice(-4)}`, variant: "destructive" });
+      return;
+    }
     setSavingGeneration(true);
     try {
+      // 依次写 3 笔链上交易，任意失败立即抛出，DB 不更新
+      for (let gen = 1; gen <= 3; gen++) {
+        const rate = rewardDraft.generationRates[gen - 1];
+        setSavingInviteProgress(`${gen}/3 Gen${gen}: ${rate}%`);
+        toast({ title: `邀请奖励 ${gen}/3 写入链上...`, description: `请在钱包确认: setInviteRate(${gen}, ${rate})` });
+        await setInviteRate(gen, rate);
+      }
+      // 全部成功后写 DB
+      setSavingInviteProgress("写入 DB...");
       await fetch("/api/config/reward", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -311,11 +334,14 @@ export function GlobalStatsAdmin() {
           periodUnits: rewardDraft.periodUnits,
         }),
       });
-      toast({ title: "邀请奖励比例已保存", description: "已写入数据库，即时生效。" });
-    } catch {
-      toast({ title: "保存失败", description: "请检查网络后重试", variant: "destructive" });
+      // 更新本地链上显示值
+      setChainInviteRates([...rewardDraft.generationRates]);
+      toast({ title: "邀请奖励已同步", description: "链上 3 笔交易和 DB 均已更新。" });
+    } catch (e: unknown) {
+      toast({ title: "写入失败，DB 未更新", description: (e as Error)?.message?.slice(0, 120), variant: "destructive" });
     } finally {
       setSavingGeneration(false);
+      setSavingInviteProgress("");
     }
   };
 
@@ -474,19 +500,82 @@ export function GlobalStatsAdmin() {
       </div>
 
       <Card className="border-border bg-card shadow-card">
-        <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Gift className="h-5 w-5 text-primary" />邀请奖励比例 (DB存储)</CardTitle><CardDescription>不考核团队业绩，按三代内成员领取的质押收益直接结算。</CardDescription></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[0, 1, 2].map((i) => (
-              <div className="space-y-2" key={i}>
-                <Label>第{i + 1}代奖励比例 %</Label>
-                <Input type="number" min={0} max={100} value={rewardDraft.generationRates[i]} onChange={(e) => updateGenerationRate(i as 0 | 1 | 2, e.target.value)} />
-              </div>
-            ))}
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg"><Gift className="h-5 w-5 text-primary" />邀请奖励比例 (链上+DB同步)</CardTitle>
+              <CardDescription className="mt-1">修改后点击"同步到链上"，依次写入 3 笔链上交易，全部成功后写入 DB。⚠️ 仅 Owner 可操作。当前: {isOwner ? "✅ Owner" : "🔴 非Owner"}</CardDescription>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <Button
+                disabled={!isOwner || savingGeneration}
+                onClick={handleSyncInviteRates}
+                className="gap-2 whitespace-nowrap"
+              >
+                {savingGeneration
+                  ? <><Loader2 className="h-4 w-4 animate-spin" />写入中...</>
+                  : <><Save className="h-4 w-4" />同步到链上</>
+                }
+              </Button>
+              {savingGeneration && savingInviteProgress && (
+                <p className="text-xs text-muted-foreground">正在处理 {savingInviteProgress}</p>
+              )}
+            </div>
           </div>
-          <Button className="w-full" disabled={savingGeneration} onClick={handleSaveGenerationRates}>
-            <Save className="mr-2 h-4 w-4" />{savingGeneration ? '保存中...' : '保存邀请设置'}
-          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="pb-2 text-left font-medium text-muted-foreground w-16">代数</th>
+                  <th className="pb-2 px-2 text-left font-medium text-muted-foreground">奖励比例 % (输入)</th>
+                  <th className="pb-2 px-2 text-left font-medium text-muted-foreground">链上当前值</th>
+                  <th className="pb-2 text-left font-medium text-muted-foreground">同步状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[0, 1, 2].map((i) => {
+                  const chainVal = chainInviteRates[i];
+                  const dbVal = rewardDraft.generationRates[i];
+                  const isSynced = typeof chainVal === "number" && chainVal === dbVal;
+                  return (
+                    <tr key={i} className="border-b border-border/50">
+                      <td className="py-2 text-muted-foreground">Gen{i + 1}</td>
+                      <td className="py-2 px-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          className="h-8 w-24"
+                          value={dbVal}
+                          onChange={(e) => updateGenerationRate(i as 0 | 1 | 2, e.target.value)}
+                        />
+                      </td>
+                      <td className="py-2 px-2 text-muted-foreground font-mono text-sm">
+                        {chainVal === undefined
+                          ? <span className="text-xs text-muted-foreground">读取中...</span>
+                          : chainVal === null
+                            ? <span className="text-xs text-red-500">读取失败</span>
+                            : <span>{chainVal}%</span>
+                        }
+                      </td>
+                      <td className="py-2">
+                        {chainVal === undefined
+                          ? <span className="text-xs text-muted-foreground">-</span>
+                          : chainVal === null
+                            ? <span className="text-xs text-red-400">RPC 失败</span>
+                            : isSynced
+                              ? <span className="text-green-500 text-xs">✅ 已同步</span>
+                              : <span className="text-amber-500 text-xs">⚠️ 未同步</span>
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
 

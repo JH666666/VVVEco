@@ -521,6 +521,18 @@ export function useFlushQueue() {
   };
 }
 
+export function useSetInviteRate() {
+  const { address } = useAccount();
+  return async (gen: number, rate: number) => {
+    const data = encodeFunctionData({
+      abi: parseAbi(["function setInviteRate(uint256 gen, uint256 rate)"]),
+      functionName: "setInviteRate",
+      args: [BigInt(gen), BigInt(rate)],
+    });
+    return sendAdminTx(address, STAKING_ADDR, data);
+  };
+}
+
 export function useSetOwner() {
   const { address } = useAccount();
   return async (newOwner: string) => {

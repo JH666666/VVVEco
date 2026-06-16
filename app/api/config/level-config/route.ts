@@ -7,6 +7,7 @@ const STAKING = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xc451DdCdDbd9e8700E7
 const abi = parseAbi([
   "function levelThresholds(uint256) view returns (uint256)",
   "function levelRates(uint256) view returns (uint256)",
+  "function inviteRates(uint256) view returns (uint256)",
 ]);
 
 const client = createPublicClient({
@@ -16,19 +17,25 @@ const client = createPublicClient({
 
 export async function GET() {
   try {
-    const calls = Array.from({ length: 8 }, (_, i) => i + 1).flatMap((level) => [
+    const levelCalls = Array.from({ length: 8 }, (_, i) => i + 1).flatMap((level) => [
       client.readContract({ address: STAKING, abi, functionName: "levelThresholds", args: [BigInt(level)] }),
       client.readContract({ address: STAKING, abi, functionName: "levelRates", args: [BigInt(level)] }),
     ]);
+    const inviteCalls = [1, 2, 3].map((gen) =>
+      client.readContract({ address: STAKING, abi, functionName: "inviteRates", args: [BigInt(gen)] }),
+    );
 
     // allSettled: 单个 RPC 429/失败不影响其他结果
-    const results = await Promise.allSettled(calls);
+    const [levelResults, inviteResults] = await Promise.all([
+      Promise.allSettled(levelCalls),
+      Promise.allSettled(inviteCalls),
+    ]);
 
     const levelThresholds: number[] = [];
     const levelRates: number[] = [];
     for (let i = 0; i < 8; i++) {
-      const thresholdResult = results[i * 2];
-      const rateResult = results[i * 2 + 1];
+      const thresholdResult = levelResults[i * 2];
+      const rateResult = levelResults[i * 2 + 1];
       levelThresholds.push(
         thresholdResult.status === "fulfilled"
           ? Math.round(Number(thresholdResult.value) / 1e18)
@@ -39,8 +46,12 @@ export async function GET() {
       );
     }
 
-    const anyFailed = results.some((r) => r.status === "rejected");
-    return NextResponse.json({ levelThresholds, levelRates, partial: anyFailed });
+    const inviteRates = inviteResults.map((r) =>
+      r.status === "fulfilled" ? Number(r.value) : null,
+    );
+
+    const anyFailed = [...levelResults, ...inviteResults].some((r) => r.status === "rejected");
+    return NextResponse.json({ levelThresholds, levelRates, inviteRates, partial: anyFailed });
   } catch (e) {
     console.error("level-config error:", e);
     return NextResponse.json({ error: "fetch failed" }, { status: 500 });
