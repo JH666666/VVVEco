@@ -24,10 +24,10 @@ export function Header() {
       <nav className="flex items-center justify-between px-4 py-3 bg-card/90 backdrop-blur-md rounded-full border border-border shadow-sm">
         <Link href="/" className="flex items-center gap-2">
           <Image
-            src="/logo.svg"
+            src="/logo-venice.png"
             alt="VVVeco Logo"
-            width={32}
-            height={35}
+            width={36}
+            height={36}
             className="object-contain"
           />
           <span className="font-serif text-lg font-semibold text-foreground">VVVeco</span>
