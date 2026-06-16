@@ -8,7 +8,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VVVeco | Web3 质押平台",
+  title: "VVVeco",
   description: "VVVeco - 基于 Base 链的双轨制质押平台，支持币本位与金本位收益模式",
   keywords: ["VVV", "DeFi", "Staking", "Base", "Web3", "质押"],
   icons: {
