@@ -6,10 +6,12 @@ import { useEffect, useState } from 'react'
 import { useLanguage } from './language-provider'
 import { formatInteger, formatUsdFull } from '@/lib/global-stats'
 import { useGlobalStatsContext } from '@/contexts/global-stats-context'
+import { useRewardConfig } from '@/lib/reward-config'
 
 export function About() {
   const { t } = useLanguage()
   const { computed, isLoading } = useGlobalStatsContext()
+  const { config: rewardConfig } = useRewardConfig()
   const [minStakeUsd, setMinStakeUsd] = useState<number | null>(null)
   useEffect(() => {
     fetch('/api/admin/chain-params')
@@ -76,8 +78,8 @@ export function About() {
                   <h4 className="font-medium text-foreground mb-1">{t("Team Growth", "团队裂变")}</h4>
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     {t(
-                      "V1-V8 eight-level system, compressed 7-tier team performance calculation, plus 15% / 10% / 5% invitation rewards for three downstream generations.",
-                      "V1-V8 八级等级体系，紧缩制 7 层内团队业绩计算，并叠加三代邀请奖励：一代 15%、二代 10%、三代 5%。"
+                      `V1-V8 eight-level system, compressed 7-tier team performance calculation, plus ${rewardConfig.generationRates[0]}% / ${rewardConfig.generationRates[1]}% / ${rewardConfig.generationRates[2]}% invitation rewards for three downstream generations.`,
+                      `V1-V8 八级等级体系，紧缩制 7 层内团队业绩计算，并叠加三代邀请奖励：一代 ${rewardConfig.generationRates[0]}%、二代 ${rewardConfig.generationRates[1]}%、三代 ${rewardConfig.generationRates[2]}%。`
                     )}
                   </p>
                 </div>

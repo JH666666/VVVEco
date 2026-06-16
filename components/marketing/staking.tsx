@@ -156,8 +156,8 @@ export function Staking() {
           </div>
           <p className="text-muted-foreground mb-8">
             {t(
-              "Auto-upgrade based on compressed 7-tier team performance. Higher level, higher rewards. Invitation rewards are settled separately from team performance.",
-              "根据紧缩制 7 层内团队总业绩自动升级，级差越高收益越多。邀请奖励独立结算，不参与团队业绩考核。"
+              "Compressed-tier system — auto-upgrade when team performance reaches threshold, higher level means higher reward ratio. Invitation rewards are settled separately from team performance.",
+              "根据层数紧缩制，团队总业绩达标自动升级，等级越高奖励比例越高。邀请奖励独立结算，不参与团队业绩考核。"
             )}
           </p>
           <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
@@ -191,8 +191,8 @@ export function Staking() {
               </h3>
               <p className="text-white/80 leading-relaxed mb-6">
                 {t(
-                  "Every user has a unique invite code. Downstream claims within three generations generate invitation rewards: 15% for first generation, 10% for second, and 5% for third.",
-                  "每位用户都有专属邀请码。三代内成员领取质押收益时，会产生邀请奖励：一代 15%，二代 10%，三代 5%。"
+                  `Every user has a unique invite code. Downstream claims within three generations generate invitation rewards: ${rewardConfig.generationRates[0]}% for first generation, ${rewardConfig.generationRates[1]}% for second, and ${rewardConfig.generationRates[2]}% for third.`,
+                  `每位用户都有专属邀请码。三代内成员领取质押收益时，会产生邀请奖励：一代 ${rewardConfig.generationRates[0]}%，二代 ${rewardConfig.generationRates[1]}%，三代 ${rewardConfig.generationRates[2]}%。`
                 )}
               </p>
               <Link
@@ -209,7 +209,7 @@ export function Staking() {
                 <div className="text-sm text-white/70 mt-1">{t("Peer Bonus", "平级奖励")}</div>
               </div>
               <div className="bg-white/10 rounded-xl p-6 text-center">
-                <div className="text-3xl md:text-4xl font-serif font-medium">80%</div>
+                <div className="text-3xl md:text-4xl font-serif font-medium">{rewardConfig.levelRates[7]}%</div>
                 <div className="text-sm text-white/70 mt-1">{t("V8 Max Commission", "V8 最高返佣")}</div>
               </div>
               <div className="bg-white/10 rounded-xl p-6 text-center">

@@ -133,7 +133,16 @@ export function StakingHub() {
   const [stakeAmount, setStakeAmount] = useState('')
   const [isStaking, setIsStaking] = useState(false)
   const { value: minStakeUsdRaw } = useMinStakeUsd()
-  const minStakeUsd = minStakeUsdRaw > 0n ? Math.round(Number(minStakeUsdRaw) / 1e18) : 10
+  const [minStakeUsdApi, setMinStakeUsdApi] = useState<number>(0)
+  useEffect(() => {
+    fetch('/api/admin/chain-params')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.minStakeUsd) setMinStakeUsdApi(Math.round(Number(d.minStakeUsd))) })
+      .catch(() => {})
+  }, [])
+  const minStakeUsd = minStakeUsdRaw > 0n
+    ? Math.round(Number(minStakeUsdRaw) / 1e18)
+    : minStakeUsdApi > 0 ? minStakeUsdApi : 100
   useEffect(() => {
     setSelectedPeriod(current => stakePeriods.find(period => period.duration === current.duration && period.unit === current.unit) ?? stakePeriods[1])
   }, [stakePeriods])

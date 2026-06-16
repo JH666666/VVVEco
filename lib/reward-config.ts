@@ -16,8 +16,8 @@ export interface RewardConfig {
 
 export function getDefaultRewardConfig(): RewardConfig {
   return {
-    generationRates: [15, 10, 5],
-    levelRates: [10, 20, 30, 40, 50, 60, 70, 80],
+    generationRates: [10, 5, 3],
+    levelRates: [3, 4, 5, 6, 7, 8, 9, 10],
     levelThresholds: [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000],
     periodRates: [0.7, 0.8, 0.9, 1],
     periodDurations: [7, 15, 30, 60],
@@ -110,15 +110,18 @@ export function readRewardConfig(): RewardConfig {
 let _cachedConfig: RewardConfig | null = null
 
 async function fetchRewardConfigAPI(): Promise<RewardConfig> {
-  const res = await fetch("/api/config/reward")
-  const data = await res.json()
+  const fallback = getDefaultRewardConfig()
+  const [rewardRes, levelRes] = await Promise.all([
+    fetch("/api/config/reward").then(r => r.json()).catch(() => ({})),
+    fetch("/api/config/level-config").then(r => r.json()).catch(() => ({})),
+  ])
   return {
-    generationRates: (data.generationRates ?? [15, 10, 5]) as [number, number, number],
-    levelRates: [10, 20, 30, 40, 50, 60, 70, 80],
-    levelThresholds: [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000],
-    periodRates: (data.periodRates ?? [1, 1, 1, 1]) as [number, number, number, number],
-    periodDurations: (data.periodDurations ?? [1, 2, 3, 4]) as [number, number, number, number],
-    periodUnits: (data.periodUnits ?? ["day", "day", "day", "day"]) as ["day", "day", "day", "day"],
+    generationRates: (rewardRes.generationRates ?? fallback.generationRates) as [number, number, number],
+    levelRates: (levelRes.levelRates?.length === 8 ? levelRes.levelRates : fallback.levelRates) as [number, number, number, number, number, number, number, number],
+    levelThresholds: (levelRes.levelThresholds?.length === 8 ? levelRes.levelThresholds : fallback.levelThresholds) as [number, number, number, number, number, number, number, number],
+    periodRates: (rewardRes.periodRates ?? fallback.periodRates) as [number, number, number, number],
+    periodDurations: (rewardRes.periodDurations ?? fallback.periodDurations) as [number, number, number, number],
+    periodUnits: (rewardRes.periodUnits ?? fallback.periodUnits) as ["day", "day", "day", "day"],
   }
 }
 

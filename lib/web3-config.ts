@@ -18,14 +18,16 @@ const connectors = connectorsForWallets(
   }
 );
 
+const PRIMARY_RPC = process.env.NEXT_PUBLIC_BASE_MAINNET_RPC ?? "https://mainnet.base.org";
+
 export const config = createConfig({
   connectors,
   chains: [base, hardhat],
   transports: {
     [base.id]: fallback([
+      http(PRIMARY_RPC),
       http("https://mainnet.base.org"),
       http("https://base-rpc.publicnode.com"),
-      http("https://8453.rpc.thirdweb.com"),
     ]),
     [hardhat.id]: http("http://127.0.0.1:8545"),
   },

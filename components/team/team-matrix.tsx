@@ -543,7 +543,7 @@ export function TeamMatrix() {
               </div>
               <div className="rounded-lg bg-secondary/50 p-3 sm:p-4">
                 <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  {t('邀请奖励一代收益的15%，二代收益的10%，三代收益的5%，邀请越多奖励越多', 'Earn 15% from gen-1, 10% from gen-2, 5% from gen-3 referral rewards — invite more, earn more')}
+                  {t(`邀请奖励一代收益的${rewardConfig.generationRates[0]}%，二代收益的${rewardConfig.generationRates[1]}%，三代收益的${rewardConfig.generationRates[2]}%，邀请越多奖励越多`, `Earn ${rewardConfig.generationRates[0]}% from gen-1, ${rewardConfig.generationRates[1]}% from gen-2, ${rewardConfig.generationRates[2]}% from gen-3 referral rewards — invite more, earn more`)}
                 </p>
               </div>
             </CardContent>
@@ -558,7 +558,7 @@ export function TeamMatrix() {
               <div className="rounded-lg bg-secondary/30 p-4 sm:p-6 text-center">
                 <p className="text-sm text-muted-foreground mb-3">{t('您还未参与质押', 'You have not staked yet')}</p>
                 <p className="text-xs text-muted-foreground">{t('完成首次质押后，系统将自动生成您的专属邀请码', 'Your invite code will be generated automatically after your first stake')}</p>
-                <p className="mt-3 text-xs text-muted-foreground">{t('邀请奖励一代收益的15%，二代收益的10%，三代收益的5%，邀请越多奖励越多', 'Earn 15% from gen-1, 10% from gen-2, 5% from gen-3 — invite more, earn more')}</p>
+                <p className="mt-3 text-xs text-muted-foreground">{t(`邀请奖励一代收益的${rewardConfig.generationRates[0]}%，二代收益的${rewardConfig.generationRates[1]}%，三代收益的${rewardConfig.generationRates[2]}%，邀请越多奖励越多`, `Earn ${rewardConfig.generationRates[0]}% from gen-1, ${rewardConfig.generationRates[1]}% from gen-2, ${rewardConfig.generationRates[2]}% from gen-3 — invite more, earn more`)}</p>
               </div>
             </CardContent>
           </Card>
@@ -570,7 +570,7 @@ export function TeamMatrix() {
             <div className="flex items-start justify-between">
               <div>
                 <CardTitle className="text-base sm:text-lg">{t('V1-V8 等级体系', 'V1-V8 Level System')}</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">{t('根据紧缩制7层内团队总业绩自动升级，级差越高收益越多', 'Auto-upgrade based on 7-layer team performance — higher rank means more rewards')}</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">{t('根据层数紧缩制，团队总业绩达标自动升级，等级越高奖励比例越高', 'Compressed-tier system — auto-upgrade when team performance reaches threshold, higher level means higher reward ratio')}</CardDescription>
               </div>
               <span className="text-xs text-muted-foreground whitespace-nowrap">{t('* 平级奖励 10%', '* Same-level bonus 10%')}</span>
             </div>

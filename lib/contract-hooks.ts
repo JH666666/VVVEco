@@ -129,12 +129,13 @@ export function useVVVBalanceData() {
           }
         } catch (e) { console.warn('[balance] wallet provider failed:', e); }
       }
-      // 2. 备用：公共 RPC
-      for (const rpc of [
+      // 2. 备用：优先 Alchemy，再 fallback 公共节点
+      const rpcList = [
+        process.env.NEXT_PUBLIC_BASE_MAINNET_RPC,
         'https://mainnet.base.org',
         'https://base-rpc.publicnode.com',
-        'https://rpc.ankr.com/base',
-      ]) {
+      ].filter(Boolean) as string[];
+      for (const rpc of rpcList) {
         if (cancelled) return;
         try {
           const res = await fetch(rpc, {
@@ -235,7 +236,8 @@ export function useDurationRate(days: number, delayMs = 0) {
       });
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
-        const res = await fetch('https://mainnet.base.org', {
+        const rpc = process.env.NEXT_PUBLIC_BASE_MAINNET_RPC ?? 'https://mainnet.base.org';
+        const res = await fetch(rpc, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body, signal: controller.signal,
         });

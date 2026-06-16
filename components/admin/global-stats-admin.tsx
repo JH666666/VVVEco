@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BarChart3, Gift, Loader2, RotateCcw, Save, TrendingUp, Users, Wallet, Zap } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useGlobalStats, formatInteger, formatUsdFull, type GlobalStatsConfig } from "@/lib/global-stats";
-import { useSetLevelThreshold, useSetLevelRate, useSetDurationRate, useSetInviteRate, useDurationRate, useStakingOwner } from "@/lib/contract-hooks";
+import { useSetLevelThreshold, useSetLevelRate, useSetDurationRate, useSetInviteRate, useDurationRate, useStakingOwner, STAKING_ADDR } from "@/lib/contract-hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -305,24 +305,37 @@ export function GlobalStatsAdmin() {
 
   const [savingGeneration, setSavingGeneration] = useState(false);
   const [savingInviteProgress, setSavingInviteProgress] = useState("");
+  const savingInviteLockRef = useRef(false);
   const [savingPeriod, setSavingPeriod] = useState(false);
   const [savingPeriodProgress, setSavingPeriodProgress] = useState("");
+  const savingPeriodLockRef = useRef(false);
 
   const handleSyncInviteRates = async () => {
+    if (savingInviteLockRef.current) return;
+    savingInviteLockRef.current = true;
     if (!isOwner) {
       toast({ title: "权限不足", description: `链上 Owner: ${chainOwner.slice(0, 6)}...${chainOwner.slice(-4)}`, variant: "destructive" });
+      savingInviteLockRef.current = false;
       return;
     }
     setSavingGeneration(true);
     try {
-      // 依次写 3 笔链上交易，任意失败立即抛出，DB 不更新
       for (let gen = 1; gen <= 3; gen++) {
         const rate = rewardDraft.generationRates[gen - 1];
         setSavingInviteProgress(`${gen}/3 Gen${gen}: ${rate}%`);
         toast({ title: `邀请奖励 ${gen}/3 写入链上...`, description: `请在钱包确认: setInviteRate(${gen}, ${rate})` });
-        await setInviteRate(gen, rate);
+        try {
+          await setInviteRate(gen, rate);
+        } catch (e: unknown) {
+          const msg = String((e as any)?.message ?? (e as any)?.error?.message ?? "");
+          if (msg.includes("duplicate call detected") || msg.includes("already known")) {
+            setSavingInviteProgress(`${gen}/3 等待链上确认...`);
+            await new Promise(r => setTimeout(r, 4000));
+          } else {
+            throw e;
+          }
+        }
       }
-      // 全部成功后写 DB
       setSavingInviteProgress("写入 DB...");
       await fetch("/api/config/reward", {
         method: "PUT",
@@ -334,7 +347,6 @@ export function GlobalStatsAdmin() {
           periodUnits: rewardDraft.periodUnits,
         }),
       });
-      // 更新本地链上显示值
       setChainInviteRates([...rewardDraft.generationRates]);
       toast({ title: "邀请奖励已同步", description: "链上 3 笔交易和 DB 均已更新。" });
     } catch (e: unknown) {
@@ -342,6 +354,7 @@ export function GlobalStatsAdmin() {
     } finally {
       setSavingGeneration(false);
       setSavingInviteProgress("");
+      savingInviteLockRef.current = false;
     }
   };
 
@@ -364,9 +377,29 @@ export function GlobalStatsAdmin() {
     });
   };
 
+  // 读取链上 durationRates(durationDays)，返回 permille 值（如 7 → 7 表示 0.7%/天）
+  const readDurationRateOnChain = async (durationDays: number): Promise<number | null> => {
+    try {
+      const rpc = process.env.NEXT_PUBLIC_BASE_MAINNET_RPC ?? "https://mainnet.base.org";
+      // selector: keccak256("durationRates(uint256)") = 0x2b9e3b25
+      const data = "0x2b9e3b25" + BigInt(durationDays).toString(16).padStart(64, "0");
+      const res = await fetch(rpc, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: STAKING_ADDR, data }, "latest"] }),
+      });
+      const json = await res.json();
+      if (!json?.result || json.result === "0x") return null;
+      return Number(BigInt(json.result));
+    } catch { return null; }
+  };
+
   const handleSavePeriodConfig = async () => {
+    if (savingPeriodLockRef.current) return;
+    savingPeriodLockRef.current = true;
     if (!isOwner) {
       toast({ title: "权限不足", description: `链上 Owner: ${chainOwner.slice(0, 6)}...${chainOwner.slice(-4)}`, variant: "destructive" });
+      savingPeriodLockRef.current = false;
       return;
     }
     const durations = rewardDraft.periodDurations;
@@ -374,11 +407,13 @@ export function GlobalStatsAdmin() {
     for (let i = 0; i < 4; i++) {
       if (durations[i] <= 0 || rates[i] <= 0) {
         toast({ title: "校验失败", description: `第${i + 1}行：天数和利率必须大于0`, variant: "destructive" });
+        savingPeriodLockRef.current = false;
         return;
       }
     }
     if (new Set(durations).size < 4) {
       toast({ title: "校验失败", description: "周期天数不能重复", variant: "destructive" });
+      savingPeriodLockRef.current = false;
       return;
     }
     setSavingPeriod(true);
@@ -388,7 +423,23 @@ export function GlobalStatsAdmin() {
         const ratePermille = Math.round(rates[i] * 10);
         setSavingPeriodProgress(`${i + 1}/4 (${durationDays}天 / ${rates[i]}%/天)`);
         toast({ title: `周期 ${i + 1}/4 写入链上...`, description: `请在钱包确认：setDurationRate(${durationDays}, ${ratePermille})` });
-        await setDurationRate(durationDays, ratePermille);
+        try {
+          await setDurationRate(durationDays, ratePermille);
+        } catch (e: unknown) {
+          const msg = String((e as any)?.message ?? (e as any)?.error?.message ?? "");
+          if (msg.includes("duplicate call detected") || msg.includes("already known")) {
+            // TP/MetaMask 重复提交保护：tx 已发出，等待上链后验证
+            setSavingPeriodProgress(`${i + 1}/4 等待链上确认...`);
+            await new Promise(r => setTimeout(r, 4000));
+            const onChain = await readDurationRateOnChain(durationDays);
+            if (onChain !== ratePermille) {
+              throw new Error(`链上验证失败：durationRates(${durationDays}) = ${onChain}，期望 ${ratePermille}`);
+            }
+            toast({ title: `周期 ${i + 1}/4 已确认`, description: `${durationDays}天 / ${rates[i]}%/天 链上验证通过` });
+          } else {
+            throw e;
+          }
+        }
       }
       setSavingPeriodProgress("写入DB...");
       await fetch("/api/config/reward", {
@@ -408,6 +459,7 @@ export function GlobalStatsAdmin() {
     } finally {
       setSavingPeriod(false);
       setSavingPeriodProgress("");
+      savingPeriodLockRef.current = false;
     }
   };
 

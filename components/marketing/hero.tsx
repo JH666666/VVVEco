@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { useLanguage } from './language-provider'
 import { formatInteger, formatUsdCompact } from '@/lib/global-stats'
 import { useGlobalStatsContext } from '@/contexts/global-stats-context'
+import { useRewardConfig } from '@/lib/reward-config'
 
 export function Hero() {
   const { t } = useLanguage()
   const { computed, isLoading } = useGlobalStatsContext()
+  const { config: rewardConfig } = useRewardConfig()
   const contractAddress = "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf"
 
   const copyAddress = () => {
@@ -36,8 +38,8 @@ export function Hero() {
 
         <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-8 text-pretty leading-relaxed">
           {t(
-            "VVVeco is the decentralized staking platform of Venice AI ecosystem. Choose your staking mode and period, enjoy up to 1% daily yield, build your team matrix, unlock V8 level 80% commission.",
-            "VVVeco 是 Venice AI 生态的去中心化质押平台。选择质押模式和周期，享受高达 1% 日收益率，建立你的团队矩阵，解锁 V8 等级 80% 返佣。"
+            `VVVeco is the decentralized staking platform of Venice AI ecosystem. Choose your staking mode and period, enjoy up to 1% daily yield, build your team matrix, unlock V8 level ${rewardConfig.levelRates[7]}% commission.`,
+            `VVVeco 是 Venice AI 生态的去中心化质押平台。选择质押模式和周期，享受高达 1% 日收益率，建立你的团队矩阵，解锁 V8 等级 ${rewardConfig.levelRates[7]}% 返佣。`
           )}
         </p>
 
