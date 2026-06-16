@@ -103,9 +103,9 @@ model TeamReward {
 
 model RewardConfig {
   id              Int      @id @default(autoincrement())
-  generationRates String   @default("15,10,5") @map("generation_rates")
+  generationRates String   @default("10,5,3") @map("generation_rates")
   periodRates     String   @default("0.7,0.8,0.9,1.0") @map("period_rates")
-  periodDurations String   @default("7,15,30,60") @map("period_durations")
+  periodDurations String   @default("1,15,30,60") @map("period_durations")
   periodUnits     String   @default("day,day,day,day") @map("period_units")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

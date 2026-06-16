@@ -49,15 +49,15 @@ export function GlobalStatsAdmin() {
   // Track which base fields the admin has explicitly edited since last load/save
   const dirtyBaseFields = useRef<Set<'baseStakedUsd' | 'baseClaimedUsd' | 'baseStakers'>>(new Set());
   const [rewardDraft, setRewardDraft] = useState({
-    generationRates: [15, 10, 5] as number[],
-    levelRates: [10, 20, 30, 40, 50, 60, 70, 80] as number[],
+    generationRates: [10, 5, 3] as number[],
+    levelRates: [3, 4, 5, 6, 7, 8, 9, 10] as number[],
     levelThresholds: [0, 10000, 30000, 50000, 100000, 300000, 500000, 1000000] as number[],
     periodRates: [0.7, 0.8, 0.9, 1.0] as number[],
-    periodDurations: [7, 15, 30, 60] as number[],
+    periodDurations: [1, 15, 30, 60] as number[],
     periodUnits: ["day", "day", "day", "day"] as string[],
   });
   // 只在 DB 加载 / 同步成功后更新，不随输入框实时变化
-  const [savedDurations, setSavedDurations] = useState([7, 15, 30, 60]);
+  const [savedDurations, setSavedDurations] = useState([1, 15, 30, 60]);
 
   // One-time fetch to populate form with real DB values on mount
   useEffect(() => {
@@ -89,7 +89,7 @@ export function GlobalStatsAdmin() {
     fetch("/api/config/reward")
       .then((r) => r.json())
       .then((data) => {
-        const durations = data.periodDurations ?? [7, 15, 30, 60];
+        const durations = data.periodDurations ?? [1, 15, 30, 60];
         setSavedDurations(durations);
         setRewardDraft((prev) => ({
           ...prev,
