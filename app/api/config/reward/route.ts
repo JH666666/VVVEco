@@ -20,7 +20,7 @@ export async function GET() {
     });
   } catch {
     return NextResponse.json(
-      { generationRates: [15, 10, 5], periodRates: [1, 1, 1, 1], periodDurations: [1, 2, 3, 4], periodUnits: ["day", "day", "day", "day"] }
+      { generationRates: [10, 5, 3], periodRates: [0.7, 0.8, 0.9, 1.0], periodDurations: [1, 15, 30, 60], periodUnits: ["day", "day", "day", "day"] }
     );
   }
 }
@@ -41,9 +41,9 @@ export async function PUT(request: NextRequest) {
       update: data,
       create: {
         id: 1,
-        generationRates: "15,10,5",
-        periodRates: "1,1,1,1",
-        periodDurations: "1,2,3,4",
+        generationRates: "10,5,3",
+        periodRates: "0.7,0.8,0.9,1.0",
+        periodDurations: "1,15,30,60",
         periodUnits: "day,day,day,day",
         ...data,
       },

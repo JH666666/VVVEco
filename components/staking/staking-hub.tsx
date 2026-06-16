@@ -605,7 +605,7 @@ export function StakingHub() {
                   {!address
                     ? t('请连接钱包', 'Please connect wallet')
                     : !isBase
-                    ? t(`请切换到 Base Sepolia（当前 chainId: ${chainId}）`, `Please switch to Base Sepolia (current chainId: ${chainId})`)
+                    ? t(`请切换到 Base 主网（当前 chainId: ${chainId}）`, `Please switch to Base Mainnet (current chainId: ${chainId})`)
                     : balancePending
                     ? t('读取余额中...', 'Loading balance...')
                     : balanceError

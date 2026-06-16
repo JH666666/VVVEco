@@ -20,7 +20,7 @@ export function getDefaultRewardConfig(): RewardConfig {
     levelRates: [3, 4, 5, 6, 7, 8, 9, 10],
     levelThresholds: [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000],
     periodRates: [0.7, 0.8, 0.9, 1],
-    periodDurations: [7, 15, 30, 60],
+    periodDurations: [1, 15, 30, 60],
     periodUnits: ['day', 'day', 'day', 'day'],
   }
 }
