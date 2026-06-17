@@ -354,7 +354,7 @@ export function Dashboard() {
     .reverse()
 
   const totalStaked = currentOrders.filter(o => o.status !== 'withdrawn').reduce((sum, o) => sum + o.usdValue, 0)
-  const activeOrders = currentOrders.filter(o => o.status === 'active')
+  const activeOrders = currentOrders.filter(o => o.status === 'active' || o.status === 'expired')
   const redeemedAmount = currentOrders.filter(o => o.status === 'withdrawn').reduce((sum, o) => sum + o.usdValue, 0)
   const totalClaimedVvv = mergedClaims
     .filter(claim => claim.account.toLowerCase() === currentAddress.toLowerCase())
@@ -387,6 +387,8 @@ export function Dashboard() {
 
   const filteredOrders = currentOrders.filter(order => {
     if (filter === 'all') return true
+    // 进行中 = 未到期(active) + 已到期但未领收益(expired)
+    if (filter === 'active') return order.status === 'active' || order.status === 'expired'
     return order.status === filter
   })
 
