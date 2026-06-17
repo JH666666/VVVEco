@@ -509,8 +509,8 @@ export function Dashboard() {
                 key={order.id}
                 className={cn(
                   'rounded-xl border p-4 sm:p-5 transition-all',
-                  order.status === 'active' 
-                    ? 'border-primary/30 bg-primary/5' 
+                  (order.status === 'active' || order.status === 'expired')
+                    ? 'border-primary/30 bg-primary/5'
                     : 'border-border bg-secondary/20'
                 )}
               >
@@ -582,7 +582,7 @@ export function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  {order.status === 'active' && order.pendingReward > 0 && (
+                  {(order.status === 'active' || order.status === 'expired') && order.pendingReward > 0 && (
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-accent shrink-0" />
                       <div className="min-w-0">
@@ -598,7 +598,7 @@ export function Dashboard() {
                   )}
                 </div>
 
-                {order.status === 'active' && (
+                {(order.status === 'active' || order.status === 'expired') && (
                   <div className="mt-3 sm:mt-4">
                     <Button
                       size="sm"
