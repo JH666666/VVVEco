@@ -8,7 +8,8 @@
     "start:mobile": "next start --hostname 0.0.0.0 --port 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "seed:v2": "npx tsx scripts/seed-v2-db.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
