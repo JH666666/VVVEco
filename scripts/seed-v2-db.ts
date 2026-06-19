@@ -2,11 +2,23 @@
  * seed-v2-db.ts  —  VVVEco V2 数据库完整初始化
  *
  * 用途：fresh DB 或旧 V1 DB 均可执行，幂等。
- * Run:  DATABASE_URL="file:./prisma/prod.db" npx tsx scripts/seed-v2-db.ts
+ * Run:  npm run seed:v2
+ *
+ * 注意：使用动态 import 加载 prisma，确保 dotenv 先于 PrismaClient 初始化执行。
  */
-import { prisma } from "../lib/prisma.js";
+import * as dotenv from "dotenv";
+
+// 必须在任何 prisma import 之前加载 .env，否则 ESM 静态 import 提升会导致
+// lib/prisma.ts 在 DATABASE_URL 设置前就初始化 PrismaClient，回落到 dev.db
+dotenv.config();
+dotenv.config({ path: ".env.local", override: true });
+
+console.log(`[seed-v2] DATABASE_URL = ${process.env.DATABASE_URL ?? "(not set, will use dev.db)"}`);
 
 async function main() {
+  // 动态 import 保证 PrismaClient 在 DATABASE_URL 已设置后才初始化
+  const { prisma } = await import("../lib/prisma.js");
+
   console.log("═══════════════════ VVVEco V2 DB Seed ═══════════════════\n");
 
   // ── 1. RewardConfig ────────────────────────────────────────────────────────
@@ -80,8 +92,8 @@ async function main() {
   }
 
   console.log("\n═══════════════════ Seed Complete ════════════════════════\n");
+
+  await prisma.$disconnect().catch(() => {});
 }
 
-main()
-  .catch(e => { console.error("❌  Seed failed:", e); process.exit(1); })
-  .finally(() => prisma.$disconnect().catch(() => {}));
+main().catch(e => { console.error("❌  Seed failed:", e); process.exit(1); });
