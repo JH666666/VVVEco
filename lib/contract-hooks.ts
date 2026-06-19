@@ -295,6 +295,29 @@ export function useLevelRate(level: number) {
 
 const OWNER_ABI = [{ name: "owner", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }] as const;
 
+const PROJECT_WALLET_ABI = [{ name: "projectWallet", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }] as const;
+const FEE_WALLET_ABI = [{ name: "feeWallet", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }] as const;
+
+export function useStakingProjectWallet() {
+  const { data, isPending, isError, refetch } = useReadContract({ address: STAKING_ADDR, abi: PROJECT_WALLET_ABI, functionName: "projectWallet", chainId: 8453 });
+  return {
+    projectWallet: (data as string | undefined) ?? "",
+    refetch: async () => { await refetch(); },
+    isPending,
+    isError,
+  };
+}
+
+export function useStakingFeeWallet() {
+  const { data, isPending, isError, refetch } = useReadContract({ address: STAKING_ADDR, abi: FEE_WALLET_ABI, functionName: "feeWallet", chainId: 8453 });
+  return {
+    feeWallet: (data as string | undefined) ?? "",
+    refetch: async () => { await refetch(); },
+    isPending,
+    isError,
+  };
+}
+
 export function useStakingOwner() {
   const { data } = useReadContract({ address: STAKING_ADDR, abi: OWNER_ABI, functionName: "owner", chainId: 8453 });
   return (data as string | undefined) ?? "";

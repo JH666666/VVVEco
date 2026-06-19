@@ -8,7 +8,7 @@ import { formatEther, parseEther } from 'viem'
 import { useChainId, useBalance } from 'wagmi'
 import { useAdminWallet } from '@/contexts/admin-wallet-context'
 import { useAdminControls } from '@/lib/admin-controls'
-import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMinStakeUsd, useStakingOwnerData, useRescueETH } from '@/lib/contract-hooks'
+import { STAKING_ADDR, useSetFreezeStatus, useSetFeePercent, useSetProjectWallet, useSetFeeWallet, useTransferOwnership, useSetMinStakeUsd, useStakingOwnerData, useStakingProjectWallet, useStakingFeeWallet, useRescueETH } from '@/lib/contract-hooks'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -208,6 +208,8 @@ export function ContractAdmin() {
   const [savingKey, setSavingKey] = useState<string | null>(null)
   // Chain reads via wagmi (uses configured transport, auto-refetches on account/chain change)
   const { owner: ownerAddr, refetch: refetchOwner, isPending: ownerPending, isError: ownerError } = useStakingOwnerData()
+  const { projectWallet: chainProjectWallet, refetch: refetchProjectWallet, isPending: projectWalletPending, isError: projectWalletError } = useStakingProjectWallet()
+  const { feeWallet: chainFeeWallet, refetch: refetchFeeWallet, isPending: feeWalletPending, isError: feeWalletError } = useStakingFeeWallet()
   const { data: payoutBalanceData, isPending: balancePending, refetch: refetchPayoutBalance } = useBalance({ address: PAYOUT_ADDR, chainId: 8453 })
   const rescueETHChain = useRescueETH()
   const { address: connectedAddress } = useAdminWallet()
@@ -239,8 +241,8 @@ export function ContractAdmin() {
     }
   }, [connectedAddress, refetchOwner])
 
-  // currentValueForKey: reads from server-side chain API or wagmi where available
-  const currentValueForKey = (key: OwnerActionKey, description: string): string => {
+  // currentValueForKey: chain-first, DB fallback
+  const currentValueForKey = (key: OwnerActionKey, _description: string): string => {
     if (key === 'owner') {
       if (ownerError) return ''
       return ownerAddr
@@ -248,6 +250,16 @@ export function ContractAdmin() {
     if (key === 'minStakeUsd') {
       if (!chainParams) return ''
       return `$${chainParams.minStakeUsd}`
+    }
+    if (key === 'projectWallet') {
+      if (chainProjectWallet) return chainProjectWallet
+      if (projectWalletError) return String(contractConfig.projectWallet ?? '')
+      return ''  // pending
+    }
+    if (key === 'feeWallet') {
+      if (chainFeeWallet) return chainFeeWallet
+      if (feeWalletError) return String(contractConfig.feeWallet ?? '')
+      return ''  // pending
     }
     return String(contractConfig[key] ?? '')
   }
@@ -347,10 +359,13 @@ export function ContractAdmin() {
       } else if (key === "projectWallet") {
         toast({ title: "修改收款钱包中...", description: "请在钱包确认" })
         await setProjectWalletChain(value)
+        await new Promise(r => setTimeout(r, 2000))
+        await refetchProjectWallet()
       } else if (key === "feeWallet") {
         toast({ title: "修改手续费钱包中...", description: "请在钱包确认" })
         await setFeeWalletChain(value)
         await new Promise(r => setTimeout(r, 2000))
+        await refetchFeeWallet()
       }
       await saveContractConfig({ [key]: key === 'feePercent' ? Number(value) : value, feePercent: key === 'feePercent' ? Number(value) : Number(contractConfig.feePercent ?? 10) })
       toast({ title: "修改成功", description: `${key} 已更新` })
