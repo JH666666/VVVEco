@@ -2,9 +2,9 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { Menu, X } from "lucide-react"
 import { useLanguage, LanguageSwitcher } from "./language-provider"
+import { OfficialLogo } from "@/components/brand/official-logo"
 
 const navItems = [
   { en: "About", zh: "关于", href: "#about" },
@@ -13,6 +13,7 @@ const navItems = [
   { en: "Pricing", zh: "订阅", href: "#pricing" },
   { en: "Tools", zh: "官方工具", href: "#tools" },
   { en: "Team", zh: "团队", href: "#team" },
+  { en: "Explore VVVEco Ecosystem", zh: "了解 VVVEco 生态", href: "/ecosystem" },
 ]
 
 export function Header() {
@@ -23,14 +24,8 @@ export function Header() {
     <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-5xl">
       <nav className="flex items-center justify-between px-4 py-3 bg-card/90 backdrop-blur-md rounded-full border border-border shadow-sm">
         <Link href="/" className="flex items-center gap-2">
-          <Image
-            src="/logo-venice.png"
-            alt="VVVeco Logo"
-            width={36}
-            height={36}
-            className="object-contain"
-          />
-          <span className="font-serif text-lg font-semibold text-foreground">VVVeco</span>
+          <OfficialLogo size={36} themeAware />
+          <span className="font-serif text-lg font-semibold text-foreground">VVVEco</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-6">
