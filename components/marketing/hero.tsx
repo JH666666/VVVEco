@@ -75,15 +75,8 @@ export function Hero() {
             href="/ecosystem"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-primary/25 bg-card text-primary px-8 py-4 rounded-full text-base font-medium hover:bg-primary/5 hover:border-primary/40 transition-colors"
           >
-            {t("Explore VVVEco Ecosystem", "了解 VVVEco 生态")}
+            {t("Explore Ecosystem", "了解生态")}
             <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            href="https://venice.ai"
-            target="_blank"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-secondary text-foreground px-8 py-4 rounded-full text-base font-medium hover:bg-secondary/80 transition-colors"
-          >
-            {t("Visit Venice.ai", "访问官网")}
           </Link>
         </div>
 

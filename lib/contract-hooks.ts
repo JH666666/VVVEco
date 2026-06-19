@@ -299,7 +299,8 @@ const PROJECT_WALLET_ABI = [{ name: "projectWallet", type: "function", stateMuta
 const FEE_WALLET_ABI = [{ name: "feeWallet", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }] as const;
 
 export function useStakingProjectWallet() {
-  const { data, isPending, isError, refetch } = useReadContract({ address: STAKING_ADDR, abi: PROJECT_WALLET_ABI, functionName: "projectWallet", chainId: 8453 });
+  // projectWallet() is on VVVTreasury, NOT VVVEcoStaking
+  const { data, isPending, isError, refetch } = useReadContract({ address: TREASURY_ADDR, abi: PROJECT_WALLET_ABI, functionName: "projectWallet", chainId: 8453 });
   return {
     projectWallet: (data as string | undefined) ?? "",
     refetch: async () => { await refetch(); },
@@ -309,7 +310,8 @@ export function useStakingProjectWallet() {
 }
 
 export function useStakingFeeWallet() {
-  const { data, isPending, isError, refetch } = useReadContract({ address: STAKING_ADDR, abi: FEE_WALLET_ABI, functionName: "feeWallet", chainId: 8453 });
+  // feeWallet() is on VVVPayout, NOT VVVEcoStaking
+  const { data, isPending, isError, refetch } = useReadContract({ address: PAYOUT_ADDR, abi: FEE_WALLET_ABI, functionName: "feeWallet", chainId: 8453 });
   return {
     feeWallet: (data as string | undefined) ?? "",
     refetch: async () => { await refetch(); },
