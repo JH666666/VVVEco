@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/language-context";
+import { OfficialLogo } from "@/components/brand/official-logo";
 import { BrandMark } from "./brand-mark";
 import { CommunityArchitecture } from "./community-architecture";
 import { DiemBridge } from "./diem-bridge";
@@ -84,52 +85,93 @@ function App() {
       ];
 
   return (
-    <div className={`ecosystem-site site-shell lang-${lang}`}>
+    <div className={`dark ecosystem-site site-shell lang-${lang}`}>
       <div className="ambient-field ambient-one" />
       <div className="ambient-field ambient-two" />
 
-      <header className={`topbar ${scrolled ? "is-scrolled" : ""}`}>
-        <div className="page-container nav-inner">
-          <a href="#top" onClick={closeMenu}><BrandMark lang={lang} /></a>
-          <nav className={menuOpen ? "is-open" : ""}>
-            <a href="#venice" onClick={closeMenu}>{isZh ? "Venice AI" : "Venice AI"}</a>
-            <a href="#vvv" onClick={closeMenu}>{isZh ? "为什么是 VVV" : "Why VVV"}</a>
-            <a href="#diem" onClick={closeMenu}>DIEM</a>
-            <a href="#ecosystem" onClick={closeMenu}>{isZh ? "生态架构" : "Ecosystem"}</a>
-            <a href="#flywheel" onClick={closeMenu}>{isZh ? "增长飞轮" : "Growth"}</a>
-            <a href="#roadmap" onClick={closeMenu}>{isZh ? "路线图" : "Roadmap"}</a>
-          </nav>
-          <div className="nav-actions">
-            <div className="language-switch" aria-label={isZh ? "语言选择" : "Language selection"}>
-              <button
-                type="button"
-                className={isZh ? "is-active" : ""}
-                onClick={() => changeLanguage("zh")}
-              >
+      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-5xl">
+        <nav className={`flex items-center justify-between px-4 py-3 rounded-full border transition-all duration-300 ${
+          scrolled
+            ? "bg-[#0c1e33]/95 backdrop-blur-md border-white/10 shadow-lg"
+            : "bg-[#0c1e33]/70 backdrop-blur-sm border-white/8"
+        }`}>
+          <a href="/" className="flex items-center gap-2.5" onClick={closeMenu}>
+            <OfficialLogo size={32} themeAware />
+            <span className="font-serif font-semibold text-white/90 hidden sm:block">VVVEco</span>
+          </a>
+
+          <div className="hidden md:flex items-center gap-5">
+            {[
+              { href: "#venice", zh: "Venice AI", en: "Venice AI" },
+              { href: "#vvv", zh: "为什么 VVV", en: "Why VVV" },
+              { href: "#diem", zh: "DIEM", en: "DIEM" },
+              { href: "#ecosystem", zh: "生态架构", en: "Ecosystem" },
+              { href: "#flywheel", zh: "增长飞轮", en: "Growth" },
+              { href: "#roadmap", zh: "路线图", en: "Roadmap" },
+            ].map(link => (
+              <a key={link.href} href={link.href} onClick={closeMenu}
+                className="text-sm text-white/50 hover:text-white/90 transition-colors">
+                {isZh ? link.zh : link.en}
+              </a>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 bg-white/8 rounded-full p-0.5">
+              <button type="button" onClick={() => changeLanguage("zh")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                  isZh ? "bg-[#bd6700] text-white" : "text-white/45 hover:text-white/80"
+                }`}>
                 中文
               </button>
-              <i />
-              <button
-                type="button"
-                className={!isZh ? "is-active" : ""}
-                onClick={() => changeLanguage("en")}
-              >
+              <button type="button" onClick={() => changeLanguage("en")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                  !isZh ? "bg-[#bd6700] text-white" : "text-white/45 hover:text-white/80"
+                }`}>
                 EN
               </button>
             </div>
-            <a className="nav-launch" href="/stake">
-              {isZh ? "进入质押大厅" : "Launch App"} <ArrowRight size={15} />
+
+            <a href="/stake"
+              className="hidden md:inline-flex items-center gap-1.5 bg-[#bd6700] text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-[#a85c00] transition-colors">
+              {isZh ? "进入质押大厅" : "Launch App"}
+              <ArrowRight size={13} />
             </a>
-            <button
-              className="menu-toggle"
-              type="button"
+
+            <button className="md:hidden p-2 text-white/60 hover:text-white transition-colors" type="button"
               aria-label={menuOpen ? (isZh ? "关闭菜单" : "Close menu") : (isZh ? "打开菜单" : "Open menu")}
-              onClick={() => setMenuOpen((current) => !current)}
-            >
+              onClick={() => setMenuOpen((c) => !c)}>
               {menuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
-        </div>
+        </nav>
+
+        {menuOpen && (
+          <div className="md:hidden mt-2 bg-[#0c1e33] border border-white/10 rounded-2xl shadow-xl p-3">
+            <div className="flex flex-col gap-0.5">
+              {[
+                { href: "#venice", zh: "Venice AI", en: "Venice AI" },
+                { href: "#vvv", zh: "为什么 VVV", en: "Why VVV" },
+                { href: "#diem", zh: "DIEM", en: "DIEM" },
+                { href: "#ecosystem", zh: "生态架构", en: "Ecosystem" },
+                { href: "#flywheel", zh: "增长飞轮", en: "Growth" },
+                { href: "#roadmap", zh: "路线图", en: "Roadmap" },
+              ].map(link => (
+                <a key={link.href} href={link.href} onClick={closeMenu}
+                  className="px-4 py-3 text-white/75 hover:text-white hover:bg-white/5 rounded-xl transition-colors text-sm">
+                  {isZh ? link.zh : link.en}
+                </a>
+              ))}
+              <div className="pt-2 mt-1 border-t border-white/10">
+                <a href="/stake" onClick={closeMenu}
+                  className="flex items-center justify-center gap-2 bg-[#bd6700] text-white px-5 py-3 rounded-full text-sm font-medium">
+                  {isZh ? "进入质押大厅" : "Launch App"}
+                  <ArrowRight size={14} />
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <main>
@@ -158,11 +200,13 @@ function App() {
                   : "Connecting users, developers, AI agents, builders and global communities to translate Venice AI infrastructure into broader participation and long-term adoption."}
               </p>
               <div className="hero-actions">
-                <a className="button button-secondary" href="/whitepaper">
-                  <BookOpen size={17} /> {isZh ? "查看白皮书" : "Read Whitepaper"}
-                </a>
-                <a className="button button-primary" href="/stake">
+                <a href="/stake"
+                  className="inline-flex items-center justify-center gap-2 bg-[#bd6700] text-white px-8 py-4 rounded-full text-base font-medium hover:bg-[#a85c00] transition-colors">
                   {isZh ? "进入质押大厅" : "Launch App"} <ArrowRight size={17} />
+                </a>
+                <a href="/whitepaper"
+                  className="inline-flex items-center justify-center gap-2 border border-white/20 text-white/85 px-8 py-4 rounded-full text-base font-medium hover:bg-white/5 hover:border-white/35 transition-colors">
+                  <BookOpen size={17} /> {isZh ? "查看白皮书" : "Read Whitepaper"}
                 </a>
               </div>
               <div className="hero-proof">
@@ -492,10 +536,12 @@ function App() {
               <p>{isZh ? "让基础设施价值走向全球社区与长期采用。" : "Bring infrastructure value to global communities and long-term adoption."}</p>
             </div>
             <div className="cta-actions">
-              <a className="button button-primary" href="/stake">
+              <a href="/stake"
+                className="inline-flex items-center justify-center gap-2 bg-[#bd6700] text-white px-8 py-4 rounded-full font-medium hover:bg-[#a85c00] transition-colors">
                 {isZh ? "进入质押大厅" : "Launch App"} <ArrowRight size={17} />
               </a>
-              <a className="button button-secondary" href="/whitepaper">
+              <a href="/whitepaper"
+                className="inline-flex items-center justify-center gap-2 border border-white/20 text-white/85 px-8 py-4 rounded-full font-medium hover:bg-white/5 hover:border-white/35 transition-colors">
                 <BookOpen size={17} /> {isZh ? "查看白皮书" : "Read Whitepaper"}
               </a>
             </div>
