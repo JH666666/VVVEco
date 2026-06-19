@@ -33,5 +33,5 @@ export const config = createConfig({
   storage: createStorage({
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
   }),
-  ssr: false,
+  ssr: true,
 });

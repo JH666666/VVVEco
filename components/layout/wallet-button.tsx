@@ -274,8 +274,8 @@ export function WalletButton({ className, size = "md" }: WalletButtonProps) {
         onConfirm={handleConfirmSign}
       />
 
-      {/* 已签名但链不对 */}
-      {isSigned && (!chain || chain.id !== base.id) && (
+      {/* 已签名但链不对（chain 必须有值才判断，避免 wagmi 重连期间误显示） */}
+      {isSigned && chain && chain.id !== base.id && (
         <button
           onClick={() => switchChain({ chainId: base.id })}
           className={cn("rounded-full font-medium transition-colors", sizes[size], "bg-yellow-500 text-white hover:bg-yellow-600", className)}
