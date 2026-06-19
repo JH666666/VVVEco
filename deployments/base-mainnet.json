@@ -1,14 +1,21 @@
 {
   "network": "base-mainnet",
   "chainId": 8453,
-  "deployedAt": "2026-06-15T07:59:00.000Z",
-  "deployedAtBlock": 47346653,
-  "deployer": "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3",
+  "version": "v2",
+  "deployedAt": "2026-06-19T00:00:00.000Z",
+  "deployedAtBlock": 47526639,
+  "deployWallet": "0xf9f5C96a89a1B8Ce315652aE91C73537b24F32Ed",
+  "ownerWallet":  "0x31b265Fd2db6F0445B9d92306a0bf1A313B0aD3A",
+  "security": {
+    "ownershipTransferred": true,
+    "deployWalletHasNoOwnership": true,
+    "privateKeyNeverOnServer": true
+  },
   "contracts": {
-    "AerodromeAdapter": "0xF354f1c63Dc284d0D70e8c72F563Ffa5c7Bf0fB8",
-    "VVVTreasury":      "0xA223C9e22532a7d985004fe3714AB3D873F4c3a2",
-    "VVVPayout":        "0xc9102200271245660AB1C640CEB502936BDe04E1",
-    "VVVEcoStaking":    "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34"
+    "AerodromeAdapter": "0x00A039F168B8B444175fC3bDdc1F3CA52e79a0fD",
+    "VVVTreasury":      "0xcfdca5D4B975BE97321a84160Be89d9dd2f33601",
+    "VVVPayout":        "0x35FAac6Da16345A51437dE4b9a9D0571418fCA36",
+    "VVVEcoStaking":    "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64"
   },
   "externalContracts": {
     "VVVToken":    "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf",
@@ -19,13 +26,26 @@
     "EthUsdFeed":  "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
   },
   "config": {
-    "projectWallet": "0xa8c9118d6cf6164EBDC2aB99F19A9B36F599f191",
-    "feeWallet":     "0xb32134EA32276dD8cB7Ec689958d8cb9BaD60506",
-    "rootReferrer":  "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3",
-    "feePercent":    10
+    "projectWallet":  "0xa8c9118d6cf6164EBDC2aB99F19A9B36F599f191",
+    "feeWallet":      "0xb32134EA32276dD8cB7Ec689958d8cb9BaD60506",
+    "rootReferrer":   "0x58940A90bc63E72F7F69ad62CA5C776D696b3F5e",
+    "feePercent":     10,
+    "periodDurations": [1, 15, 30, 60],
+    "periodRates":     [0.7, 0.8, 0.9, 1.0],
+    "generationRates": [10, 5, 3],
+    "levelRates":      [3, 4, 5, 6, 7, 8, 9, 10],
+    "levelThresholds": [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000]
+  },
+  "onChainVerified": {
+    "allOwnersCorrect": true,
+    "rootReferrer": "0x58940A90bc63E72F7F69ad62CA5C776D696b3F5e",
+    "stakingTreasury": "0xcfdca5D4B975BE97321a84160Be89d9dd2f33601",
+    "treasuryStakingContract": "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64",
+    "payoutStakingContract": "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64",
+    "durationRates": { "1": 7, "15": 8, "30": 9, "60": 10 }
   },
   "warnings": {
     "payoutFunded": false,
-    "payoutNote":   "Run: cast send <payoutAddr> 'depositETH()' --value 0.5ether before going live"
+    "payoutNote": "Owner wallet 0x31b265Fd... must call Payout.depositETH() on 0x35FAac6Da16345A51437dE4b9a9D0571418fCA36 before users can claim"
   }
 }

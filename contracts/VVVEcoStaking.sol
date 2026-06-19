@@ -35,7 +35,7 @@ import "./IPriceOracle.sol";
  *  auto-settle on withdraw).  Principal redemption does NOT trigger propagation.
  *
  *  1. Invite rewards (3 generations, NO compression):
- *       gen1 → 15%,  gen2 → 10%,  gen3 → 5%  of claimer's VVV gross
+ *       gen1 → 10%,  gen2 → 5%,  gen3 → 3%  of claimer's VVV gross
  *
  *  2. Team rewards (up to 7 VALID generations, with tree compression):
  *       "valid" = upline has at least one active (not withdrawn, not expired) order
@@ -130,12 +130,12 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
     ];
 
     /// @notice Team reward rates per-cent (÷100).  Index = level (1–8).
-    ///         V1=10%, V2=20%, ... V8=80%
-    uint256[9] public levelRates = [0, 10, 20, 30, 40, 50, 60, 70, 80];
+    ///         V1=3%, V2=4%, V3=5%, V4=6%, V5=7%, V6=8%, V7=9%, V8=10%
+    uint256[9] public levelRates = [0, 3, 4, 5, 6, 7, 8, 9, 10];
 
     /// @notice Invite reward rates per-cent (÷100) for generations 1-3.
-    ///         inviteRates[1]=15%, [2]=10%, [3]=5%
-    uint256[4] public inviteRates = [0, 15, 10, 5];
+    ///         inviteRates[1]=10%, [2]=5%, [3]=3%
+    uint256[4] public inviteRates = [0, 10, 5, 3];
 
     // ─────────────────────────────────────────
     //  Events
@@ -191,7 +191,7 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
         pricePool    = IAeroPool(_pricePool);
         ethUsdFeed   = IChainlinkFeed(_ethUsdFeed);
 
-        durationRates[7]  = 7;   // 0.7 %/day
+        durationRates[1]  = 7;   // 0.7 %/day  (1-day period)
         durationRates[15] = 8;   // 0.8 %/day
         durationRates[30] = 9;   // 0.9 %/day
         durationRates[60] = 10;  // 1.0 %/day
@@ -477,7 +477,7 @@ contract VVVEcoStaking is Ownable, Pausable, ReentrancyGuard {
      *  "this reward has been triggered" regardless of queue state.
      *
      *  Invite (per-cent, ÷100):
-     *    gen1 = 15%,  gen2 = 10%,  gen3 = 5%
+     *    gen1 = 10%,  gen2 = 5%,  gen3 = 3%
      *
      *  Team differential (per-cent, ÷100 via levelRates[]):
      *    upLevel > clLevel  → (levelRates[upLevel] – levelRates[clLevel])% × gross

@@ -33,9 +33,9 @@ async function waitForRawReceipt(txHash: string, maxWaitMs = 120_000): Promise<R
 
 // Base Mainnet deployed addresses — env var takes priority, hardcoded fallback prevents zero-address bugs
 export const VVV_TOKEN_ADDR = (process.env.NEXT_PUBLIC_VVV_TOKEN || "0xacfe6019ed1a7dc6f7b508c02d1b04ec88cc21bf") as `0x${string}`;
-export const STAKING_ADDR   = (process.env.NEXT_PUBLIC_VVECO_STAKING  || "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34") as `0x${string}`;
-export const PAYOUT_ADDR    = (process.env.NEXT_PUBLIC_VVECO_PAYOUT   || "0xc9102200271245660AB1C640CEB502936BDe04E1") as `0x${string}`;
-export const TREASURY_ADDR  = (process.env.NEXT_PUBLIC_VVECO_TREASURY || "0xA223C9e22532a7d985004fe3714AB3D873F4c3a2") as `0x${string}`;
+export const STAKING_ADDR   = (process.env.NEXT_PUBLIC_VVECO_STAKING  || "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64") as `0x${string}`;
+export const PAYOUT_ADDR    = (process.env.NEXT_PUBLIC_VVECO_PAYOUT   || "0x35FAac6Da16345A51437dE4b9a9D0571418fCA36") as `0x${string}`;
+export const TREASURY_ADDR  = (process.env.NEXT_PUBLIC_VVECO_TREASURY || "0xcfdca5D4B975BE97321a84160Be89d9dd2f33601") as `0x${string}`;
 
 const VVV_ABI = [
   "function balanceOf(address) view returns (uint256)",

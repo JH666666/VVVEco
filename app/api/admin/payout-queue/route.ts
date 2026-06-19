@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { createPublicClient, http, formatEther, parseAbiItem } from "viem";
 import { base } from "viem/chains";
 
-const PAYOUT_ADDR  = (process.env.NEXT_PUBLIC_VVECO_PAYOUT  || "0xc9102200271245660AB1C640CEB502936BDe04E1") as `0x${string}`;
-const STAKING_ADDR = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34") as `0x${string}`;
+const PAYOUT_ADDR  = (process.env.NEXT_PUBLIC_VVECO_PAYOUT  || "0x35FAac6Da16345A51437dE4b9a9D0571418fCA36") as `0x${string}`;
+const STAKING_ADDR = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64") as `0x${string}`;
 // Chainlink ETH/USD on Base Mainnet
 const ETH_USD_FEED = "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70" as `0x${string}`;
-// Payout contract deployed at block 47346661 on Base Mainnet
-const DEPLOY_BLOCK = BigInt(process.env.PAYOUT_DEPLOY_BLOCK ?? "47346661");
+// Payout contract deployed at block 47526639 on Base Mainnet (V2 2026-06-19)
+const DEPLOY_BLOCK = BigInt(process.env.PAYOUT_DEPLOY_BLOCK ?? "47526639");
 const PAGE_SIZE    = 9000n; // public RPC max is 10k; stay under
 
 const client = createPublicClient({

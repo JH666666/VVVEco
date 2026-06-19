@@ -58,8 +58,8 @@ const ETH_USD_FEED   = "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"; // Chainlin
 
 const PROJECT_WALLET = "0xa8c9118d6cf6164EBDC2aB99F19A9B36F599f191";
 const FEE_WALLET     = "0xb32134EA32276dD8cB7Ec689958d8cb9BaD60506";
-const ROOT_REFERRER  = "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3";
-const OWNER          = "0xBd7928A836c9D7eaa5fbEEb0C1Ba9f2fB4C852F3";
+const ROOT_REFERRER  = "0x58940A90bc63E72F7F69ad62CA5C776D696b3F5e"; // V2: 独立 Root Referrer 钱包
+const OWNER          = "0x31b265Fd2db6F0445B9d92306a0bf1A313B0aD3A"; // V2: 独立 Owner 钱包（与 deployer 分离）
 
 const FEE_PERCENT    = 10;
 const MIN_ETH_BAL    = ethers.parseEther("0.01"); // abort if deployer has less (gas only)
@@ -115,10 +115,10 @@ function printParamsAndExit(): never {
   console.log(`  Fee Wallet       : ${FEE_WALLET}`);
   console.log("\n── Staking 默认参数（Solidity 初始化，无需手动设置）─────────\n");
   console.log("  minStakeUsd      : 100 ether ($100)");
-  console.log("  durationRates    : 7d→7‰  15d→8‰  30d→9‰  60d→10‰ (/day)");
-  console.log("  inviteRates      : gen1=15%  gen2=10%  gen3=5%");
-  console.log("  levelRates       : V1=10% V2=20% ... V8=80%");
-  console.log("  levelThresholds  : V2=$10K V3=$20K V4=$30K V5=$50K V6=$100K V7=$150K V8=$200K");
+  console.log("  durationRates    : 1d→7‰  15d→8‰  30d→9‰  60d→10‰ (/day)");
+  console.log("  inviteRates      : gen1=10%  gen2=5%  gen3=3%");
+  console.log("  levelRates       : V1=3% V2=4% V3=5% V4=6% V5=7% V6=8% V7=9% V8=10%");
+  console.log("  levelThresholds  : V1≥$0 V2≥$10K V3≥$20K V4≥$30K V5≥$50K V6≥$100K V7≥$150K V8≥$200K");
   console.log("  paused           : false (上线即可用)");
   console.log("\n── 部署后脚本自动执行（无需手动）────────────────────────────\n");
   console.log("  Treasury.setStakingContract(<stakingAddr>)");
@@ -137,6 +137,11 @@ function printParamsAndExit(): never {
   console.log("\n═══════════════════════════════════════════════════════════════");
   console.log("  DRY RUN 完成。确认参数无误后，去掉 DRY_RUN=true 再执行部署。");
   console.log("═══════════════════════════════════════════════════════════════\n");
+  console.log("── V2 安全架构说明 ───────────────────────────────────────────\n");
+  console.log("  Deploy Wallet = 仅用于部署 + 初始化，部署后自动转让所有权");
+  console.log(`  Owner Wallet  = ${OWNER}`);
+  console.log("    ↑ 部署完成后，4 个合约所有权均转给此地址");
+  console.log("  生产服务器禁止保存任何形式的 PRIVATE_KEY\n");
   process.exit(0);
 }
 
@@ -185,11 +190,12 @@ async function main() {
     process.exit(1);
   }
 
-  // ── Owner 地址确认 ─────────────────────────────────────────────────────────
-  if (deployer.toLowerCase() !== OWNER.toLowerCase()) {
-    console.error(`\n❌  部署地址 ${deployer} 不是预期的 owner ${OWNER}。`);
-    console.error("    请确认私钥正确，或修改脚本中的 OWNER 常量。");
-    process.exit(1);
+  // ── V2: deployer ≠ owner，此处仅打印部署方与最终 owner，不 abort ────────────
+  console.log(`  Owner     : ${OWNER}  (部署完成后所有权转给此地址)`);
+  if (deployer.toLowerCase() === OWNER.toLowerCase()) {
+    console.warn("\n⚠️  WARNING: Deploy Wallet 与 Owner Wallet 相同。");
+    console.warn("    V2 安全最佳实践：建议使用独立的 Deploy Wallet。");
+    console.warn("    继续部署...\n");
   }
 
   const deployedAtBlock = await provider.getBlockNumber();
@@ -255,10 +261,29 @@ async function main() {
   await (await payout.setStakingContract(stakingAddr)).wait();
   console.log("✓");
 
-  // Staking → set root referrer
+  // Staking → set root referrer (must happen before transferOwnership)
   process.stdout.write("  Staking.setRootReferrer      ... ");
   await (await staking.setRootReferrer(ROOT_REFERRER)).wait();
   console.log("✓");
+
+  // ── V2: Transfer ownership of all contracts from deployer to OWNER ────────
+  console.log("\n─── 转让所有权（deployer → Owner）───────────────────────────");
+
+  process.stdout.write("  Staking.transferOwnership    ... ");
+  await (await staking.transferOwnership(OWNER)).wait();
+  console.log(`✓  → ${OWNER}`);
+
+  process.stdout.write("  Treasury.transferOwnership   ... ");
+  await (await treasury.transferOwnership(OWNER)).wait();
+  console.log(`✓  → ${OWNER}`);
+
+  process.stdout.write("  Payout.transferOwnership     ... ");
+  await (await payout.transferOwnership(OWNER)).wait();
+  console.log(`✓  → ${OWNER}`);
+
+  process.stdout.write("  Adapter.transferOwnership    ... ");
+  await (await adapter.transferOwnership(OWNER)).wait();
+  console.log(`✓  → ${OWNER}`);
 
   // ─────────────────────────────────────────────────────────────────────────
   // On-chain verification
@@ -266,6 +291,9 @@ async function main() {
   console.log("\n─── 链上状态验证 ─────────────────────────────────────────────");
 
   const chkOwner      = await staking.owner();
+  const chkTOwner     = await treasury.owner();
+  const chkPOwner     = await payout.owner();
+  const chkAOwner     = await adapter.owner();
   const chkRoot       = await staking.rootReferrer();
   const chkPool       = await staking.pricePool();
   const chkFeed       = await staking.ethUsdFeed();
@@ -279,18 +307,23 @@ async function main() {
   const chkPrice      = await staking.getLatestPrice().catch(() => null);
 
   const checks: [boolean, string, string][] = [
-    [chkOwner.toLowerCase() === OWNER.toLowerCase(),          "staking.owner()",            chkOwner],
-    [chkRoot.toLowerCase() === ROOT_REFERRER.toLowerCase(),   "staking.rootReferrer()",     chkRoot],
-    [chkPool.toLowerCase() === PRICE_POOL.toLowerCase(),      "staking.pricePool()",        chkPool],
-    [chkFeed.toLowerCase() === ETH_USD_FEED.toLowerCase(),    "staking.ethUsdFeed()",       chkFeed],
-    [chkTreasury.toLowerCase() === treasuryAddr.toLowerCase(),"staking.treasury()",         chkTreasury],
-    [chkPayout.toLowerCase() === payoutAddr.toLowerCase(),    "staking.payout()",           chkPayout],
-    [chkTStaking.toLowerCase() === stakingAddr.toLowerCase(), "treasury.stakingContract()", chkTStaking],
-    [chkPStaking.toLowerCase() === stakingAddr.toLowerCase(), "payout.stakingContract()",   chkPStaking],
-    [chkPRouter.toLowerCase() === adapterAddr.toLowerCase(),  "payout.router()",            chkPRouter],
-    [chkTRouter.toLowerCase() === adapterAddr.toLowerCase(),  "treasury.router()",          chkTRouter],
-    [true,                                                     "payout.ethBalance()",        ethers.formatEther(chkEthBal) + " ETH ⚠️ 需手动 depositETH"],
-    [chkPrice !== null && chkPrice > 0n,                      "staking.getLatestPrice()",   chkPrice ? ethers.formatEther(chkPrice) + " USD/VVV" : "FAILED"],
+    // ── Ownership (all must point to OWNER, not deployer) ──────────────────
+    [chkOwner.toLowerCase()  === OWNER.toLowerCase(), "staking.owner()",            chkOwner],
+    [chkTOwner.toLowerCase() === OWNER.toLowerCase(), "treasury.owner()",           chkTOwner],
+    [chkPOwner.toLowerCase() === OWNER.toLowerCase(), "payout.owner()",             chkPOwner],
+    [chkAOwner.toLowerCase() === OWNER.toLowerCase(), "adapter.owner()",            chkAOwner],
+    // ── Configuration ────────────────────────────────────────────────────────
+    [chkRoot.toLowerCase()   === ROOT_REFERRER.toLowerCase(),  "staking.rootReferrer()",     chkRoot],
+    [chkPool.toLowerCase()   === PRICE_POOL.toLowerCase(),     "staking.pricePool()",        chkPool],
+    [chkFeed.toLowerCase()   === ETH_USD_FEED.toLowerCase(),   "staking.ethUsdFeed()",       chkFeed],
+    [chkTreasury.toLowerCase() === treasuryAddr.toLowerCase(), "staking.treasury()",         chkTreasury],
+    [chkPayout.toLowerCase()   === payoutAddr.toLowerCase(),   "staking.payout()",           chkPayout],
+    [chkTStaking.toLowerCase() === stakingAddr.toLowerCase(),  "treasury.stakingContract()", chkTStaking],
+    [chkPStaking.toLowerCase() === stakingAddr.toLowerCase(),  "payout.stakingContract()",   chkPStaking],
+    [chkPRouter.toLowerCase()  === adapterAddr.toLowerCase(),  "payout.router()",            chkPRouter],
+    [chkTRouter.toLowerCase()  === adapterAddr.toLowerCase(),  "treasury.router()",          chkTRouter],
+    [true,                                                      "payout.ethBalance()",        ethers.formatEther(chkEthBal) + " ETH ⚠️ Owner 需手动 depositETH"],
+    [chkPrice !== null && chkPrice > 0n,                        "staking.getLatestPrice()",   chkPrice ? ethers.formatEther(chkPrice) + " USD/VVV" : "FAILED"],
   ];
 
   let allOk = true;
@@ -310,9 +343,11 @@ async function main() {
   const deployment = {
     network:         "base-mainnet",
     chainId:         8453,
+    version:         "v2",
     deployedAt:      new Date().toISOString(),
     deployedAtBlock,
-    deployer,
+    deployWallet:    deployer,
+    ownerWallet:     OWNER,
     contracts: {
       AerodromeAdapter: adapterAddr,
       VVVTreasury:      treasuryAddr,
@@ -333,9 +368,14 @@ async function main() {
       rootReferrer:  ROOT_REFERRER,
       feePercent:    FEE_PERCENT,
     },
+    security: {
+      ownershipTransferred: true,
+      deployWalletHasNoOwnership: true,
+      privateKeyNeverOnServer: true,
+    },
     warnings: {
       payoutFunded: false,
-      payoutNote:   "Run: cast send <payoutAddr> 'depositETH()' --value 0.5ether before going live",
+      payoutNote:   `Owner (${OWNER}) must call depositETH() on Payout contract before users can claim`,
     },
   };
 
@@ -350,29 +390,38 @@ async function main() {
   console.log("  ✅  部署完成");
   console.log("═══════════════════════════════════════════════════════════════");
   console.log(`
-⚠️  请将以下内容 手动复制 到 .env.local（脚本不自动覆盖）:
+⚠️  请将以下内容 手动复制 到服务器 .env（通过宝塔文件管理器，不要提交 git）:
 
-# ── Base Mainnet 合约地址 ───────────────────────────────────
+# ── V2 Base Mainnet 合约地址 ────────────────────────────────
 NEXT_PUBLIC_VVV_TOKEN=${VVV_TOKEN}
 NEXT_PUBLIC_VVECO_STAKING=${stakingAddr}
 NEXT_PUBLIC_VVECO_PAYOUT=${payoutAddr}
 NEXT_PUBLIC_VVECO_TREASURY=${treasuryAddr}
+NEXT_PUBLIC_ADMIN_OWNER_ADDRESS=${OWNER}
 NEXT_PUBLIC_ROOT_REFERRER_ADDRESS=${ROOT_REFERRER}
-# ──────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────
+# ⚠️  绝对禁止在服务器 .env 中保存 PRIVATE_KEY
+# ───────────────────────────────────────────────────────────
 
 完成后重启 Next.js（npm run build && npm run start）。
 `);
 
-  console.log("📋  部署后手动操作清单:");
-  console.log("  1. 更新 .env.local（见上方）");
-  console.log("  2. 前端切换 Chain ID: 8453 (Base Mainnet)");
-  console.log(`  3. DEPLOY_BLOCK → ${deployedAtBlock}（写入 app/api/team-rewards/total/route.ts）`);
+  console.log("📋  V2 部署后操作清单:");
+  console.log("  ✅ 1. Staking/Treasury/Payout/Adapter 所有权已自动转给 Owner");
+  console.log(`  ✅ 2. RootReferrer 已设置 → ${ROOT_REFERRER}`);
+  console.log("  3. 更新 lib/contract-hooks.ts fallback 地址（见上方新地址）");
+  console.log("  4. 更新 lib/chain-read.ts STAKING_ADDR fallback");
+  console.log("  5. 更新 app/api/team-rewards/total/route.ts：");
+  console.log(`       STAKING fallback → ${stakingAddr}`);
+  console.log(`       DEPLOY_BLOCK     → ${deployedAtBlock}n`);
+  console.log("  6. 更新 app/api/admin/payout-queue/route.ts fallback 地址");
+  console.log("  7. 更新服务器 .env（见上方）→ 宝塔文件管理器操作");
+  console.log("  8. git commit && git push → 服务器 git pull + npm run build + pm2 restart");
   console.log("");
-  console.log("  ⚠️  【必须完成，否则 claim 进队列】Payout 注资:");
-  console.log(`  cast send ${payoutAddr} "depositETH()" \\`);
-  console.log(`    --value 0.5ether \\`);
-  console.log(`    --private-key $PRIVATE_KEY \\`);
-  console.log(`    --rpc-url $BASE_MAINNET_RPC`);
+  console.log("  ⚠️  【Owner 钱包操作，必须完成，否则 claim 进队列】Payout 注资:");
+  console.log(`     合约地址: ${payoutAddr}`);
+  console.log(`     函数: depositETH()`);
+  console.log(`     需发送 ETH value 以注资（Owner 钱包 ${OWNER} 操作）`);
 }
 
 main().catch(e => {

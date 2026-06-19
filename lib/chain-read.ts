@@ -6,7 +6,7 @@ import { createPublicClient, http } from "viem";
 import { base } from "viem/chains";
 
 const STAKING_ADDR = (
-  process.env.NEXT_PUBLIC_VVECO_STAKING ?? "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34"
+  process.env.NEXT_PUBLIC_VVECO_STAKING ?? "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64"
 ) as `0x${string}`;
 
 const RPC_URL =

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { base } from "viem/chains";
 
-const STAKING = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0xc451DdCdDbd9e8700E71960d190b55fE1eD57B34") as `0x${string}`;
+const STAKING = (process.env.NEXT_PUBLIC_VVECO_STAKING || "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64") as `0x${string}`;
 const RPC_URL = process.env.BASE_MAINNET_RPC || "https://mainnet.base.org";
-const DEPLOY_BLOCK = 47_346_653n;
+const DEPLOY_BLOCK = 47_526_639n;
 const CHUNK = 1990n;
 const TTL_MS = 300_000; // 5 分钟缓存，团队奖励不频繁变动
 const CONCURRENCY = 5;  // 最多同时 5 个并发块查询
