@@ -4,9 +4,7 @@
  * 用途：fresh DB 或旧 V1 DB 均可执行，幂等。
  * Run:  DATABASE_URL="file:./prisma/prod.db" npx tsx scripts/seed-v2-db.ts
  */
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../lib/prisma.js";
 
 async function main() {
   console.log("═══════════════════ VVVEco V2 DB Seed ═══════════════════\n");
@@ -86,4 +84,4 @@ async function main() {
 
 main()
   .catch(e => { console.error("❌  Seed failed:", e); process.exit(1); })
-  .finally(() => prisma.$disconnect());
+  .finally(() => prisma.$disconnect().catch(() => {}));
