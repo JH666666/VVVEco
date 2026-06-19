@@ -10,7 +10,7 @@ export function BrandMark({
 }) {
   return (
     <div className="brand-mark" aria-label="VVVEco">
-      <OfficialLogo size={compact ? 42 : 38} />
+      <OfficialLogo size={compact ? 42 : 38} themeAware />
       {!compact && (
         <span>
           <strong>VVVEco</strong>
