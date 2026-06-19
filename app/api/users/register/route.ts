@@ -75,17 +75,21 @@ export async function POST(request: NextRequest) {
       // 无邀请码（或邀请码无效）→ 绑定到项目方根地址
       const rootAddr = await getRootReferrerAddress();
       if (rootAddr && rootAddr !== walletAddress) {
-        // 确保根用户存在（幂等 upsert，不影响已有数据）
-        await prisma.user.upsert({
-          where: { walletAddress: rootAddr },
-          update: {},
-          create: {
-            walletAddress: rootAddr,
-            uid: 100000,
-            inviteCode: "VVVROOT0",
-            referrerAddress: null,
-          },
-        });
+        // 确保根用户存在，并处理 V1→V2 地址变更
+        // 不能用 walletAddress 做 upsert key，因为 V1 地址不同、uid=100000 已占用会冲突
+        const existingRoot = await prisma.user.findFirst({ where: { uid: 100000 } });
+        if (!existingRoot) {
+          await prisma.user.create({
+            data: { walletAddress: rootAddr, uid: 100000, inviteCode: "VVVROOT0", referrerAddress: null },
+          });
+        } else if (existingRoot.walletAddress.toLowerCase() !== rootAddr.toLowerCase()) {
+          // uid=100000 是 V1 旧 root（地址不同）→ 更新为 V2 地址
+          await prisma.user.update({
+            where: { uid: 100000 },
+            data: { walletAddress: rootAddr },
+          });
+          console.log(`[register] Root user migrated: ${existingRoot.walletAddress} → ${rootAddr}`);
+        }
         referrerAddress = rootAddr;
       }
     }

@@ -66,6 +66,21 @@ async function main() {
   console.log(`    projectWallet       = ${contract.projectWallet}`);
   console.log(`    feeWallet           = ${contract.feeWallet}`);
 
+  // ── 3. Root User (uid=100000) ──────────────────────────────────────────────
+  const V2_ROOT = "0x58940a90bc63e72f7f69ad62ca5c776d696b3f5e";
+  const existingRoot = await prisma.user.findFirst({ where: { uid: 100000 } });
+  if (!existingRoot) {
+    await prisma.user.create({
+      data: { walletAddress: V2_ROOT, uid: 100000, inviteCode: "VVVROOT0", referrerAddress: null },
+    });
+    console.log("\n✅  root user created:", V2_ROOT);
+  } else if (existingRoot.walletAddress !== V2_ROOT) {
+    await prisma.user.update({ where: { uid: 100000 }, data: { walletAddress: V2_ROOT } });
+    console.log(`\n✅  root user migrated: ${existingRoot.walletAddress} → ${V2_ROOT}`);
+  } else {
+    console.log("\n✅  root user already correct:", V2_ROOT);
+  }
+
   console.log("\n═══════════════════ Seed Complete ════════════════════════\n");
 }
 
