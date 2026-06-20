@@ -419,8 +419,24 @@ export function GlobalStatsAdmin() {
     setSavingPeriod(true);
     try {
       for (let i = 0; i < 4; i++) {
+        const oldDuration = savedDurations[i];
         const durationDays = durations[i];
         const ratePermille = Math.round(rates[i] * 10);
+
+        // When duration key changes, first zero out the old mapping entry on-chain.
+        // durationRates is a mapping(uint256→uint256) — old key persists until cleared.
+        if (oldDuration !== durationDays && oldDuration > 0) {
+          setSavingPeriodProgress(`${i + 1}/4 清除旧周期 ${oldDuration}天...`);
+          toast({ title: `周期 ${i + 1}/4 清除旧周期...`, description: `请在钱包确认：setDurationRate(${oldDuration}, 0)` });
+          try {
+            await setDurationRate(oldDuration, 0);
+          } catch (e: unknown) {
+            const msg = String((e as any)?.message ?? (e as any)?.error?.message ?? "");
+            if (!msg.includes("duplicate call detected") && !msg.includes("already known")) throw e;
+            await new Promise(r => setTimeout(r, 4000));
+          }
+        }
+
         setSavingPeriodProgress(`${i + 1}/4 (${durationDays}天 / ${rates[i]}%/天)`);
         toast({ title: `周期 ${i + 1}/4 写入链上...`, description: `请在钱包确认：setDurationRate(${durationDays}, ${ratePermille})` });
         try {

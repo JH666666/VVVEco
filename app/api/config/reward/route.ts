@@ -10,9 +10,10 @@ const V2_DEFAULTS = {
 } as const;
 
 // Detect a row that still holds V1 values and auto-migrate to V2.
-// V1 signatures: generationRates="15,10,5"  OR  periodDurations starts with "7,"
-function isV1Row(row: { generationRates: string; periodDurations: string }) {
-  return row.generationRates === "15,10,5" || row.periodDurations.startsWith("7,");
+// Only check generationRates — periodDurations check removed because admin can
+// legitimately set P1=7 days, and startsWith("7,") would incorrectly revert it.
+function isV1Row(row: { generationRates: string }) {
+  return row.generationRates === "15,10,5";
 }
 
 // GET /api/config/reward
