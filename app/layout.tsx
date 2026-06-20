@@ -8,17 +8,22 @@ import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VVVEco",
-  description: "VVVEco - 基于 Base 链的双轨制质押平台，支持币本位与金本位收益模式",
+  title: "VVVeco",
+  description: "VVVeco - 基于 Base 链的双轨制质押平台，支持币本位与金本位收益模式",
   keywords: ["VVV", "DeFi", "Staking", "Base", "Web3", "质押"],
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    shortcut: "/icon.svg",
+    icon: [{ url: "/icon.png", type: "image/png", sizes: "512x512" }],
+    shortcut: "/icon.png",
+    apple: [{ url: "/apple-touch-icon.png", sizes: "512x512", type: "image/png" }],
   },
+  manifest: "/site.webmanifest",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f5f3ed",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#edede5" },
+    { media: "(prefers-color-scheme: dark)", color: "#050b12" },
+  ],
   width: "device-width",
   initialScale: 1,
 };

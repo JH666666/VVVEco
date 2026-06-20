@@ -30,12 +30,12 @@ export function GrowthFlywheel({ lang }: { lang: EcosystemLanguage }) {
         <svg viewBox="0 0 100 100" aria-hidden="true">
           <defs>
             <linearGradient id="flywheelGradient" x1=".1" y1=".1" x2=".9" y2=".9">
-              <stop offset="0" stopColor="#007277" />
+              <stop offset="0" stopColor="#bd6700" />
               <stop offset=".55" stopColor="#143C62" />
               <stop offset="1" stopColor="#BD6700" />
             </linearGradient>
             <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-              <path d="M0,0 L6,3 L0,6 Z" fill="#007277" />
+              <path d="M0,0 L6,3 L0,6 Z" fill="#bd6700" />
             </marker>
           </defs>
           <circle cx="50" cy="50" r="34" className="flywheel-track" />

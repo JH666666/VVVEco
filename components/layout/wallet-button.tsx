@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useWalletAuth } from "@/contexts/wallet-auth-context";
 
 const SIGN_MESSAGE =
-  "欢迎使用 VVVEco！请签名以验证您是该钱包的所有者。此签名不会花费任何 Gas 费用。";
+  "欢迎使用 VVVeco！请签名以验证您是该钱包的所有者。此签名不会花费任何 Gas 费用。";
 
 function shortAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Home } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useNotifications } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,12 +16,6 @@ export function TopBar() {
     <>
       <header className="fixed top-0 right-0 left-64 z-40 hidden lg:flex h-14 items-center justify-end border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
         <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground" title={t('官网首页', 'Home')}>
-            <Link href="/" aria-label={t('官网首页', 'Home')}>
-              <Home className="h-4 w-4" />
-            </Link>
-          </Button>
-
           <ThemeToggle />
 
           <Button asChild variant="ghost" size="icon" className="relative h-10 w-10">

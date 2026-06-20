@@ -137,7 +137,7 @@ function AdminShell({ children }: AdminLayoutProps) {
             expanded ? 'opacity-100' : 'opacity-0 pointer-events-none',
           )}>
             <div>
-              <p className="text-sm font-semibold text-sidebar-foreground whitespace-nowrap">VVVEco Admin</p>
+              <p className="text-sm font-semibold text-sidebar-foreground whitespace-nowrap">VVVeco Admin</p>
               <p className="text-xs text-muted-foreground whitespace-nowrap">Owner console</p>
             </div>
             <button

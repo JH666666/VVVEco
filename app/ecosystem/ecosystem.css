@@ -1,13 +1,13 @@
 .ecosystem-site {
   color: #143c62;
-  background: #f5f1ea;
+  background: #edede5;
   font-family: Inter, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --foundation: #f5f1ea;
-  --graphite: #f5f1ea;
+  --foundation: #edede5;
+  --graphite: #edede5;
   --base: #143c62;
-  --cyan: #007277;
+  --cyan: #bd6700;
   --signal: #143c62;
   --steel: #596473;
   --mint: #bd6700;
@@ -278,7 +278,7 @@
   height: 60%;
   top: 18%;
   left: 50%;
-  background: linear-gradient(transparent, rgba(20, 60, 98, 0.15), transparent);
+  background: linear-gradient(transparent, rgba(245, 241, 234, 0.035), transparent);
 }
 
 .ecosystem-site .hero-grid {
@@ -326,10 +326,7 @@
 
 .ecosystem-site .hero-copy h1 span {
   display: block;
-  color: transparent;
-  background: linear-gradient(90deg, #143c62, #143c62 58%, #007277);
-  background-clip: text;
-  -webkit-background-clip: text;
+  color: #bd6700;
 }
 
 .ecosystem-site .hero-identity {
@@ -550,7 +547,7 @@
 
 .ecosystem-site .network-core::before {
   inset: 12px;
-  border: 1px dashed rgba(20, 60, 98, 0.18);
+  border: 1px dashed rgba(245, 241, 234, 0.04);
   animation: orbit-spin 22s linear infinite;
 }
 
@@ -646,7 +643,7 @@
   top: -6px;
   transform: translateX(-50%);
   color: rgba(95, 132, 163, 0.44);
-  background: #f5f1ea;
+  background: #edede5;
   font-family: "SFMono-Regular", "SF Mono", Menlo, monospace;
   font-size: 7px;
   white-space: nowrap;
@@ -722,13 +719,13 @@
 
 .ecosystem-site .section-title-row h2 span,
 .ecosystem-site .why-statement h2 span {
-  color: #007277;
+  color: #bd6700;
 }
 
 .ecosystem-site .section-description {
   max-width: 470px;
   padding-left: 22px;
-  border-left: 1px solid rgba(20, 60, 98, 0.3);
+  border-left: 1px solid rgba(245, 241, 234, 0.04);
 }
 
 .ecosystem-site .section-description p {
@@ -920,7 +917,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-color: rgba(20, 60, 98, 0.3);
+  border-color: rgba(245, 241, 234, 0.04);
 }
 
 .ecosystem-site .venice-layer > div:first-child {
@@ -974,7 +971,7 @@
 }
 
 .ecosystem-site .stack-base span:first-child {
-  color: #007277;
+  color: #bd6700;
 }
 
 .ecosystem-site .vvv-section {
@@ -1013,7 +1010,7 @@
   inset: 13%;
   border-radius: 50%;
   background:
-    radial-gradient(circle at center, rgba(20, 60, 98, 0.18), transparent 60%);
+    radial-gradient(circle at center, rgba(245, 241, 234, 0.04), transparent 60%);
 }
 
 .ecosystem-site .orbit-track {
@@ -1045,7 +1042,7 @@
 
 .ecosystem-site .orbit-track-inner {
   inset: 26%;
-  border-color: rgba(20, 60, 98, 0.3);
+  border-color: rgba(245, 241, 234, 0.04);
   animation: orbit-spin 30s linear infinite reverse;
 }
 
@@ -1148,7 +1145,7 @@
   background:
     linear-gradient(rgba(16, 24, 39, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(16, 24, 39, 0.035) 1px, transparent 1px),
-    #f5f1ea;
+    #edede5;
   background-size: 54px 54px;
 }
 
@@ -1362,7 +1359,7 @@
 
 .ecosystem-site .flywheel-section {
   overflow: hidden;
-  background: linear-gradient(180deg, var(--foundation), #f5f1ea 55%, var(--foundation));
+  background: linear-gradient(180deg, var(--foundation), #edede5 55%, var(--foundation));
 }
 
 .ecosystem-site .flywheel-composition {
@@ -1431,7 +1428,7 @@
   background:
     radial-gradient(circle at 50% 32%, rgba(20, 60, 98, 0.09), transparent 55%),
     rgba(250, 250, 247, 0.96);
-  box-shadow: 0 0 90px rgba(20, 60, 98, 0.15);
+  box-shadow: 0 0 90px rgba(245, 241, 234, 0.035);
 }
 
 .ecosystem-site .flywheel-core span,
@@ -1585,7 +1582,7 @@
 .ecosystem-site .capability:hover .capability-signal i:nth-child(4) { animation-delay: .3s; }
 
 .ecosystem-site .roadmap-section {
-  background: #f5f1ea;
+  background: #edede5;
 }
 
 .ecosystem-site .roadmap-track {
@@ -1635,7 +1632,7 @@
   border: 1px solid #394354;
   border-radius: 50%;
   color: #677386;
-  background: #f5f1ea;
+  background: #edede5;
   font-family: "SFMono-Regular", "SF Mono", Menlo, monospace;
   font-size: 8px;
 }
@@ -1797,7 +1794,7 @@
   gap: 42px;
   align-items: center;
   padding: 46px;
-  border: 1px solid rgba(20, 60, 98, 0.2);
+  border: 1px solid rgba(245, 241, 234, 0.04);
   background:
     linear-gradient(100deg, rgba(20, 60, 98, 0.09), transparent 48%),
     rgba(255, 255, 255, 0.56);
@@ -1943,7 +1940,7 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #007277;
+  color: #bd6700;
   text-align: center;
   font-family: "SFMono-Regular", "SF Mono", Menlo, monospace;
   font-size: 7px;
@@ -1952,7 +1949,7 @@
 .ecosystem-site .diem-flow i {
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, #143c62, #007277, #bd6700);
+  background: linear-gradient(90deg, #143c62, #bd6700, #bd6700);
 }
 
 .ecosystem-site .diem-role-grid {
@@ -2034,7 +2031,7 @@
 }
 
 .ecosystem-site .community-network line {
-  stroke: rgba(20, 60, 98, 0.2);
+  stroke: rgba(245, 241, 234, 0.04);
   stroke-width: 0.3;
 }
 
@@ -2065,7 +2062,7 @@
 .ecosystem-site .community-core strong {
   margin: 8px 0;
   font-size: 30px;
-  color: #007277;
+  color: #bd6700;
 }
 
 .ecosystem-site .community-node {
@@ -2094,7 +2091,7 @@
 }
 
 .ecosystem-site .community-kicker {
-  color: #007277;
+  color: #bd6700;
   font-family: "SFMono-Regular", "SF Mono", Menlo, monospace;
   font-size: 8px;
 }
@@ -2161,7 +2158,7 @@
 .ecosystem-site .frontier-meta {
   display: flex;
   justify-content: space-between;
-  color: #007277;
+  color: #bd6700;
   font-family: "SFMono-Regular", "SF Mono", Menlo, monospace;
   font-size: 8px;
 }
@@ -2192,7 +2189,7 @@
   display: block;
   width: 28%;
   height: 1px;
-  background: linear-gradient(90deg, #143c62, #007277, #bd6700);
+  background: linear-gradient(90deg, #143c62, #bd6700, #bd6700);
 }
 
 @keyframes orbit-spin {
@@ -2457,6 +2454,16 @@
     width: calc(100% - 28px);
   }
 
+  .ecosystem-site .hero-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ecosystem-site .hero-actions a {
+    width: 100%;
+  }
+
   .ecosystem-site .hero-grid {
     padding-top: 54px;
   }
@@ -2492,8 +2499,8 @@
   }
 
   .ecosystem-site .hero-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
   }
 
   .ecosystem-site .button {
@@ -2822,7 +2829,7 @@
 /* ─── Dark Mode ──────────────────────────────────────────────────────────── */
 .dark .ecosystem-site {
   color: #f5f1ea;
-  --foundation: #0c1e33;
+  --foundation: #050b12;
   --base: #f5f1ea;
   --cyan: #bd6700;
   --mint: #bd6700;
@@ -2832,20 +2839,20 @@
   background:
     radial-gradient(circle at 80% 5%, rgba(189, 103, 0, 0.07), transparent 31%),
     radial-gradient(circle at 15% 28%, rgba(189, 103, 0, 0.04), transparent 24%),
-    #0c1e33;
+    #050b12;
 }
 
 /* topbar */
 .dark .ecosystem-site .topbar.is-scrolled {
-  background: color-mix(in srgb, #0c1e33 88%, transparent);
+  background: color-mix(in srgb, #050b12 88%, transparent);
 }
 .dark .ecosystem-site .topbar nav {
-  background: color-mix(in srgb, #0c1e33 96%, white);
+  background: color-mix(in srgb, #050b12 96%, white);
 }
 .dark .ecosystem-site .topbar nav a { color: #8aa0bb; }
 .dark .ecosystem-site .topbar nav a:hover { color: #f5f1ea; }
 .dark .ecosystem-site .language-switch {
-  background: color-mix(in srgb, #0c1e33 76%, transparent);
+  background: color-mix(in srgb, #050b12 76%, transparent);
 }
 .dark .ecosystem-site .language-switch button { color: #6d8695; }
 .dark .ecosystem-site .language-switch button:hover,
@@ -2854,9 +2861,8 @@
 /* hero */
 .dark .ecosystem-site .eyebrow-line { color: #6d8695; }
 .dark .ecosystem-site .hero-copy h1 span {
-  background: linear-gradient(90deg, #f5f1ea, #f5f1ea 55%, #bd6700);
-  background-clip: text;
-  -webkit-background-clip: text;
+  color: #bd6700;
+  background: none;
 }
 .dark .ecosystem-site .hero-identity i { background: rgba(245, 241, 234, 0.25); }
 .dark .ecosystem-site .hero-identity p { color: #8aa0bb; }
@@ -2876,8 +2882,8 @@
 .dark .ecosystem-site .orbit-three { stroke: rgba(180, 210, 230, 0.2); }
 .dark .ecosystem-site .network-core {
   background:
-    radial-gradient(circle at 50% 28%, rgba(20, 60, 98, 0.6), transparent 52%),
-    rgba(12, 28, 55, 0.9);
+    radial-gradient(circle at 50% 28%, rgba(189, 103, 0, 0.08), transparent 52%),
+    rgba(5, 11, 18, 0.9);
   border-color: rgba(245, 241, 234, 0.2);
   box-shadow:
     0 0 0 12px rgba(245, 241, 234, 0.015),
@@ -2889,7 +2895,7 @@
 .dark .ecosystem-site .network-core small { color: #6d8695; }
 .dark .ecosystem-site .venice-node span,
 .dark .ecosystem-site .network-status { color: #56697a; }
-.dark .ecosystem-site .growth-ring span { background: #0c1e33; color: rgba(180, 210, 230, 0.5); }
+.dark .ecosystem-site .growth-ring span { background: #050b12; color: rgba(180, 210, 230, 0.5); }
 
 /* brand-mark */
 .dark .ecosystem-site .brand-mark small { color: #56697a; }
@@ -2916,12 +2922,12 @@
 .dark .ecosystem-site .infrastructure-stack {
   background:
     linear-gradient(135deg, rgba(245, 241, 234, 0.04), transparent 42%),
-    rgba(20, 60, 98, 0.3);
+    rgba(245, 241, 234, 0.04);
   border-color: rgba(245, 241, 234, 0.1);
 }
 .dark .ecosystem-site .infrastructure-stack::before { border-color: rgba(245, 241, 234, 0.04); }
 .dark .ecosystem-site .stack-layer {
-  background: rgba(14, 38, 70, 0.6);
+  background: rgba(11, 18, 26, 0.6);
   border-color: rgba(245, 241, 234, 0.1);
 }
 .dark .ecosystem-site .stack-label { color: #6d8695; }
@@ -2937,7 +2943,7 @@
 .dark .ecosystem-site .venice-layer { border-color: rgba(245, 241, 234, 0.2); }
 .dark .ecosystem-site .venice-layer span { color: #6d8695; }
 .dark .ecosystem-site .stack-base {
-  background: rgba(8, 20, 40, 0.6);
+  background: rgba(5, 11, 18, 0.6);
   color: #6d8695;
   border-color: rgba(245, 241, 234, 0.1);
 }
@@ -2949,7 +2955,7 @@
 .dark .ecosystem-site .orbit-track { border-color: rgba(245, 241, 234, 0.1); }
 .dark .ecosystem-site .orbit-track-inner { border-color: rgba(245, 241, 234, 0.22); }
 .dark .ecosystem-site .vvv-core {
-  background: rgba(12, 28, 55, 0.94);
+  background: rgba(5, 11, 18, 0.94);
   border-color: rgba(245, 241, 234, 0.22);
   box-shadow:
     0 0 0 16px rgba(245, 241, 234, 0.02),
@@ -2960,7 +2966,7 @@
 .dark .ecosystem-site .vvv-core small { color: #6d8695; }
 .dark .ecosystem-site .orbit-role {
   border-left-color: rgba(245, 241, 234, 0.3);
-  background: linear-gradient(90deg, rgba(12, 28, 55, 0.96), rgba(12, 28, 55, 0.18));
+  background: linear-gradient(90deg, rgba(5, 11, 18, 0.96), rgba(5, 11, 18, 0.18));
 }
 .dark .ecosystem-site .vvv-role-list article { border-color: rgba(245, 241, 234, 0.12); }
 .dark .ecosystem-site .vvv-role-list { border-color: rgba(245, 241, 234, 0.12); }
@@ -2971,12 +2977,12 @@
   background:
     linear-gradient(rgba(245, 241, 234, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(245, 241, 234, 0.03) 1px, transparent 1px),
-    #0c1e33;
+    #050b12;
   background-size: 54px 54px;
 }
 .dark .ecosystem-site .map-axis span { color: #56697a; }
 .dark .ecosystem-site .map-layer {
-  background: rgba(14, 38, 70, 0.6);
+  background: rgba(11, 18, 26, 0.6);
   border-color: rgba(245, 241, 234, 0.1);
 }
 .dark .ecosystem-site .map-layer:hover { border-color: rgba(245, 241, 234, 0.28); }
@@ -3000,14 +3006,14 @@
 
 /* flywheel */
 .dark .ecosystem-site .flywheel-section {
-  background: #0c1e33;
+  background: #050b12;
 }
 .dark .ecosystem-site .flywheel-track { stroke: rgba(245, 241, 234, 0.08); }
 .dark .ecosystem-site .flywheel-dash { stroke: rgba(245, 241, 234, 0.1); }
 .dark .ecosystem-site .flywheel-core {
   background:
     radial-gradient(circle at 50% 32%, rgba(245, 241, 234, 0.04), transparent 55%),
-    rgba(12, 28, 55, 0.96);
+    rgba(5, 11, 18, 0.96);
   border-color: rgba(245, 241, 234, 0.18);
   box-shadow: 0 0 90px rgba(189, 103, 0, 0.15);
 }
@@ -3015,7 +3021,7 @@
 .dark .ecosystem-site .flywheel-core small { color: #6d8695; }
 .dark .ecosystem-site .flywheel-stage i {
   border-color: rgba(245, 241, 234, 0.22);
-  background: #0c1e33;
+  background: #050b12;
   box-shadow: 0 0 18px rgba(245, 241, 234, 0.06);
 }
 .dark .ecosystem-site .flywheel-notes { border-color: rgba(245, 241, 234, 0.12); }
@@ -3024,36 +3030,36 @@
 
 /* capability grid */
 .dark .ecosystem-site .capability {
-  background: rgba(20, 60, 98, 0.15);
+  background: rgba(245, 241, 234, 0.035);
   border-color: rgba(245, 241, 234, 0.1);
 }
-.dark .ecosystem-site .capability:hover { background: rgba(20, 60, 98, 0.3); }
+.dark .ecosystem-site .capability:hover { background: rgba(245, 241, 234, 0.04); }
 .dark .ecosystem-site .capability-head { color: #56697a; }
 .dark .ecosystem-site .capability p { color: #8aa0bb; }
-.dark .ecosystem-site .capability-signal i { background: #2a4060; }
+.dark .ecosystem-site .capability-signal i { background: #222b35; }
 .dark .ecosystem-site .capability:hover .capability-signal i { background: var(--cyan); }
 .dark .ecosystem-site .capability-grid { border-color: rgba(245, 241, 234, 0.1); }
 
 /* roadmap */
-.dark .ecosystem-site .roadmap-section { background: #0c1e33; }
-.dark .ecosystem-site .roadmap-line { background: #1a2d42; }
+.dark .ecosystem-site .roadmap-section { background: #050b12; }
+.dark .ecosystem-site .roadmap-line { background: #151d27; }
 .dark .ecosystem-site .roadmap-track article { border-color: rgba(245, 241, 234, 0.1); }
 .dark .ecosystem-site .roadmap-node {
-  background: #0c1e33;
-  border-color: #2a3d52;
+  background: #050b12;
+  border-color: #222b35;
   color: #56697a;
 }
 .dark .ecosystem-site .roadmap-meta { color: #4d6070; }
 .dark .ecosystem-site .roadmap-meta small { border-color: rgba(245, 241, 234, 0.1); color: #56697a; }
 .dark .ecosystem-site .roadmap-track li { color: #8aa0bb; }
-.dark .ecosystem-site .roadmap-track li svg { color: #344a60; }
+.dark .ecosystem-site .roadmap-track li svg { color: #39434f; }
 .dark .ecosystem-site .is-active li svg { color: var(--cyan); }
 
 /* vision */
 .dark .ecosystem-site .vision-section {
   background:
     radial-gradient(ellipse at 50% 55%, rgba(245, 241, 234, 0.04), transparent 48%),
-    #0c1e33;
+    #050b12;
 }
 .dark .ecosystem-site .vision-section::before { border-color: rgba(245, 241, 234, 0.05); }
 .dark .ecosystem-site .vision-network::before,
@@ -3064,17 +3070,17 @@
   background:
     linear-gradient(rgba(245, 241, 234, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(245, 241, 234, 0.025) 1px, transparent 1px),
-    #0c1e33;
+    #050b12;
   background-size: 62px 62px;
 }
 .dark .ecosystem-site .diem-bridge::before { border-color: rgba(245, 241, 234, 0.07); }
 .dark .ecosystem-site .diem-origin {
-  background: rgba(12, 28, 55, 0.92);
+  background: rgba(5, 11, 18, 0.92);
   border-color: rgba(245, 241, 234, 0.3);
   box-shadow: 0 0 0 14px rgba(245, 241, 234, 0.02), 0 24px 70px rgba(0, 0, 0, 0.3);
 }
 .dark .ecosystem-site .diem-asset {
-  background: rgba(12, 28, 55, 0.92);
+  background: rgba(5, 11, 18, 0.92);
 }
 .dark .ecosystem-site .diem-origin span,
 .dark .ecosystem-site .diem-asset span,
@@ -3083,7 +3089,7 @@
 .dark .ecosystem-site .diem-origin strong { color: #f5f1ea; }
 .dark .ecosystem-site .diem-role-grid { border-color: rgba(245, 241, 234, 0.1); }
 .dark .ecosystem-site .diem-role-grid article {
-  background: rgba(20, 60, 98, 0.2);
+  background: rgba(245, 241, 234, 0.04);
   border-color: rgba(245, 241, 234, 0.1);
 }
 .dark .ecosystem-site .diem-role-grid p,
@@ -3096,14 +3102,14 @@
 .dark .ecosystem-site .community-network circle:nth-child(2) { stroke: rgba(189, 103, 0, 0.3); }
 .dark .ecosystem-site .community-network line { stroke: rgba(245, 241, 234, 0.14); }
 .dark .ecosystem-site .community-core {
-  background: rgba(12, 28, 55, 0.94);
+  background: rgba(5, 11, 18, 0.94);
   border-color: rgba(189, 103, 0, 0.4);
   box-shadow: 0 20px 75px rgba(189, 103, 0, 0.12);
 }
 .dark .ecosystem-site .community-core span,
 .dark .ecosystem-site .community-core small { color: rgba(245, 241, 234, 0.5); }
 .dark .ecosystem-site .community-node {
-  background: rgba(14, 38, 70, 0.9);
+  background: rgba(11, 18, 26, 0.9);
 }
 .dark .ecosystem-site .community-node span { color: #f5f1ea; }
 .dark .ecosystem-site .community-principles { border-color: rgba(245, 241, 234, 0.12); }
@@ -3114,12 +3120,12 @@
   background:
     linear-gradient(rgba(245, 241, 234, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(245, 241, 234, 0.025) 1px, transparent 1px),
-    #0c1e33;
+    #050b12;
   background-size: 58px 58px;
 }
 .dark .ecosystem-site .frontier-grid { border-color: rgba(245, 241, 234, 0.1); }
 .dark .ecosystem-site .frontier-grid article {
-  background: rgba(20, 60, 98, 0.18);
+  background: rgba(245, 241, 234, 0.04);
   border-color: rgba(245, 241, 234, 0.1);
 }
 .dark .ecosystem-site .frontier-line { background: rgba(245, 241, 234, 0.1); }
@@ -3139,3 +3145,8 @@
 /* footer */
 .dark .ecosystem-site .footer-inner p { color: #4d6070; }
 .dark .ecosystem-site .footer-inner > span { color: #3d5060; }
+
+/* The shared website Header owns its own button/link colors. */
+.ecosystem-site header .bg-primary {
+  color: var(--primary-foreground) !important;
+}

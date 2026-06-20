@@ -1,21 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220" fill="none">
-  <path d="M100 10 L85 35 L100 60 L115 35 Z" fill="none" stroke="#143c62" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M100 25 L100 50" stroke="#143c62" stroke-width="5" stroke-linecap="round"/>
-  <line x1="55" y1="50" x2="115" y2="130" stroke="#143c62" stroke-width="8" stroke-linecap="round"/>
-  <path d="M55 50 L35 55 L45 65 L35 75 L55 70" fill="#143c62"/>
-  <line x1="145" y1="50" x2="85" y2="130" stroke="#143c62" stroke-width="8" stroke-linecap="round"/>
-  <path d="M145 50 L165 55 L155 65 L165 75 L145 70" fill="#143c62"/>
-  <rect x="92" y="118" width="16" height="24" rx="2" fill="#143c62"/>
-  <circle cx="60" cy="175" r="32" fill="#143c62"/>
-  <circle cx="60" cy="163" r="6" fill="#f5f1ea"/>
-  <circle cx="48" cy="175" r="6" fill="#f5f1ea"/>
-  <circle cx="60" cy="187" r="6" fill="#f5f1ea"/>
-  <circle cx="72" cy="175" r="6" fill="#f5f1ea"/>
-  <circle cx="60" cy="175" r="5" fill="#f5f1ea"/>
-  <circle cx="140" cy="175" r="32" fill="#143c62"/>
-  <circle cx="140" cy="163" r="6" fill="#f5f1ea"/>
-  <circle cx="128" cy="175" r="6" fill="#f5f1ea"/>
-  <circle cx="140" cy="187" r="6" fill="#f5f1ea"/>
-  <circle cx="152" cy="175" r="6" fill="#f5f1ea"/>
-  <circle cx="140" cy="175" r="5" fill="#f5f1ea"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 210" width="200" height="210">
+  <!-- Key 2: right bow → upper-left tip (drawn behind Key 1) -->
+  <line x1="134" y1="148" x2="50" y2="48" stroke="#143c62" stroke-width="10" stroke-linecap="butt"/>
+
+  <!-- Key 1: left bow → upper-right tip (drawn in front at crossing) -->
+  <line x1="66" y1="148" x2="150" y2="48" stroke="#143c62" stroke-width="10" stroke-linecap="butt"/>
+
+  <!-- Right bow (Key 2 head) — drawn after shaft so it covers the lower shaft end -->
+  <circle cx="150" cy="172" r="31" fill="#143c62"/>
+  <circle cx="150" cy="161" r="9" fill="#f5f1ea"/>
+  <circle cx="139" cy="172" r="9" fill="#f5f1ea"/>
+  <circle cx="150" cy="183" r="9" fill="#f5f1ea"/>
+  <circle cx="161" cy="172" r="9" fill="#f5f1ea"/>
+  <circle cx="150" cy="172" r="5" fill="#f5f1ea"/>
+
+  <!-- Left bow (Key 1 head) — drawn after shaft so it covers the lower shaft end -->
+  <circle cx="50" cy="172" r="31" fill="#143c62"/>
+  <circle cx="50" cy="161" r="9" fill="#f5f1ea"/>
+  <circle cx="39" cy="172" r="9" fill="#f5f1ea"/>
+  <circle cx="50" cy="183" r="9" fill="#f5f1ea"/>
+  <circle cx="61" cy="172" r="9" fill="#f5f1ea"/>
+  <circle cx="50" cy="172" r="5" fill="#f5f1ea"/>
+
+  <!-- Key 2 tip: spear-head at upper-left -->
+  <polygon points="44,53 38,34 56,43" fill="#143c62"/>
+
+  <!-- Key 1 tip: spear-head at upper-right -->
+  <polygon points="144,43 162,34 156,53" fill="#143c62"/>
+
+  <!-- VVV Book / Shield Emblem — top centre, drawn last (on top of shafts) -->
+  <path d="M100,50 L88,34 L87,20 L94,14 L100,18 L106,14 L113,20 L112,34 Z" fill="#143c62"/>
+  <line x1="100" y1="16" x2="100" y2="49" stroke="#f5f1ea" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="95"  y1="22" x2="105" y2="22" stroke="#f5f1ea" stroke-width="1.5" stroke-linecap="round"/>
 </svg>

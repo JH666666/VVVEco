@@ -12,7 +12,7 @@ export function CommunityArchitecture({ lang }: { lang: EcosystemLanguage }) {
 
   return (
     <div className="community-composition">
-      <div className="community-network" aria-label="VVVEco community architecture">
+      <div className="community-network" aria-label="VVVeco community architecture">
         <svg viewBox="0 0 100 100" aria-hidden="true">
           <circle cx="50" cy="50" r="38" />
           <circle cx="50" cy="50" r="24" />
@@ -28,7 +28,7 @@ export function CommunityArchitecture({ lang }: { lang: EcosystemLanguage }) {
         </svg>
         <div className="community-core">
           <span>{lang === "zh" ? "社区增长层" : "COMMUNITY GROWTH LAYER"}</span>
-          <strong>VVVEco</strong>
+          <strong>VVVeco</strong>
           <small>{lang === "zh" ? "组织 · 教育 · 扩张" : "ORGANIZE · EDUCATE · EXPAND"}</small>
         </div>
         {participants.map((participant) => (
@@ -47,8 +47,8 @@ export function CommunityArchitecture({ lang }: { lang: EcosystemLanguage }) {
         <h3>{lang === "zh" ? "一个增长层，多种参与角色。" : "One growth layer. Many participation roles."}</h3>
         <p>
           {lang === "zh"
-            ? "VVVEco 不是单一渠道，而是一套连接教育、内容、建设、区域组织和生态合作的社区架构。每一种角色都把 Venice AI 的基础设施价值带向新的用户与使用场景。"
-            : "VVVEco is not a single channel. It is a community architecture connecting education, content, building, regional organization and ecosystem collaboration. Every role carries Venice AI infrastructure into new audiences and use cases."}
+            ? "VVVeco 不是单一渠道，而是一套连接教育、内容、建设、区域组织和生态合作的社区架构。每一种角色都把 Venice AI 的基础设施价值带向新的用户与使用场景。"
+            : "VVVeco is not a single channel. It is a community architecture connecting education, content, building, regional organization and ecosystem collaboration. Every role carries Venice AI infrastructure into new audiences and use cases."}
         </p>
         <div className="community-principles">
           <div><span>01</span><strong>{lang === "zh" ? "本地信任" : "Local trust"}</strong><p>{lang === "zh" ? "由熟悉当地语言和文化的节点建立理解与信任。" : "Build understanding and trust through people who know local language and culture."}</p></div>

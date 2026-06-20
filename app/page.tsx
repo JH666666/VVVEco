@@ -18,7 +18,7 @@ export default function Home() {
   return (
     <LanguageProvider>
       <GlobalStatsProvider>
-      <main className="min-h-screen">
+      <main className="min-h-screen bg-background text-foreground">
         <Header />
         <Hero />
         <About />

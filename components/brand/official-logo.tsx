@@ -16,19 +16,19 @@ export function OfficialLogo({
       <span
         className={`relative block shrink-0 ${className}`}
         style={{ width: size, height: size }}
-        aria-label="VVVEco official logo"
+        aria-label="VVVeco official logo"
       >
         <Image
-          src="/brand/vvveco-logo-navy.svg"
-          alt="VVVEco"
+          src="/brand/vvveco-logo-navy.png"
+          alt="VVVeco"
           fill
           sizes={`${size}px`}
           className="object-contain dark:hidden"
           priority
         />
         <Image
-          src="/brand/vvveco-logo-cream.svg"
-          alt="VVVEco"
+          src="/brand/vvveco-logo-cream.png"
+          alt="VVVeco"
           fill
           sizes={`${size}px`}
           className="hidden object-contain dark:block"
@@ -40,8 +40,8 @@ export function OfficialLogo({
 
   return (
     <Image
-      src="/brand/vvveco-logo-navy.svg"
-      alt="VVVEco official logo"
+      src="/brand/vvveco-logo-navy.png"
+      alt="VVVeco official logo"
       width={size}
       height={size}
       className={`shrink-0 object-contain ${className}`}

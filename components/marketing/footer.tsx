@@ -58,12 +58,12 @@ export function Footer() {
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-2">
               <OfficialLogo size={35} themeAware />
-              <span className="font-serif text-lg font-semibold text-foreground">VVVEco</span>
+              <span className="font-serif text-lg font-semibold text-foreground">VVVeco</span>
             </Link>
             <p className="mt-4 max-w-xs text-sm text-muted-foreground leading-relaxed">
               {t(
-                "VVVEco is the core staking protocol of Venice AI ecosystem, providing users with decentralized AI computing ownership.",
-                "VVVEco 是 Venice AI 生态的核心质押协议，为用户提供去中心化的 AI 算力所有权。"
+                "VVVeco is the core staking protocol of Venice AI ecosystem, providing users with decentralized AI computing ownership.",
+                "VVVeco 是 Venice AI 生态的核心质押协议，为用户提供去中心化的 AI 算力所有权。"
               )}
             </p>
             <div className="mt-4">
@@ -100,7 +100,7 @@ export function Footer() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 md:flex-row">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} VVVEco. {t("All rights reserved.", "保留所有权利。")}
+            &copy; {new Date().getFullYear()} VVVeco. {t("All rights reserved.", "保留所有权利。")}
           </p>
           <div className="flex items-center gap-4">
             <Link

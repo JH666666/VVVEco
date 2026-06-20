@@ -53,7 +53,7 @@ export function Staking() {
         <div className="text-center mb-16">
           <span className="text-sm font-medium text-primary uppercase tracking-wider">{t("Staking Mechanism", "质押机制")}</span>
           <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-medium text-foreground mt-4 mb-6 text-balance">
-            {t("VVVEco Staking", "VVVEco 质押玩法")}
+            {t("VVVeco Staking", "VVVeco 质押玩法")}
           </h2>
           <p className="text-base text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
             {t(

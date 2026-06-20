@@ -44,7 +44,7 @@ export default function AdminLoginPage() {
         <div className="mb-8 flex items-center gap-3">
           <OfficialLogo size={44} themeAware />
           <div>
-            <h1 className="text-xl font-semibold text-foreground">VVVEco Admin</h1>
+            <h1 className="text-xl font-semibold text-foreground">VVVeco Admin</h1>
             <p className="text-sm text-muted-foreground">Secure owner access</p>
           </div>
         </div>

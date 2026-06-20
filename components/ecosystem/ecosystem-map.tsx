@@ -5,7 +5,7 @@ export function EcosystemMap({ lang }: { lang: EcosystemLanguage }) {
     ? [
         { label: "生态采用层", title: "全球生态扩张", items: ["认知", "使用", "合作", "网络效应"], tone: "mint" },
         { label: "社区网络", title: "全球社区", items: ["用户", "KOL", "大使", "社区 Leader"], tone: "cyan" },
-        { label: "社区增长层", title: "VVVEco", items: ["教育", "参与", "扩张", "共识"], tone: "gold" },
+        { label: "社区增长层", title: "VVVeco", items: ["教育", "参与", "扩张", "共识"], tone: "gold" },
         { label: "协调与效用层", title: "VVV / DIEM", items: ["访问", "协调", "AI 算力", "价值承载"], tone: "base" },
         { label: "AI 基础设施层", title: "Venice AI", items: ["隐私推理", "开发者", "用户", "AI 智能体"], tone: "signal" },
         { label: "结算层", title: "Base", items: ["可扩展", "可验证", "链上", "开放"], tone: "dim" },
@@ -13,7 +13,7 @@ export function EcosystemMap({ lang }: { lang: EcosystemLanguage }) {
     : [
         { label: "ADOPTION LAYER", title: "Global Ecosystem Expansion", items: ["Awareness", "Usage", "Partnerships", "Network Effects"], tone: "mint" },
         { label: "COMMUNITY NETWORK", title: "Community", items: ["Users", "KOLs", "Ambassadors", "Leaders"], tone: "cyan" },
-        { label: "COMMUNITY GROWTH LAYER", title: "VVVEco", items: ["Education", "Participation", "Expansion", "Alignment"], tone: "gold" },
+        { label: "COMMUNITY GROWTH LAYER", title: "VVVeco", items: ["Education", "Participation", "Expansion", "Alignment"], tone: "gold" },
         { label: "COORDINATION & UTILITY", title: "VVV / DIEM", items: ["Access", "Coordination", "AI Compute", "Value Capture"], tone: "base" },
         { label: "AI INFRASTRUCTURE LAYER", title: "Venice AI", items: ["Private Inference", "Developers", "Users", "AI Agents"], tone: "signal" },
         { label: "SETTLEMENT LAYER", title: "Base", items: ["Scalable", "Verifiable", "On-chain", "Open"], tone: "dim" },

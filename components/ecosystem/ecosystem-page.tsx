@@ -12,16 +12,14 @@ import {
   CircleDot,
   Globe2,
   LockKeyhole,
-  Menu,
   Network,
   Radar,
   ShieldCheck,
   Users,
-  X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLanguage } from "@/contexts/language-context";
-import { OfficialLogo } from "@/components/brand/official-logo";
+import { Header } from "@/components/marketing/header";
 import { BrandMark } from "./brand-mark";
 import { CommunityArchitecture } from "./community-architecture";
 import { DiemBridge } from "./diem-bridge";
@@ -33,24 +31,8 @@ import { Section } from "./section";
 import { VvvOrbit } from "./vvv-orbit";
 
 function App() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const { language: lang, setLanguage } = useLanguage();
+  const { language: lang } = useLanguage();
   const isZh = lang === "zh";
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const closeMenu = () => setMenuOpen(false);
-  const changeLanguage = (nextLanguage: "zh" | "en") => {
-    setLanguage(nextLanguage);
-    setMenuOpen(false);
-    document.documentElement.lang = nextLanguage === "zh" ? "zh-CN" : "en";
-  };
 
   useEffect(() => {
     document.documentElement.lang = isZh ? "zh-CN" : "en";
@@ -85,94 +67,20 @@ function App() {
       ];
 
   return (
-    <div className={`dark ecosystem-site site-shell lang-${lang}`}>
+    <div className={`ecosystem-site site-shell lang-${lang}`}>
       <div className="ambient-field ambient-one" />
       <div className="ambient-field ambient-two" />
 
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-5xl">
-        <nav className={`flex items-center justify-between px-4 py-3 rounded-full border transition-all duration-300 ${
-          scrolled
-            ? "bg-[#0c1e33]/95 backdrop-blur-md border-white/10 shadow-lg"
-            : "bg-[#0c1e33]/70 backdrop-blur-sm border-white/8"
-        }`}>
-          <a href="/" className="flex items-center gap-2.5" onClick={closeMenu}>
-            <OfficialLogo size={32} themeAware />
-            <span className="font-serif font-semibold text-white/90 hidden sm:block">VVVEco</span>
-          </a>
-
-          <div className="hidden md:flex items-center gap-5">
-            {[
-              { href: "#venice", zh: "Venice AI", en: "Venice AI" },
-              { href: "#vvv", zh: "为什么 VVV", en: "Why VVV" },
-              { href: "#diem", zh: "DIEM", en: "DIEM" },
-              { href: "#ecosystem", zh: "生态架构", en: "Ecosystem" },
-              { href: "#flywheel", zh: "增长飞轮", en: "Growth" },
-              { href: "#roadmap", zh: "路线图", en: "Roadmap" },
-            ].map(link => (
-              <a key={link.href} href={link.href} onClick={closeMenu}
-                className="text-sm text-white/50 hover:text-white/90 transition-colors">
-                {isZh ? link.zh : link.en}
-              </a>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-0.5 bg-white/8 rounded-full p-0.5">
-              <button type="button" onClick={() => changeLanguage("zh")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                  isZh ? "bg-[#bd6700] text-white" : "text-white/45 hover:text-white/80"
-                }`}>
-                中文
-              </button>
-              <button type="button" onClick={() => changeLanguage("en")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                  !isZh ? "bg-[#bd6700] text-white" : "text-white/45 hover:text-white/80"
-                }`}>
-                EN
-              </button>
-            </div>
-
-            <a href="/stake"
-              className="hidden md:inline-flex items-center gap-1.5 bg-[#bd6700] text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-[#a85c00] transition-colors">
-              {isZh ? "进入质押大厅" : "Launch App"}
-              <ArrowRight size={13} />
-            </a>
-
-            <button className="md:hidden p-2 text-white/60 hover:text-white transition-colors" type="button"
-              aria-label={menuOpen ? (isZh ? "关闭菜单" : "Close menu") : (isZh ? "打开菜单" : "Open menu")}
-              onClick={() => setMenuOpen((c) => !c)}>
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-          </div>
-        </nav>
-
-        {menuOpen && (
-          <div className="md:hidden mt-2 bg-[#0c1e33] border border-white/10 rounded-2xl shadow-xl p-3">
-            <div className="flex flex-col gap-0.5">
-              {[
-                { href: "#venice", zh: "Venice AI", en: "Venice AI" },
-                { href: "#vvv", zh: "为什么 VVV", en: "Why VVV" },
-                { href: "#diem", zh: "DIEM", en: "DIEM" },
-                { href: "#ecosystem", zh: "生态架构", en: "Ecosystem" },
-                { href: "#flywheel", zh: "增长飞轮", en: "Growth" },
-                { href: "#roadmap", zh: "路线图", en: "Roadmap" },
-              ].map(link => (
-                <a key={link.href} href={link.href} onClick={closeMenu}
-                  className="px-4 py-3 text-white/75 hover:text-white hover:bg-white/5 rounded-xl transition-colors text-sm">
-                  {isZh ? link.zh : link.en}
-                </a>
-              ))}
-              <div className="pt-2 mt-1 border-t border-white/10">
-                <a href="/stake" onClick={closeMenu}
-                  className="flex items-center justify-center gap-2 bg-[#bd6700] text-white px-5 py-3 rounded-full text-sm font-medium">
-                  {isZh ? "进入质押大厅" : "Launch App"}
-                  <ArrowRight size={14} />
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-      </header>
+      <Header
+        navItems={[
+          { href: "#venice", zh: "Venice AI", en: "Venice AI" },
+          { href: "#vvv", zh: "为什么 VVV", en: "Why VVV" },
+          { href: "#diem", zh: "DIEM", en: "DIEM" },
+          { href: "#ecosystem", zh: "生态架构", en: "Ecosystem" },
+          { href: "#flywheel", zh: "增长飞轮", en: "Growth" },
+          { href: "#roadmap", zh: "路线图", en: "Roadmap" },
+        ]}
+      />
 
       <main>
         <section id="top" className="hero-section">
@@ -190,7 +98,7 @@ function App() {
                 <span>{isZh ? "共建 Venice AI 生态" : "Behind Venice AI"}</span>
               </h1>
               <div className="hero-identity">
-                <span>VVVEco</span>
+                <span>VVVeco</span>
                 <i />
                 <p>{isZh ? "Venice AI 生态的社区增长层" : "The Community Growth Layer of Venice AI"}</p>
               </div>
@@ -331,8 +239,8 @@ function App() {
           description={
             <p>
               {isZh
-                ? "从 Base 到 Venice AI，从 VVV / DIEM 到 VVVEco、社区与全球采用。每一层承担不同职责，但共同形成一条完整的价值扩张路径。"
-                : "From Base to Venice AI, from VVV and DIEM to VVVEco, community and global adoption. Each layer serves a distinct role in one complete path of value expansion."}
+                ? "从 Base 到 Venice AI，从 VVV / DIEM 到 VVVeco、社区与全球采用。每一层承担不同职责，但共同形成一条完整的价值扩张路径。"
+                : "From Base to Venice AI, from VVV and DIEM to VVVeco, community and global adoption. Each layer serves a distinct role in one complete path of value expansion."}
             </p>
           }
           className="map-section"
@@ -356,8 +264,8 @@ function App() {
             <div className="why-body">
               <p className="why-lead">
                 {isZh
-                  ? "Venice AI 已经建立智能基础设施，VVV 已经建立生态协调基础。VVVEco 负责让这些价值被理解、被参与，并通过全球社区网络持续扩散。"
-                  : "Venice AI has built the intelligence infrastructure. VVV provides the coordination foundation. VVVEco makes that value understood, participatory and continuously distributed through a global community network."}
+                  ? "Venice AI 已经建立智能基础设施，VVV 已经建立生态协调基础。VVVeco 负责让这些价值被理解、被参与，并通过全球社区网络持续扩散。"
+                  : "Venice AI has built the intelligence infrastructure. VVV provides the coordination foundation. VVVeco makes that value understood, participatory and continuously distributed through a global community network."}
               </p>
               <div className="why-lines">
                 {(isZh
@@ -409,8 +317,8 @@ function App() {
           description={
             <p>
               {isZh
-                ? "VVVEco 位于技术与全球社区之间，连接用户、KOL、社区大使、社区 Leader、开发者与合作伙伴。"
-                : "VVVEco sits between technology and global communities, connecting users, KOLs, ambassadors, community leaders, developers and partners."}
+                ? "VVVeco 位于技术与全球社区之间，连接用户、KOL、社区大使、社区 Leader、开发者与合作伙伴。"
+                : "VVVeco sits between technology and global communities, connecting users, KOLs, ambassadors, community leaders, developers and partners."}
             </p>
           }
           className="community-section"
@@ -425,8 +333,8 @@ function App() {
           description={
             <p>
               {isZh
-                ? "VVVEco 将长期参与、社区激活、网络扩张和链上透明组合成可持续的增长能力。"
-                : "VVVEco combines long-term participation, community activation, network expansion and on-chain transparency into sustainable growth capabilities."}
+                ? "VVVeco 将长期参与、社区激活、网络扩张和链上透明组合成可持续的增长能力。"
+                : "VVVeco combines long-term participation, community activation, network expansion and on-chain transparency into sustainable growth capabilities."}
             </p>
           }
         >
@@ -453,8 +361,8 @@ function App() {
           description={
             <p>
               {isZh
-                ? "隐私、AI 访问所有权和自主 Agent 正在汇合。VVVEco 的社区网络帮助这套新基础设施跨越认知与采用鸿沟。"
-                : "Privacy, ownership of AI access and autonomous agents are converging. VVVEco helps this emerging infrastructure cross the gap between awareness and adoption."}
+                ? "隐私、AI 访问所有权和自主 Agent 正在汇合。VVVeco 的社区网络帮助这套新基础设施跨越认知与采用鸿沟。"
+                : "Privacy, ownership of AI access and autonomous agents are converging. VVVeco helps this emerging infrastructure cross the gap between awareness and adoption."}
             </p>
           }
           className="frontier-section"
@@ -553,7 +461,7 @@ function App() {
         <div className="page-container footer-inner">
           <BrandMark lang={lang} />
           <p>{isZh ? "基于 Base · 以 VVV 为核心 · 由社区驱动" : "Built on Base · Powered by VVV · Driven by Community"}</p>
-          <span>© 2026 VVVEco</span>
+          <span>© 2026 VVVeco</span>
         </div>
       </footer>
     </div>

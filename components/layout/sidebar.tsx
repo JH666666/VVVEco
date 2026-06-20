@@ -16,7 +16,6 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  Home,
   Send,
   FileText,
   Menu,
@@ -124,7 +123,7 @@ function SocialIcons({
     { href: config.xUrl, label: 'X', icon: 'x' as const },
     { href: config.discordUrl, label: 'Discord', icon: 'discord' as const },
     { href: config.whitepaperUrl, label: language === 'zh' ? '白皮书' : 'Whitepaper', icon: 'file' as const },
-    { href: '/ecosystem', label: language === 'zh' ? '生态介绍' : 'Ecosystem', icon: 'ecosystem' as const },
+    { href: '/ecosystem', label: language === 'zh' ? '了解生态' : 'Explore Ecosystem', icon: 'ecosystem' as const },
   ].filter(l => l.href)
 
   return (
@@ -239,7 +238,7 @@ export function Sidebar({ className }: SidebarProps) {
         {/* Logo — also serves as home link */}
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="首页">
           <OfficialLogo size={30} themeAware />
-          <span className="hidden min-[400px]:block text-sm font-bold text-foreground tracking-wide">VVVEco</span>
+          <span className="hidden min-[400px]:block text-sm font-bold text-foreground tracking-wide">VVVeco</span>
         </Link>
 
         {/* Right actions — shrink-0 ensures menu button is never clipped */}
@@ -287,15 +286,19 @@ export function Sidebar({ className }: SidebarProps) {
       >
         {/* Logo */}
         <div className="flex h-18 items-center justify-between border-b border-sidebar-border px-4 bg-sidebar-accent/30">
-          <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex min-w-0 items-center gap-3"
+            aria-label={t('返回官网首页', 'Return to website')}
+          >
             <OfficialLogo size={44} themeAware />
             {!collapsed && (
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-foreground">VVVEco</span>
+                <span className="text-xl font-semibold text-foreground">VVVeco</span>
                 <span className="text-xs text-muted-foreground">Base Network</span>
               </div>
             )}
-          </div>
+          </Link>
           <Button
             variant="ghost"
             size="icon"

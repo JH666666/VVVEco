@@ -17,7 +17,7 @@ const TOC_ZH = [
   { id: "venice",       label: "为什么是 Venice AI" },
   { id: "vvv",          label: "为什么 VVV 重要" },
   { id: "diem",         label: "为什么 DIEM 重要" },
-  { id: "vvveco",       label: "为什么 VVVEco 存在" },
+  { id: "vvveco",       label: "为什么 VVVeco 存在" },
   { id: "architecture", label: "生态架构" },
   { id: "flywheel",     label: "社区增长飞轮" },
   { id: "community",    label: "社区体系" },
@@ -32,7 +32,7 @@ const TOC_EN = [
   { id: "venice",       label: "Why Venice AI" },
   { id: "vvv",          label: "Why VVV Matters" },
   { id: "diem",         label: "Why DIEM Matters" },
-  { id: "vvveco",       label: "Why VVVEco Exists" },
+  { id: "vvveco",       label: "Why VVVeco Exists" },
   { id: "architecture", label: "Ecosystem Architecture" },
   { id: "flywheel",     label: "Community Growth Flywheel" },
   { id: "community",    label: "Community Architecture" },
@@ -61,7 +61,7 @@ export default function WhitepaperPage() {
 
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <OfficialLogo size={28} themeAware />
-            <span className="font-semibold text-sm">VVVEco</span>
+            <span className="font-semibold text-sm">VVVeco</span>
           </Link>
 
           <div className="flex items-center gap-3">
@@ -141,7 +141,7 @@ export default function WhitepaperPage() {
               <BookOpen className="h-3.5 w-3.5" />
               {isZh ? "生态白皮书 · v2.1" : "Ecosystem Whitepaper · v2.1"}
             </div>
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">VVVEco</h1>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">VVVeco</h1>
             <p className="text-xl text-muted-foreground">
               {isZh ? "Venice AI 生态社区增长层" : "The Community Growth Layer of Venice AI"}
             </p>
@@ -150,7 +150,7 @@ export default function WhitepaperPage() {
               <span>·</span>
               <span>{isZh ? "网络：Base Mainnet" : "Network: Base Mainnet"}</span>
               <span>·</span>
-              <span>VVVEco v2.1</span>
+              <span>VVVeco v2.1</span>
             </div>
             {/* Mobile CTA */}
             <div className="flex flex-wrap gap-3 pt-2 lg:hidden">
@@ -180,11 +180,11 @@ export default function WhitepaperPage() {
                   <p>我们只是在试图回答一个越来越难以回避的问题：<strong className="text-foreground">AI 应该属于谁？</strong></p>
                   <p>今天，超过十亿人在使用 AI。他们用它写作、思考、构建、决策。但其中几乎没有人真正拥有这些 AI。每一次对话都被存储。每一条提示词都成为训练数据。每个月缴纳的费用是租金——不是投资，不是所有权。你用得越多，从你身上提取价值的公司就越强大。这不是技术 bug，而是商业模式本身。</p>
                   <p>Venice AI 基于一个不同的前提而生：AI 必须尊重使用它的人的主权。隐私由架构保障，而非由政策声明。去审查是默认设计，而非特例豁免。运行在开放区块链上，而非封闭云端。结果是：超过一百万用户已经选择在不同条件下使用 AI。</p>
-                  <p>VVVEco 存在的原因是：世界上最好的基础设施，仅靠自身远远不够。技术需要社区。叙事需要信仰者。运动需要组织。从"存在一个更好的 AI 平台"到"全世界知道它并使用它"，中间的那段距离，正是 VVVEco 被建立来填补的。</p>
+                  <p>VVVeco 存在的原因是：世界上最好的基础设施，仅靠自身远远不够。技术需要社区。叙事需要信仰者。运动需要组织。从"存在一个更好的 AI 平台"到"全世界知道它并使用它"，中间的那段距离，正是 VVVeco 被建立来填补的。</p>
                   <p>我们不要求你信任承诺。我们请你看看已经存在的：Venice 的架构、Venice 的用户规模、VVV 由真实收入支撑的销毁机制、DIEM 的算力所有权模型。然后自己判断：这是否值得围绕它构建一个社区。</p>
                   <p className="font-medium text-foreground">我们认为值得。希望你也这么看。</p>
                   <div className="pt-4 border-t border-border">
-                    <p className="font-semibold text-foreground">VVVEco 生态增长团队</p>
+                    <p className="font-semibold text-foreground">VVVeco 生态增长团队</p>
                     <p className="text-sm">构建于 Base · 由 VVV 驱动 · 社区是核心引擎</p>
                   </div>
                 </>
@@ -194,11 +194,11 @@ export default function WhitepaperPage() {
                   <p>We set out to answer a question that keeps getting harder to ignore: <strong className="text-foreground">Who does AI belong to?</strong></p>
                   <p>Today, over a billion people use AI. They use it to write, to think, to build, to decide. But almost none of them own any of it. Every conversation they have is stored. Every prompt they write becomes training data. Every monthly fee they pay is rent — not investment, not ownership. The more they use AI, the stronger the companies that extract value from their usage become. This is not a bug. It is the business model.</p>
                   <p>Venice AI was built on a different premise: that AI must respect the sovereignty of those who use it. Private by architecture, not by policy. Uncensored by design, not by exception. Built on an open blockchain, not a closed cloud. The result is a platform with over one million users who have already chosen to access AI on different terms.</p>
-                  <p>VVVEco exists because the best infrastructure in the world is not enough on its own. Technology needs communities. Narratives need people who believe in them. Movements need organization. The distance between "a better AI platform exists" and "the world knows it and uses it" is exactly the distance VVVEco is built to close.</p>
+                  <p>VVVeco exists because the best infrastructure in the world is not enough on its own. Technology needs communities. Narratives need people who believe in them. Movements need organization. The distance between "a better AI platform exists" and "the world knows it and uses it" is exactly the distance VVVeco is built to close.</p>
                   <p>We are not asking you to trust promises. We are asking you to look at what exists: Venice's architecture, Venice's users, VVV's real revenue-backed burn, DIEM's compute ownership mechanism. Then decide whether this is the kind of ecosystem worth building a community around.</p>
                   <p className="font-medium text-foreground">We think it is. We hope you agree.</p>
                   <div className="pt-4 border-t border-border">
-                    <p className="font-semibold text-foreground">The VVVEco Ecosystem Growth Team</p>
+                    <p className="font-semibold text-foreground">The VVVeco Ecosystem Growth Team</p>
                     <p className="text-sm">Built on Base · Powered by VVV · Driven by Community</p>
                   </div>
                 </>
@@ -230,7 +230,7 @@ export default function WhitepaperPage() {
               <p><strong className="text-foreground">Venice AI</strong>{isZh ? " 是为解决这一问题而构建的基础设施层：一个运行在 Base 上的隐私原生 AI 平台，拥有超过 100 万用户、250+ 模型、四级密码学隐私架构，以及零提示词数据留存的架构设计。" : " is the infrastructure layer built to solve this: a privacy-native AI platform on Base with 1,000,000+ users, 250+ models, four cryptographic privacy tiers, and zero prompt data retention by architecture."}</p>
               <p><strong className="text-foreground">VVV</strong>{isZh ? " 是连接访问权、参与权与生态价值的协调代币。质押 VVV 可解锁 Venice Pro 访问权并获得铸造 DIEM 的资格。月度平台收入用于回购并销毁 VVV，形成与真实商业增长挂钩的通缩飞轮。" : " is the coordination token that connects access, participation, and ecosystem value. Staking VVV unlocks Venice Pro access and the right to mint DIEM. Monthly platform revenue buys and burns VVV, creating a deflationary flywheel tied to real commercial growth."}</p>
               <p><strong className="text-foreground">DIEM</strong>{isZh ? " 是 Venice 的第二个代币，也是生态中最具原创性的产品创新。1 DIEM = 每天 1 美元的 AI 算力额度，永久有效。DIEM 将 AI 访问权从消耗性订阅转变为永久性、可转让、可组合的链上资产。" : " is Venice's second token — and a genuine product innovation. 1 DIEM = $1 of daily AI compute credits, forever. DIEM converts AI access from a consumable subscription into a perpetual, transferable, DeFi-composable on-chain asset."}</p>
-              <p><strong className="text-foreground">VVVEco</strong>{isZh ? " 是社区增长层——让上述一切在规模上真正落地的力量。VVVEco 不是收益平台，它是共同构建 AI 主权时代的组织化社区。" : " is the community growth layer that makes all of this matter at scale. VVVEco is not a yield platform. It is the organized community of people building the AI sovereignty era."}</p>
+              <p><strong className="text-foreground">VVVeco</strong>{isZh ? " 是社区增长层——让上述一切在规模上真正落地的力量。VVVeco 不是收益平台，它是共同构建 AI 主权时代的组织化社区。" : " is the community growth layer that makes all of this matter at scale. VVVeco is not a yield platform. It is the organized community of people building the AI sovereignty era."}</p>
             </div>
           </WPSection>
 
@@ -324,19 +324,19 @@ export default function WhitepaperPage() {
           </WPSection>
 
           {/* ── 06 WHY VVVECO EXISTS ── */}
-          <WPSection id="vvveco" index="06" title={isZh ? "为什么 VVVEco 存在" : "Why VVVEco Exists"}>
+          <WPSection id="vvveco" index="06" title={isZh ? "为什么 VVVeco 存在" : "Why VVVeco Exists"}>
             <Callout>{isZh ? "技术创造可能性。社区创造采用。两者之间的距离，正是生态系统成败的关键所在。" : "Technology creates possibility. Communities create adoption. The gap between them is where ecosystems succeed or fail."}</Callout>
-            <p className="text-muted-foreground leading-relaxed">{isZh ? "Venice AI 已经建立了真正差异化的基础设施。VVV 和 DIEM 已经创建了真正创新的经济模型。但技术史上充满了产品更优却未能实现大规模采用的案例——原因正是缺少能够将技术价值转化为人类理解和参与的社区层。VVVEco 就是这个层。" : "Venice AI has built genuinely differentiated infrastructure. VVV and DIEM have created a genuinely novel economic model. But the history of technology is full of superior products that failed to achieve adoption because they lacked the community layer to translate technical value into human understanding and participation. VVVEco is that layer."}</p>
-            <h3 className="text-base font-semibold mt-6 mb-3">{isZh ? "VVVEco 填补的三大结构性缺口" : "Three Structural Gaps VVVEco Fills"}</h3>
+            <p className="text-muted-foreground leading-relaxed">{isZh ? "Venice AI 已经建立了真正差异化的基础设施。VVV 和 DIEM 已经创建了真正创新的经济模型。但技术史上充满了产品更优却未能实现大规模采用的案例——原因正是缺少能够将技术价值转化为人类理解和参与的社区层。VVVeco 就是这个层。" : "Venice AI has built genuinely differentiated infrastructure. VVV and DIEM have created a genuinely novel economic model. But the history of technology is full of superior products that failed to achieve adoption because they lacked the community layer to translate technical value into human understanding and participation. VVVeco is that layer."}</p>
+            <h3 className="text-base font-semibold mt-6 mb-3">{isZh ? "VVVeco 填补的三大结构性缺口" : "Three Structural Gaps VVVeco Fills"}</h3>
             <div className="space-y-3">
               {(isZh ? [
-                { n: "01", title: "认知缺口", desc: "AI 隐私架构、DIEM 算力所有权、Agent 经济基础设施——这些都是全新概念，需要主动翻译才能被主流社区理解。VVVEco 构建并传播教育内容。" },
-                { n: "02", title: "连接缺口", desc: "Venice AI 是全球产品，但全球采用需要本地桥梁。在每种语言、每个区域社区中，都需要有人成为节点。VVVEco 构建这一节点网络。" },
-                { n: "03", title: "参与缺口", desc: "真实存在着一批人——他们相信 AI 不应该属于少数几家公司——但他们分散、无序，没有清晰的行动路径。VVVEco 是将信念转化为有组织行动的组织形态。" },
+                { n: "01", title: "认知缺口", desc: "AI 隐私架构、DIEM 算力所有权、Agent 经济基础设施——这些都是全新概念，需要主动翻译才能被主流社区理解。VVVeco 构建并传播教育内容。" },
+                { n: "02", title: "连接缺口", desc: "Venice AI 是全球产品，但全球采用需要本地桥梁。在每种语言、每个区域社区中，都需要有人成为节点。VVVeco 构建这一节点网络。" },
+                { n: "03", title: "参与缺口", desc: "真实存在着一批人——他们相信 AI 不应该属于少数几家公司——但他们分散、无序，没有清晰的行动路径。VVVeco 是将信念转化为有组织行动的组织形态。" },
               ] : [
-                { n: "01", title: "The Education Gap", desc: "AI privacy architecture, DIEM compute ownership, Agent economy infrastructure — these are genuinely new concepts that require active translation. VVVEco builds and distributes the educational content that turns technical facts into community knowledge." },
-                { n: "02", title: "The Connection Gap", desc: "Venice AI is a global product, but global adoption requires local bridges. In every language and every regional community, someone needs to be the node. VVVEco builds this network of nodes." },
-                { n: "03", title: "The Participation Gap", desc: "There is a real and growing population who believe AI should not belong to a handful of corporations — but they are dispersed and without a clear way to act. VVVEco is the organizational form that turns belief into coordinated action." },
+                { n: "01", title: "The Education Gap", desc: "AI privacy architecture, DIEM compute ownership, Agent economy infrastructure — these are genuinely new concepts that require active translation. VVVeco builds and distributes the educational content that turns technical facts into community knowledge." },
+                { n: "02", title: "The Connection Gap", desc: "Venice AI is a global product, but global adoption requires local bridges. In every language and every regional community, someone needs to be the node. VVVeco builds this network of nodes." },
+                { n: "03", title: "The Participation Gap", desc: "There is a real and growing population who believe AI should not belong to a handful of corporations — but they are dispersed and without a clear way to act. VVVeco is the organizational form that turns belief into coordinated action." },
               ]).map(({ n, title, desc }) => (
                 <div key={n} className="flex gap-4 rounded-xl border border-border bg-muted/20 p-5">
                   <span className="mt-0.5 text-xl font-bold text-primary/30 shrink-0">{n}</span>
@@ -351,17 +351,17 @@ export default function WhitepaperPage() {
 
           {/* ── 07 ECOSYSTEM ARCHITECTURE ── */}
           <WPSection id="architecture" index="07" title={isZh ? "生态架构" : "Ecosystem Architecture"}>
-            <p className="text-muted-foreground leading-relaxed">{isZh ? "Venice AI 生态最好被理解为一个垂直堆叠结构，每一层都依赖并服务于其相邻层。VVVEco 占据最接近用户的层——社区与采用层，是底层基础设施触达世界的界面。" : "The Venice AI ecosystem is best understood as a vertical stack, where each layer depends on and serves the layers adjacent to it. VVVEco occupies the layer closest to the user — the community and adoption interface through which the underlying infrastructure reaches the world."}</p>
+            <p className="text-muted-foreground leading-relaxed">{isZh ? "Venice AI 生态最好被理解为一个垂直堆叠结构，每一层都依赖并服务于其相邻层。VVVeco 占据最接近用户的层——社区与采用层，是底层基础设施触达世界的界面。" : "The Venice AI ecosystem is best understood as a vertical stack, where each layer depends on and serves the layers adjacent to it. VVVeco occupies the layer closest to the user — the community and adoption interface through which the underlying infrastructure reaches the world."}</p>
             <div className="mt-6 divide-y divide-border rounded-xl border border-border overflow-hidden">
               {(isZh ? [
                 { layer: "采用层", desc: "全球认知扩散、更广泛的使用规模、生态系统体量——所有下层正在努力实现的最终结果", tag: "目标结果", color: "text-green-600 dark:text-green-400 bg-green-500/10" },
-                { layer: "社区层", desc: "教育、参与、KOL、Ambassador、区域社区——推动采用的人类网络", tag: "VVVEco", color: "text-primary bg-primary/10" },
+                { layer: "社区层", desc: "教育、参与、KOL、Ambassador、区域社区——推动采用的人类网络", tag: "VVVeco", color: "text-primary bg-primary/10" },
                 { layer: "协调层", desc: "访问权利、经济对齐、参与激励、铸造权利、通缩机制", tag: "VVV + DIEM", color: "text-blue-600 dark:text-blue-400 bg-blue-500/10" },
                 { layer: "基础设施层", desc: "私密 AI 推理、250+ 模型、四级隐私架构、x402 支付、Agentic Chat", tag: "Venice AI", color: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10" },
                 { layer: "结算层", desc: "低成本、高吞吐量的链上经济——所有代币活动的区块链基础", tag: "Base", color: "text-muted-foreground bg-muted/50" },
               ] : [
                 { layer: "Adoption", desc: "Global awareness, broader usage, ecosystem scale — the outcome all lower layers are working toward", tag: "Outcome", color: "text-green-600 dark:text-green-400 bg-green-500/10" },
-                { layer: "Community", desc: "Education, participation, KOLs, Ambassadors, regional communities — the human network that drives adoption", tag: "VVVEco", color: "text-primary bg-primary/10" },
+                { layer: "Community", desc: "Education, participation, KOLs, Ambassadors, regional communities — the human network that drives adoption", tag: "VVVeco", color: "text-primary bg-primary/10" },
                 { layer: "Coordination", desc: "Access rights, economic alignment, participation incentives, minting rights, deflationary mechanics", tag: "VVV + DIEM", color: "text-blue-600 dark:text-blue-400 bg-blue-500/10" },
                 { layer: "Infrastructure", desc: "Private AI inference, 250+ models, four-tier privacy architecture, x402 payments, Agentic Chat", tag: "Venice AI", color: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10" },
                 { layer: "Settlement", desc: "Low-cost, high-throughput on-chain economy — the blockchain foundation for all token activity", tag: "Base", color: "text-muted-foreground bg-muted/50" },
@@ -377,7 +377,7 @@ export default function WhitepaperPage() {
 
           {/* ── 08 COMMUNITY GROWTH FLYWHEEL ── */}
           <WPSection id="flywheel" index="08" title={isZh ? "社区增长飞轮" : "Community Growth Flywheel"}>
-            <p className="text-muted-foreground leading-relaxed">{isZh ? "VVVEco 的飞轮在结构上与大多数 Web3 项目不同。它的核心是生态价值，不是金融收益。" : "VVVEco's flywheel is structurally different from most Web3 projects. Its center is ecosystem value, not financial yield."}</p>
+            <p className="text-muted-foreground leading-relaxed">{isZh ? "VVVeco 的飞轮在结构上与大多数 Web3 项目不同。它的核心是生态价值，不是金融收益。" : "VVVeco's flywheel is structurally different from most Web3 projects. Its center is ecosystem value, not financial yield."}</p>
             <div className="my-6 flex items-center justify-center gap-2 flex-wrap rounded-xl border border-border bg-muted/20 p-6">
               {(isZh ? ["参与", "教育", "社区扩张", "VVV 采用", "生态强化"] : ["Participation", "Education", "Community Expansion", "VVV Adoption", "Ecosystem Strength"]).map((step, i, arr) => (
                 <div key={step} className="flex items-center gap-2">
@@ -397,7 +397,7 @@ export default function WhitepaperPage() {
               </div>
             </div>
             <WPTable
-              headers={isZh ? ["阶段", "机制", "VVVEco 角色"] : ["Stage", "Mechanism", "VVVEco Role"]}
+              headers={isZh ? ["阶段", "机制", "VVVeco 角色"] : ["Stage", "Mechanism", "VVVeco Role"]}
               rows={isZh ? [
                 ["参与", "更多用户、Builder、Leader 进入 Venice 生态", "提供入场路径和社区基础设施"],
                 ["教育", "Venice 的价值被更广泛理解，知识门槛降低", "以各种语言制作和分发教育内容"],
@@ -416,7 +416,7 @@ export default function WhitepaperPage() {
 
           {/* ── 09 COMMUNITY ARCHITECTURE ── */}
           <WPSection id="community" index="09" title={isZh ? "社区体系" : "Community Architecture"}>
-            <p className="text-muted-foreground leading-relaxed">{isZh ? "VVVEco 的社区以同心圆结构组织，从最活跃的核心构建者向外延伸至更广泛的生态参与者。每个圈层都有明确的角色定义、职责集合和相应的参与深度。" : "VVVEco's community is structured in concentric rings, from the most active core builders outward to the broader ecosystem participants. Each ring has a defined role, a set of responsibilities, and a corresponding depth of engagement."}</p>
+            <p className="text-muted-foreground leading-relaxed">{isZh ? "VVVeco 的社区以同心圆结构组织，从最活跃的核心构建者向外延伸至更广泛的生态参与者。每个圈层都有明确的角色定义、职责集合和相应的参与深度。" : "VVVeco's community is structured in concentric rings, from the most active core builders outward to the broader ecosystem participants. Each ring has a defined role, a set of responsibilities, and a corresponding depth of engagement."}</p>
             <h3 className="text-base font-semibold mt-6 mb-3">{isZh ? "三大核心叙事支柱" : "Three Core Narrative Pillars"}</h3>
             <WPTable
               headers={isZh ? ["支柱", "核心主张", "技术锚点"] : ["Pillar", "Core Claim", "Technical Anchor"]}
@@ -437,18 +437,18 @@ export default function WhitepaperPage() {
             <Callout>{isZh ? "一个 AI 的力量真正服务于使用者的世界——隐私是权利而非特权，算力是资产而非服务，社区是生态增长的核心引擎而非附注。" : "A world where AI's power truly serves those who use it — where privacy is a right, not a privilege; where compute is an asset, not a service; and where community is the core engine of ecosystem growth, not a footnote."}</Callout>
             <h3 className="text-base font-semibold mt-6 mb-2">{isZh ? "使命" : "Mission"}</h3>
             <p className="text-muted-foreground leading-relaxed">{isZh ? "连接 AI 主权的信仰者，构建 Venice AI 生态系统的全球社区增长网络，确保每一个使用 AI 的人都能掌控自己的数据、拥有自己的算力、并有权参与其中。" : "To connect believers in AI sovereignty, build the global community growth network of the Venice AI ecosystem, and ensure every person who uses AI can own their data, their compute, and their right to participate."}</p>
-            <h3 className="text-base font-semibold mt-6 mb-3">{isZh ? "VVVEco 的目标图景" : "Where VVVEco Is Going"}</h3>
+            <h3 className="text-base font-semibold mt-6 mb-3">{isZh ? "VVVeco 的目标图景" : "Where VVVeco Is Going"}</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {(isZh ? [
-                { title: "全球社区网络", desc: "在 30 个以上主要全球市场建立活跃的 VVVEco 社区节点，每个节点配有本地 Ambassador、本地语言内容和本地社区活动。" },
-                { title: "叙事领导力", desc: "VVVEco 对 AI 数据主权的叙事框架成为 Web3 中 AI 所有权讨论的标准参考，建立行业词汇。" },
+                { title: "全球社区网络", desc: "在 30 个以上主要全球市场建立活跃的 VVVeco 社区节点，每个节点配有本地 Ambassador、本地语言内容和本地社区活动。" },
+                { title: "叙事领导力", desc: "VVVeco 对 AI 数据主权的叙事框架成为 Web3 中 AI 所有权讨论的标准参考，建立行业词汇。" },
                 { title: "开发者生态", desc: "数百个基于 Venice API 构建的应用，使用 DIEM 进行算力预算管理，蓬勃发展的开发者社区。" },
-                { title: "Agent 经济中心", desc: "随着 AI Agent 采用规模化，Venice 成为自主 Agent 的首选 AI 基础设施，VVVEco 社区是其人类网络。" },
+                { title: "Agent 经济中心", desc: "随着 AI Agent 采用规模化，Venice 成为自主 Agent 的首选 AI 基础设施，VVVeco 社区是其人类网络。" },
               ] : [
-                { title: "Global Community Network", desc: "Active VVVEco community nodes in 30+ major global markets, each with local Ambassadors, local-language content, and local community events." },
-                { title: "Narrative Leadership", desc: "VVVEco's framing of AI data sovereignty becomes the standard reference in Web3 discussions about AI ownership." },
+                { title: "Global Community Network", desc: "Active VVVeco community nodes in 30+ major global markets, each with local Ambassadors, local-language content, and local community events." },
+                { title: "Narrative Leadership", desc: "VVVeco's framing of AI data sovereignty becomes the standard reference in Web3 discussions about AI ownership." },
                 { title: "Developer Ecosystem", desc: "Hundreds of applications built on Venice API using DIEM for compute budget management — a thriving developer community." },
-                { title: "Agent Economy Hub", desc: "As AI Agent adoption scales, Venice becomes the preferred AI infrastructure for autonomous agents. VVVEco's community is the human network around it." },
+                { title: "Agent Economy Hub", desc: "As AI Agent adoption scales, Venice becomes the preferred AI infrastructure for autonomous agents. VVVeco's community is the human network around it." },
               ]).map(({ title, desc }) => (
                 <div key={title} className="rounded-xl border border-border bg-muted/20 p-5">
                   <h4 className="font-semibold mb-2">{title}</h4>
@@ -460,18 +460,18 @@ export default function WhitepaperPage() {
 
           {/* ── 11 ROADMAP ── */}
           <WPSection id="roadmap" index="11" title={isZh ? "路线图" : "Roadmap"}>
-            <p className="text-muted-foreground leading-relaxed">{isZh ? "VVVEco 的路线图围绕生态发展里程碑组织，而非代币解锁时间表。每个阶段代表社区能力和生态影响力的实质性扩张。" : "VVVEco's roadmap is organized around ecosystem development milestones, not token vesting schedules. Each phase represents a meaningful expansion of community capacity and ecosystem impact."}</p>
+            <p className="text-muted-foreground leading-relaxed">{isZh ? "VVVeco 的路线图围绕生态发展里程碑组织，而非代币解锁时间表。每个阶段代表社区能力和生态影响力的实质性扩张。" : "VVVeco's roadmap is organized around ecosystem development milestones, not token vesting schedules. Each phase represents a meaningful expansion of community capacity and ecosystem impact."}</p>
             <div className="mt-6 space-y-4">
               {(isZh ? [
                 { phase: "阶段一", label: "01 — 基础建设", title: "叙事统一与知识基础设施", items: ["Narrative Bible 最终确定（所有传播的主权威文件）", "生态白皮书正式发布", "知识库建立：研究报告、One Pager、FAQ 文库", "核心 KOL 初步触达与首批合作建立", "社区渠道激活上线"] },
                 { phase: "阶段二", label: "02 — 增长", title: "社区激活与网络扩张", items: ["Ambassador 计划正式启动", "KOL 网络扩展至重点市场（东南亚、东亚、拉丁美洲）", "教育内容库规模化扩充与本地化", "社区指标体系建立并持续追踪", "开发者社区参与启动"] },
                 { phase: "阶段三", label: "03 — 扩张", title: "区域节点与生态合作", items: ["10 个以上主要市场建立区域社区节点", "与 Base 生态项目建立战略合作", "DIEM 算力经济专项教育推广", "开发者黑客松与构建计划"] },
-                { phase: "阶段四", label: "04 — 生态成熟", title: "全球社区网络与长期可持续性", items: ["30 个以上活跃全球社区节点", "由本地领导层驱动的自我维持型 Ambassador 计划", "VVVEco 成为 Web3 中公认的 AI 主权社区", "长期社区治理机制建立"] },
+                { phase: "阶段四", label: "04 — 生态成熟", title: "全球社区网络与长期可持续性", items: ["30 个以上活跃全球社区节点", "由本地领导层驱动的自我维持型 Ambassador 计划", "VVVeco 成为 Web3 中公认的 AI 主权社区", "长期社区治理机制建立"] },
               ] : [
                 { phase: "Phase 1", label: "01 — Foundation", title: "Narrative Unification & Knowledge Infrastructure", items: ["Narrative Bible finalized (master document for all communication)", "Ecosystem Whitepaper published", "Knowledge base established: research reports, One Pagers, FAQ library", "Core KOL initial outreach and first partnerships", "Community channels activated"] },
                 { phase: "Phase 2", label: "02 — Growth", title: "Community Activation & Network Expansion", items: ["Ambassador program officially launched", "KOL network expanded across key markets (Southeast Asia, East Asia, Latin America)", "Educational content library scaled and localized", "Community metrics framework established and tracked", "Developer community engagement initiated"] },
                 { phase: "Phase 3", label: "03 — Expansion", title: "Regional Nodes & Ecosystem Partnerships", items: ["Regional community nodes established in 10+ major markets", "Strategic partnerships with Base ecosystem projects", "DIEM compute economy education campaign", "Developer hackathons and build programs"] },
-                { phase: "Phase 4", label: "04 — Ecosystem", title: "Global Community Network & Long-term Sustainability", items: ["30+ active global community nodes", "Self-sustaining Ambassador program with local leadership", "VVVEco as recognized AI sovereignty community in Web3", "Long-term community governance mechanisms"] },
+                { phase: "Phase 4", label: "04 — Ecosystem", title: "Global Community Network & Long-term Sustainability", items: ["30+ active global community nodes", "Self-sustaining Ambassador program with local leadership", "VVVeco as recognized AI sovereignty community in Web3", "Long-term community governance mechanisms"] },
               ]).map(({ label, title, items }, i) => (
                 <div key={label} className="flex gap-4">
                   <div className="flex flex-col items-center shrink-0">
@@ -499,7 +499,7 @@ export default function WhitepaperPage() {
 
           {/* ── 12 RISK DISCLOSURE ── */}
           <WPSection id="risk" index="12" title={isZh ? "风险披露" : "Risk Disclosure"}>
-            <p className="text-muted-foreground leading-relaxed">{isZh ? "本白皮书代表我们对 VVVEco 机遇与策略的真实评估。以下风险是真实的、实质性的，任何参与 VVVEco 生态的人都应当理解。" : "This whitepaper represents our genuine assessment of VVVEco's opportunity and strategy. The following risks are real, material, and should be understood by anyone participating in the VVVEco ecosystem."}</p>
+            <p className="text-muted-foreground leading-relaxed">{isZh ? "本白皮书代表我们对 VVVeco 机遇与策略的真实评估。以下风险是真实的、实质性的，任何参与 VVVeco 生态的人都应当理解。" : "This whitepaper represents our genuine assessment of VVVeco's opportunity and strategy. The following risks are real, material, and should be understood by anyone participating in the VVVeco ecosystem."}</p>
             <div className="mt-4 space-y-3">
               {(isZh ? [
                 { level: "高", levelEn: "HIGH", title: "第三方模型提供商依赖风险", desc: "Venice 聚合了来自 OpenAI、Anthropic、Google、Meta 等的模型。这些提供商可能变更其 API 条款、限制特定使用场景、提高价格或终止访问授权。VVV 代币价值会因此受到实质性影响。", color: "bg-red-500/10 text-red-500" },
@@ -550,8 +550,8 @@ export default function WhitepaperPage() {
             </div>
             <p className="text-sm text-muted-foreground">
               {isZh
-                ? "本文件仅供参考，不构成任何投资建议。© 2026 VVVEco. All rights reserved."
-                : "This document is provided for informational purposes only. © 2026 VVVEco. All rights reserved."}
+                ? "本文件仅供参考，不构成任何投资建议。© 2026 VVVeco. All rights reserved."
+                : "This document is provided for informational purposes only. © 2026 VVVeco. All rights reserved."}
             </p>
           </div>
 

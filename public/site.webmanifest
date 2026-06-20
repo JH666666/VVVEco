@@ -1,0 +1,21 @@
+{
+  "name": "VVVEco",
+  "short_name": "VVVEco",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#143c62",
+  "background_color": "#143c62",
+  "display": "standalone"
+}

@@ -18,13 +18,13 @@ export function HeroNetwork({ lang }: { lang: EcosystemLanguage }) {
       <svg className="network-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs>
           <linearGradient id="lineGradient" x1="0" x2="1">
-            <stop offset="0" stopColor="#007277" stopOpacity=".08" />
+            <stop offset="0" stopColor="#bd6700" stopOpacity=".08" />
             <stop offset=".5" stopColor="#143C62" stopOpacity=".9" />
             <stop offset="1" stopColor="#BD6700" stopOpacity=".12" />
           </linearGradient>
           <radialGradient id="coreGlow">
             <stop offset="0" stopColor="#F5F1EA" stopOpacity=".95" />
-            <stop offset=".22" stopColor="#007277" stopOpacity=".8" />
+            <stop offset=".22" stopColor="#bd6700" stopOpacity=".8" />
             <stop offset=".72" stopColor="#143C62" stopOpacity=".16" />
             <stop offset="1" stopColor="#143C62" stopOpacity="0" />
           </radialGradient>

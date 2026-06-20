@@ -9,11 +9,11 @@ export function BrandMark({
   lang?: EcosystemLanguage;
 }) {
   return (
-    <div className="brand-mark" aria-label="VVVEco">
+    <div className="brand-mark" aria-label="VVVeco">
       <OfficialLogo size={compact ? 42 : 38} themeAware />
       {!compact && (
         <span>
-          <strong>VVVEco</strong>
+          <strong>VVVeco</strong>
           <small>{lang === "zh" ? "Venice AI 社区增长层" : "Community Growth Layer"}</small>
         </span>
       )}
