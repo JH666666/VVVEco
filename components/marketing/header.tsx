@@ -63,8 +63,8 @@ export function Header({
             href="/stake"
             className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap bg-primary text-primary-foreground px-3 sm:px-5 rounded-full text-xs sm:text-sm font-medium hover:bg-primary/90 transition-colors"
           >
-            <span className="hidden min-[390px]:inline">{t("Enter Staking", "进入质押大厅")}</span>
-            <span className="min-[390px]:hidden">{t("Stake", "质押")}</span>
+            <span className="hidden min-[360px]:inline">{t("Enter Staking", "进入质押大厅")}</span>
+            <span className="min-[360px]:hidden">{t("Stake", "质押")}</span>
             <ArrowRight className="hidden sm:block h-3.5 w-3.5" />
           </Link>
 
