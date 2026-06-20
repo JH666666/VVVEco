@@ -14,9 +14,17 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/icon.png", type: "image/png", sizes: "512x512" }],
     shortcut: "/icon.png",
-    apple: [{ url: "/apple-touch-icon.png", sizes: "512x512", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/site.webmanifest",
+  openGraph: {
+    title: "VVVeco",
+    description: "VVVeco - 基于 Base 链的双轨制质押平台",
+    url: "https://vvveco.io",
+    siteName: "VVVeco",
+    images: [{ url: "/apple-touch-icon.png", width: 512, height: 512, alt: "VVVeco" }],
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {
