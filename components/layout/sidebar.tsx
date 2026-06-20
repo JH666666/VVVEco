@@ -221,7 +221,7 @@ export function Sidebar({ className }: SidebarProps) {
         {/* Logo — also serves as home link */}
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="首页">
           <OfficialLogo size={30} themeAware />
-          <span className="hidden min-[400px]:block text-sm font-bold text-foreground tracking-wide">VVVeco</span>
+          <span className="hidden min-[360px]:block text-sm font-bold text-foreground tracking-wide">VVVeco</span>
         </Link>
 
         {/* Right actions — shrink-0 ensures menu button is never clipped */}
