@@ -1,0 +1,128 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" width="1280" height="720">
+  <defs>
+    <radialGradient id="tg-bg1" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#1a3a5c" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#0a1526" stop-opacity="1"/>
+    </radialGradient>
+    <radialGradient id="tg-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#bd6700" stop-opacity="0.25"/>
+      <stop offset="60%" stop-color="#bd6700" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#bd6700" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tg-core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#143c62" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#0c1e33" stop-opacity="1"/>
+    </radialGradient>
+    <filter id="tg-blur8">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="tg-blur20">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+    <filter id="tg-blur3">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <clipPath id="tg-clip">
+      <rect width="1280" height="720"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#tg-clip)">
+    <!-- Background -->
+    <rect width="1280" height="720" fill="url(#tg-bg1)"/>
+    <rect width="1280" height="720" fill="url(#tg-glow)"/>
+
+    <!-- Subtle dot grid -->
+    <pattern id="tg-dots" x="0" y="0" width="36" height="36" patternUnits="userSpaceOnUse">
+      <circle cx="18" cy="18" r="0.8" fill="#f5f1ea" opacity="0.15"/>
+    </pattern>
+    <rect width="1280" height="720" fill="url(#tg-dots)"/>
+
+    <!-- Large orbit rings — centered -->
+    <g transform="translate(640, 360)">
+      <circle cx="0" cy="0" r="340" fill="none" stroke="#f5f1ea" stroke-width="0.6" opacity="0.07"/>
+      <circle cx="0" cy="0" r="260" fill="none" stroke="#f5f1ea" stroke-width="0.8" opacity="0.1"/>
+      <circle cx="0" cy="0" r="180" fill="none" stroke="#bd6700" stroke-width="0.8" opacity="0.2"/>
+      <circle cx="0" cy="0" r="110" fill="none" stroke="#f5f1ea" stroke-width="1" opacity="0.15"/>
+    </g>
+
+    <!-- Core ambient glow -->
+    <circle cx="640" cy="360" r="200" fill="url(#tg-glow)" filter="url(#tg-blur20)"/>
+
+    <!-- Orbit animated dots -->
+    <!-- Outer ring dots -->
+    <circle cx="640" cy="20" r="5" fill="#bd6700" opacity="0.9"/>
+    <circle cx="640" cy="20" r="14" fill="#bd6700" opacity="0.15" filter="url(#tg-blur3)"/>
+    <circle cx="980" cy="360" r="4" fill="#f5f1ea" opacity="0.5"/>
+    <circle cx="300" cy="360" r="4" fill="#f5f1ea" opacity="0.4"/>
+    <circle cx="640" cy="700" r="4" fill="#bd6700" opacity="0.7"/>
+
+    <!-- Inner ring dots -->
+    <circle cx="766" cy="137" r="5" fill="#bd6700" opacity="0.8"/>
+    <circle cx="766" cy="137" r="12" fill="#bd6700" opacity="0.12" filter="url(#tg-blur3)"/>
+    <circle cx="514" cy="583" r="4" fill="#f5f1ea" opacity="0.45"/>
+    <circle cx="766" cy="583" r="4" fill="#f5f1ea" opacity="0.4"/>
+
+    <!-- Community node dots around orbit -->
+    <g opacity="0.55">
+      <!-- Top cluster -->
+      <circle cx="580" cy="95" r="3" fill="#f5f1ea"/>
+      <circle cx="640" cy="75" r="4" fill="#bd6700"/>
+      <circle cx="700" cy="95" r="3" fill="#f5f1ea"/>
+      <line x1="580" y1="95" x2="640" y2="75" stroke="#f5f1ea" stroke-width="0.5" opacity="0.4"/>
+      <line x1="700" y1="95" x2="640" y2="75" stroke="#f5f1ea" stroke-width="0.5" opacity="0.4"/>
+
+      <!-- Left cluster -->
+      <circle cx="310" cy="300" r="3" fill="#f5f1ea"/>
+      <circle cx="285" cy="360" r="4" fill="#f5f1ea"/>
+      <circle cx="310" cy="420" r="3" fill="#f5f1ea"/>
+      <line x1="310" y1="300" x2="285" y2="360" stroke="#f5f1ea" stroke-width="0.5" opacity="0.4"/>
+      <line x1="310" y1="420" x2="285" y2="360" stroke="#f5f1ea" stroke-width="0.5" opacity="0.4"/>
+
+      <!-- Right cluster -->
+      <circle cx="970" cy="300" r="3" fill="#f5f1ea"/>
+      <circle cx="995" cy="360" r="4" fill="#bd6700"/>
+      <circle cx="970" cy="420" r="3" fill="#f5f1ea"/>
+      <line x1="970" y1="300" x2="995" y2="360" stroke="#bd6700" stroke-width="0.5" opacity="0.4"/>
+      <line x1="970" y1="420" x2="995" y2="360" stroke="#bd6700" stroke-width="0.5" opacity="0.4"/>
+    </g>
+
+    <!-- Center core -->
+    <circle cx="640" cy="360" r="88" fill="url(#tg-core)"/>
+    <circle cx="640" cy="360" r="88" fill="none" stroke="#bd6700" stroke-width="1.5" opacity="0.4"/>
+    <circle cx="640" cy="360" r="100" fill="none" stroke="#f5f1ea" stroke-width="0.5" opacity="0.1"/>
+    <!-- Core glow -->
+    <circle cx="640" cy="360" r="88" fill="#bd6700" opacity="0.06" filter="url(#tg-blur8)"/>
+
+    <!-- Logo placeholder text in core -->
+    <text x="640" y="350" font-family="Georgia, serif" font-size="22" font-weight="600" fill="#f5f1ea" text-anchor="middle" opacity="0.9">VVVEco</text>
+    <text x="640" y="375" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="500" fill="rgba(245,241,234,0.45)" text-anchor="middle" letter-spacing="2">COMMUNITY</text>
+
+    <!-- Main headline — upper -->
+    <text x="640" y="530" font-family="Georgia, 'Times New Roman', serif" font-size="52" font-weight="500" fill="#f5f1ea" text-anchor="middle" letter-spacing="-0.5">推动全球社区增长</text>
+    <text x="640" y="586" font-family="Georgia, serif" font-size="26" font-weight="400" fill="rgba(245,241,234,0.6)" text-anchor="middle">Community Growth Layer of Venice AI</text>
+
+    <!-- Bottom pills -->
+    <g transform="translate(640, 628)" text-anchor="middle">
+      <!-- Pill 1 -->
+      <rect x="-295" y="0" width="140" height="30" rx="15" fill="none" stroke="rgba(245,241,234,0.15)" stroke-width="1"/>
+      <text x="-225" y="20" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="rgba(245,241,234,0.5)" text-anchor="middle">Built on Base</text>
+      <!-- Pill 2 -->
+      <rect x="-68" y="0" width="136" height="30" rx="15" fill="rgba(189,103,0,0.2)" stroke="rgba(189,103,0,0.4)" stroke-width="1"/>
+      <text x="0" y="20" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="600" fill="#bd6700" text-anchor="middle">vvveco.io</text>
+      <!-- Pill 3 -->
+      <rect x="155" y="0" width="140" height="30" rx="15" fill="none" stroke="rgba(245,241,234,0.15)" stroke-width="1"/>
+      <text x="225" y="20" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="500" fill="rgba(245,241,234,0.5)" text-anchor="middle">Powered by VVV</text>
+    </g>
+
+    <!-- Gold accent lines — corners -->
+    <line x1="0" y1="0" x2="80" y2="0" stroke="#bd6700" stroke-width="2" opacity="0.6"/>
+    <line x1="0" y1="0" x2="0" y2="80" stroke="#bd6700" stroke-width="2" opacity="0.6"/>
+    <line x1="1280" y1="0" x2="1200" y2="0" stroke="#bd6700" stroke-width="2" opacity="0.6"/>
+    <line x1="1280" y1="0" x2="1280" y2="80" stroke="#bd6700" stroke-width="2" opacity="0.6"/>
+    <line x1="0" y1="720" x2="80" y2="720" stroke="#bd6700" stroke-width="2" opacity="0.6"/>
+    <line x1="0" y1="720" x2="0" y2="640" stroke="#bd6700" stroke-width="2" opacity="0.6"/>
+    <line x1="1280" y1="720" x2="1200" y2="720" stroke="#bd6700" stroke-width="2" opacity="0.6"/>
+    <line x1="1280" y1="720" x2="1280" y2="640" stroke="#bd6700" stroke-width="2" opacity="0.6"/>
+  </g>
+</svg>
