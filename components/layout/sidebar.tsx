@@ -235,19 +235,15 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <>
       {/* Mobile Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b border-sidebar-border bg-sidebar/95 px-4 backdrop-blur lg:hidden">
-        <div className="flex items-center gap-2">
+      <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between overflow-hidden border-b border-sidebar-border bg-sidebar/95 px-3 backdrop-blur lg:hidden">
+        {/* Logo — also serves as home link */}
+        <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="首页">
           <OfficialLogo size={30} themeAware />
-          <span className="text-sm font-bold text-foreground tracking-wide">VVVEco</span>
-        </div>
+          <span className="hidden min-[400px]:block text-sm font-bold text-foreground tracking-wide">VVVEco</span>
+        </Link>
 
-        <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground">
-            <Link href="/" aria-label="官网首页">
-              <Home className="h-4 w-4" />
-            </Link>
-          </Button>
-
+        {/* Right actions — shrink-0 ensures menu button is never clipped */}
+        <div className="flex shrink-0 items-center gap-1.5">
           <Button asChild variant="ghost" size="icon" className="relative h-9 w-9 text-muted-foreground hover:text-foreground">
             <Link href="/notifications" aria-label="公告通知">
               <Bell className="h-4 w-4" />
@@ -261,14 +257,13 @@ export function Sidebar({ className }: SidebarProps) {
 
           <WalletButton size="sm" />
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+          <button
+            className="shrink-0 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? '关闭菜单' : '打开菜单'}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
+          </button>
         </div>
       </header>
 
