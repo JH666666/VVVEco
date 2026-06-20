@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -164,7 +165,8 @@ export function Sidebar({ className }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showReferralDialog, setShowReferralDialog] = useState(false)
   const [referralCode, setReferralCode] = useState('')
-  const [isDark, setIsDark] = useState(false)
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const { unreadCount } = useNotifications()
   const { toast } = useToast()
 
@@ -191,29 +193,10 @@ export function Sidebar({ className }: SidebarProps) {
     setShowReferralDialog(false)
   }
 
-  // Theme toggle function
+  // Theme toggle — delegates to next-themes (defaultTheme="system" in providers.tsx)
   const toggleTheme = () => {
-    const newIsDark = !isDark
-    setIsDark(newIsDark)
-    if (newIsDark) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
-    }
+    setTheme(isDark ? 'light' : 'dark')
   }
-
-  // Initialize theme on mount
-  useEffect(() => {
-    const stored = localStorage.getItem('theme')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const shouldBeDark = stored === 'dark' || (!stored && prefersDark)
-    setIsDark(shouldBeDark)
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark')
-    }
-  }, [])
 
   // Close mobile menu on route change
   useEffect(() => {
