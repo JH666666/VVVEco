@@ -34,7 +34,7 @@ const socialLinks = [
 const resources = [
   {
     name: '白皮书',
-    description: '了解 VVVeco 的技术架构和经济模型',
+    description: '了解 VVVEco 的技术架构和经济模型',
     icon: FileText,
     href: '/whitepaper',
   },

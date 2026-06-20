@@ -60,10 +60,10 @@ const milestones = [
   {
     dateEn: "Q3 2026",
     dateZh: "2026 年 Q3",
-    titleEn: "VVVeco Launch",
-    titleZh: "VVVeco 上线",
-    descEn: "Launched VVVeco staking platform with dual modes (Coin/Fiat-based), V1-V8 team system, and referral mechanism.",
-    descZh: "推出 VVVeco 质押平台，双模式（币本位/金本位）、V1-V8 团队体系、邀请裂变机制。",
+    titleEn: "VVVEco Launch",
+    titleZh: "VVVEco 上线",
+    descEn: "Launched VVVEco staking platform with dual modes (Coin/Fiat-based), V1-V8 team system, and referral mechanism.",
+    descZh: "推出 VVVEco 质押平台，双模式（币本位/金本位）、V1-V8 团队体系、邀请裂变机制。",
     status: "upcoming",
   },
 ]

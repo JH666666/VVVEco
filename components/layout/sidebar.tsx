@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
@@ -26,6 +25,7 @@ import {
   Sun,
   Bot,
   MessageCircle,
+  Network,
   Palette,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -44,6 +44,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
+import { OfficialLogo } from '@/components/brand/official-logo'
 
 interface SidebarProps {
   className?: string
@@ -111,13 +112,19 @@ function useSocialConfig() {
   return config
 }
 
-function SocialIcons({ config }: { config: typeof SOCIAL_DEFAULTS }) {
+function SocialIcons({
+  config,
+  language,
+}: {
+  config: typeof SOCIAL_DEFAULTS
+  language: 'zh' | 'en'
+}) {
   const links = [
     { href: config.telegramUrl, label: 'Telegram', icon: 'telegram' as const },
     { href: config.xUrl, label: 'X', icon: 'x' as const },
     { href: config.discordUrl, label: 'Discord', icon: 'discord' as const },
-    { href: config.whitepaperUrl, label: 'Whitepaper', icon: 'file' as const },
-    { href: config.supportUrl, label: 'Support', icon: 'support' as const },
+    { href: config.whitepaperUrl, label: language === 'zh' ? '白皮书' : 'Whitepaper', icon: 'file' as const },
+    { href: '/ecosystem', label: language === 'zh' ? '生态介绍' : 'Ecosystem', icon: 'ecosystem' as const },
   ].filter(l => l.href)
 
   return (
@@ -143,7 +150,7 @@ function SocialIcons({ config }: { config: typeof SOCIAL_DEFAULTS }) {
             </svg>
           )}
           {link.icon === 'file' && <FileText className="h-4 w-4" />}
-          {link.icon === 'support' && <MessageCircle className="h-4 w-4" />}
+          {link.icon === 'ecosystem' && <Network className="h-4 w-4" />}
         </a>
       ))}
     </>
@@ -230,14 +237,8 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b border-sidebar-border bg-sidebar/95 px-4 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2">
-          <Image
-            src="/logo-venice.png"
-            alt="VVVeco Logo"
-            width={30}
-            height={30}
-            className="shrink-0 rounded-lg"
-          />
-          <span className="text-sm font-bold text-foreground tracking-wide">VVVeco</span>
+          <OfficialLogo size={30} themeAware />
+          <span className="text-sm font-bold text-foreground tracking-wide">VVVEco</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -292,16 +293,10 @@ export function Sidebar({ className }: SidebarProps) {
         {/* Logo */}
         <div className="flex h-18 items-center justify-between border-b border-sidebar-border px-4 bg-sidebar-accent/30">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo-venice.png"
-              alt="VVVeco Logo"
-              width={44}
-              height={44}
-              className="rounded-lg"
-            />
+            <OfficialLogo size={44} themeAware />
             {!collapsed && (
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-foreground">VVVeco</span>
+                <span className="text-xl font-bold text-foreground">VVVEco</span>
                 <span className="text-xs text-muted-foreground">Base Network</span>
               </div>
             )}
@@ -395,7 +390,7 @@ export function Sidebar({ className }: SidebarProps) {
 
           {/* Social Links */}
           <div className={cn('flex gap-2', collapsed ? 'flex-col items-center' : 'justify-start')}>
-            <SocialIcons config={socialConfig} />
+            <SocialIcons config={socialConfig} language={language} />
           </div>
 
         </div>
@@ -472,7 +467,7 @@ export function Sidebar({ className }: SidebarProps) {
 
           {/* Social Links */}
           <div className="flex gap-2 justify-start">
-            <SocialIcons config={socialConfig} />
+            <SocialIcons config={socialConfig} language={language} />
           </div>
 
         </div>

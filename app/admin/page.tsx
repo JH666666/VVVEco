@@ -1,12 +1,12 @@
 'use client'
 
-import Image from 'next/image'
 import { useState } from 'react'
 import { LockKeyhole, Moon, Sun, UserRound } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { OfficialLogo } from '@/components/brand/official-logo'
 
 export default function AdminLoginPage() {
   const [account, setAccount]   = useState('')
@@ -42,15 +42,9 @@ export default function AdminLoginPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-10 bg-background text-foreground">
       <div className="w-full max-w-md rounded-xl p-6 shadow-2xl bg-card border border-border">
         <div className="mb-8 flex items-center gap-3">
-          <Image
-            src="/staking-logo.png"
-            alt="VVVeco Logo"
-            width={44}
-            height={44}
-            className="rounded-lg"
-          />
+          <OfficialLogo size={44} themeAware />
           <div>
-            <h1 className="text-xl font-semibold text-foreground">VVVeco Admin</h1>
+            <h1 className="text-xl font-semibold text-foreground">VVVEco Admin</h1>
             <p className="text-sm text-muted-foreground">Secure owner access</p>
           </div>
         </div>

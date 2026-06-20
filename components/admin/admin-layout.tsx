@@ -1,13 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { BarChart3, Bell, ClipboardList, Clock, Globe, LogOut, Menu, Moon, ShieldCheck, Sun, UsersRound, WalletCards, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminWalletProvider, truncateAddress, useAdminWallet } from '@/contexts/admin-wallet-context'
 import { Button } from '@/components/ui/button'
+import { OfficialLogo } from '@/components/brand/official-logo'
 
 interface AdminLayoutProps {
   children: ReactNode
@@ -51,7 +51,7 @@ function AdminWalletButton() {
         <button
           type="button"
           onClick={disconnectWallet}
-          className="flex h-10 items-center rounded-xl bg-[#ff6a00] px-4 font-mono text-sm font-semibold text-black transition-colors hover:bg-[#ff7a1a]"
+          className="flex h-10 items-center rounded-xl bg-[#bd6700] px-4 font-mono text-sm font-semibold text-[#f5f1ea] transition-colors hover:bg-[#bd6700]/90"
         >
           {truncateAddress(address)}
         </button>
@@ -62,7 +62,7 @@ function AdminWalletButton() {
   return (
     <Button
       onClick={connectWallet}
-      className="h-10 rounded-xl bg-[#ff6a00] px-4 text-sm font-bold text-black hover:bg-[#ff7a1a]"
+      className="h-10 rounded-xl bg-[#bd6700] px-4 text-sm font-bold text-[#f5f1ea] hover:bg-[#bd6700]/90"
     >
       <WalletCards className="h-4 w-4" />
       连接钱包
@@ -129,7 +129,7 @@ function AdminShell({ children }: AdminLayoutProps) {
         <div className="flex h-16 shrink-0 items-center border-b border-sidebar-border">
           {/* Logo（始终显示） */}
           <div className="flex w-16 shrink-0 items-center justify-center">
-            <Image src="/staking-logo.png" alt="VVVeco" width={40} height={40} className="rounded-xl" />
+            <OfficialLogo size={40} themeAware />
           </div>
           {/* 展开后显示标题和关闭按钮 */}
           <div className={cn(
@@ -137,7 +137,7 @@ function AdminShell({ children }: AdminLayoutProps) {
             expanded ? 'opacity-100' : 'opacity-0 pointer-events-none',
           )}>
             <div>
-              <p className="text-sm font-semibold text-sidebar-foreground whitespace-nowrap">VVVeco Admin</p>
+              <p className="text-sm font-semibold text-sidebar-foreground whitespace-nowrap">VVVEco Admin</p>
               <p className="text-xs text-muted-foreground whitespace-nowrap">Owner console</p>
             </div>
             <button

@@ -24,14 +24,14 @@ export function About() {
     <section id="about" className="py-24 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <span className="text-sm font-medium text-primary uppercase tracking-wider">{t("About VVVeco", "关于 VVVeco")}</span>
+          <span className="text-sm font-medium text-primary uppercase tracking-wider">{t("About VVVEco", "关于 VVVEco")}</span>
           <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-medium text-foreground mt-4 mb-6 text-balance">
             {t("Venice AI Ecosystem Staking Platform", "Venice AI 生态质押平台")}
           </h2>
           <p className="text-base text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
             {t(
-              "VVVeco is the decentralized staking protocol built on Venice AI ecosystem, offering flexible staking modes, generous yield returns, and team referral mechanisms.",
-              "VVVeco 是基于 Venice AI 生态的去中心化质押协议，提供灵活的质押模式、丰厚的收益回报和团队裂变机制。"
+              "VVVEco is the decentralized staking protocol built on Venice AI ecosystem, offering flexible staking modes, generous yield returns, and team referral mechanisms.",
+              "VVVEco 是基于 Venice AI 生态的去中心化质押协议，提供灵活的质押模式、丰厚的收益回报和团队裂变机制。"
             )}
           </p>
         </div>
@@ -39,7 +39,7 @@ export function About() {
         <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
           <div>
             <h3 className="font-serif text-2xl sm:text-3xl font-medium text-foreground mb-6">
-              {t("Why Choose VVVeco?", "为什么选择 VVVeco?")}
+              {t("Why Choose VVVEco?", "为什么选择 VVVEco?")}
             </h3>
             <div className="space-y-6">
               <div className="flex gap-4">
@@ -102,7 +102,7 @@ export function About() {
           </div>
 
           <div className="bg-secondary/50 rounded-2xl p-8 border border-border">
-            <div className="text-sm text-muted-foreground uppercase tracking-wider mb-4">{t("VVVeco Platform Stats", "平台数据")}</div>
+            <div className="text-sm text-muted-foreground uppercase tracking-wider mb-4">{t("VVVEco Platform Stats", "平台数据")}</div>
             <div className="space-y-6">
               <div className="flex justify-between items-center pb-4 border-b border-border">
                 <span className="text-muted-foreground">{t("Total Staked", "全球质押金额")}</span>

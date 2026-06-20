@@ -1,43 +1,22 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { useLanguage as useGlobalLanguage } from '@/contexts/language-context'
 
 type Language = 'en' | 'zh'
 
-interface LanguageContextType {
-  lang: Language
-  setLang: (lang: Language) => void
-  t: (en: string, zh: string) => string
-}
-
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
-
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Language>('en')
-
-  useEffect(() => {
-    const saved = localStorage.getItem('vvveco-lang') as Language
-    if (saved) setLang(saved)
-  }, [])
-
-  const handleSetLang = (newLang: Language) => {
-    setLang(newLang)
-    localStorage.setItem('vvveco-lang', newLang)
-  }
-
-  const t = (en: string, zh: string) => lang === 'en' ? en : zh
-
-  return (
-    <LanguageContext.Provider value={{ lang, setLang: handleSetLang, t }}>
-      {children}
-    </LanguageContext.Provider>
-  )
+  return children
 }
 
 export function useLanguage() {
-  const context = useContext(LanguageContext)
-  if (!context) throw new Error('useLanguage must be used within LanguageProvider')
-  return context
+  const { language, setLanguage } = useGlobalLanguage()
+
+  return {
+    lang: language,
+    setLang: (lang: Language) => setLanguage(lang),
+    t: (en: string, zh: string) => language === 'en' ? en : zh,
+  }
 }
 
 export function LanguageSwitcher() {

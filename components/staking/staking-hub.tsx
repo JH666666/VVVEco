@@ -466,12 +466,12 @@ export function StakingHub() {
                       <svg className="w-full h-full relative z-10" viewBox="0 0 200 100" preserveAspectRatio="none">
                         <defs>
                           <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.4" />
-                            <stop offset="100%" stopColor="#22c55e" stopOpacity="0.05" />
+                            <stop offset="0%" stopColor="#007277" stopOpacity="0.4" />
+                            <stop offset="100%" stopColor="#007277" stopOpacity="0.05" />
                           </linearGradient>
                         </defs>
                         <path d={areaPath} fill="url(#areaGradient)" />
-                        <path d={linePath} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d={linePath} fill="none" stroke="#007277" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">暂无数据</div>
