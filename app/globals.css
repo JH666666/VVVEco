@@ -7,7 +7,7 @@
 :root {
   --background: #edede5;
   --foreground: #143c62;
-  --card: color-mix(in srgb, #edede5 94%, #143c62);
+  --card: #edede5;
   --card-foreground: #143c62;
   --popover: #edede5;
   --popover-foreground: #143c62;
