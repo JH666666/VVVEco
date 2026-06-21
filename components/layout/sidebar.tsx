@@ -73,20 +73,20 @@ const menuItems = [
 
 const externalLinks = [
   {
-    title: '官方Agent',
-    titleEn: 'Official Agent',
+    title: 'Agent',
+    titleEn: 'Agent',
     href: 'https://venice.ai/chat/agent',
     icon: Bot,
   },
   {
-    title: '官方Chat',
-    titleEn: 'Official Chat',
+    title: 'Chat',
+    titleEn: 'Chat',
     href: 'https://venice.ai/chat/classic',
     icon: MessageCircle,
   },
   {
-    title: '官方Studio',
-    titleEn: 'Official Studio',
+    title: 'Studio',
+    titleEn: 'Studio',
     href: 'https://venice.ai/studio/image',
     icon: Palette,
   },
@@ -319,7 +319,7 @@ export function Sidebar({ className }: SidebarProps) {
         {/* External Links */}
         <div className="px-3 py-2 border-t border-sidebar-border">
           {!collapsed && (
-            <p className="text-xs text-muted-foreground mb-2 px-3">{t('官方工具', 'Tools')}</p>
+            <p className="text-xs text-muted-foreground mb-2 px-3">Venice.ai</p>
           )}
           {externalLinks.map((item) => (
             <a
@@ -407,7 +407,7 @@ export function Sidebar({ className }: SidebarProps) {
 
           {/* External Links */}
           <div className="pt-2 mt-2 border-t border-sidebar-border">
-            <p className="text-xs text-muted-foreground mb-2 px-3">{t('官方工具', 'Tools')}</p>
+            <p className="text-xs text-muted-foreground mb-2 px-3">Venice.ai</p>
             {externalLinks.map((item) => (
               <a
                 key={item.href}
