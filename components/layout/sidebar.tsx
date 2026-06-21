@@ -27,7 +27,6 @@ import {
   MessageCircle,
   Network,
   Palette,
-  Search,
   Rss,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -74,12 +73,6 @@ const menuItems = [
 ]
 
 const externalLinks = [
-  {
-    title: 'Search',
-    titleEn: 'Search',
-    href: 'https://venice.ai/search',
-    icon: Search,
-  },
   {
     title: 'Chat',
     titleEn: 'Chat',
