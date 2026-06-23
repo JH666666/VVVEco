@@ -214,11 +214,11 @@ export function Staking() {
               </div>
               <div className="bg-white/10 rounded-xl p-6 text-center">
                 <div className="text-3xl md:text-4xl font-serif font-medium">{t("Tiered", "代数")}</div>
-                <div className="text-sm text-white/70 mt-1">{t("Compression System", "紧缩制")}</div>
+                <div className="text-sm text-white/70 mt-1">{t("Compression Team Staking Performance", "紧缩团队质押业绩计算")}</div>
               </div>
               <div className="bg-white/10 rounded-xl p-6 text-center">
                 <div className="text-3xl md:text-4xl font-serif font-medium">{t("Rank", "等级")}</div>
-                <div className="text-sm text-white/70 mt-1">{t("Differential System", "级差制")}</div>
+                <div className="text-sm text-white/70 mt-1">{t("Cumulative System", "累加制")}</div>
               </div>
             </div>
           </div>
