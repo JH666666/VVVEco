@@ -92,7 +92,7 @@ function sanitizeStakeAmount(value: string) {
 export function StakingHub() {
   const { toast } = useToast()
   const { t } = useLanguage()
-  const { config } = useRewardConfig()
+  const { config, isLoading: rewardLoading } = useRewardConfig()
   const stakePeriods = useMemo<StakePeriod[]>(
     () => config.periodDurations.map((duration, index) => {
       const unit = config.periodUnits[index]
@@ -571,27 +571,39 @@ export function StakingHub() {
                 {t('选择质押周期', 'Select Period')}
               </h4>
               <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-                {stakePeriods.map((period) => (
-                  <button
-                    key={`${period.duration}-${period.unit}`}
-                    onClick={() => setSelectedPeriod(period)}
-                    className={cn(
-                      'flex flex-col items-center gap-1.5 sm:gap-2 rounded-xl border p-3 sm:p-4 transition-all',
-                      selectedPeriod.duration === period.duration && selectedPeriod.unit === period.unit
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border bg-secondary/20 hover:border-muted-foreground hover:bg-secondary/40'
-                    )}
-                  >
-                    <span className="text-xl sm:text-2xl font-semibold text-foreground">{period.duration}</span>
-                    <span className="text-xs text-muted-foreground">{period.unit === 'hour' ? t('时', 'hr') : t('天', 'd')}</span>
-                    <div className="w-full h-px bg-border" />
-                    <div className="text-center">
-                      <p className="text-xs sm:text-sm font-medium text-primary">{period.dailyRate}%</p>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">{rewardRateLabel}</p>
-                    </div>
-                    <p className="text-xs sm:text-sm text-chart-1 font-medium">+{period.totalReturn}%</p>
-                  </button>
-                ))}
+                {rewardLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex flex-col items-center gap-2 rounded-xl border border-border bg-secondary/20 p-3 sm:p-4">
+                        <div className="h-7 w-10 rounded bg-muted animate-pulse" />
+                        <div className="h-3 w-6 rounded bg-muted animate-pulse" />
+                        <div className="w-full h-px bg-border" />
+                        <div className="h-4 w-10 rounded bg-muted animate-pulse" />
+                        <div className="h-3 w-14 rounded bg-muted animate-pulse" />
+                        <div className="h-4 w-12 rounded bg-muted animate-pulse" />
+                      </div>
+                    ))
+                  : stakePeriods.map((period) => (
+                      <button
+                        key={`${period.duration}-${period.unit}`}
+                        onClick={() => setSelectedPeriod(period)}
+                        className={cn(
+                          'flex flex-col items-center gap-1.5 sm:gap-2 rounded-xl border p-3 sm:p-4 transition-all',
+                          selectedPeriod.duration === period.duration && selectedPeriod.unit === period.unit
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border bg-secondary/20 hover:border-muted-foreground hover:bg-secondary/40'
+                        )}
+                      >
+                        <span className="text-xl sm:text-2xl font-semibold text-foreground">{period.duration}</span>
+                        <span className="text-xs text-muted-foreground">{period.unit === 'hour' ? t('时', 'hr') : t('天', 'd')}</span>
+                        <div className="w-full h-px bg-border" />
+                        <div className="text-center">
+                          <p className="text-xs sm:text-sm font-medium text-primary">{period.dailyRate}%</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">{rewardRateLabel}</p>
+                        </div>
+                        <p className="text-xs sm:text-sm text-chart-1 font-medium">+{period.totalReturn}%</p>
+                      </button>
+                    ))
+                }
               </div>
             </div>
 
