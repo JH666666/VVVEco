@@ -15,12 +15,12 @@ function formatLevelThreshold(value: number) {
 export function Staking() {
   const { t } = useLanguage()
   const { config: rewardConfig, isLoading: rewardLoading } = useRewardConfig()
-  const [minStakeUsd, setMinStakeUsd] = useState(10)
+  const [minStakeUsd, setMinStakeUsd] = useState<number | null>(null)
   useEffect(() => {
     fetch('/api/admin/chain-params')
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.minStakeUsd) setMinStakeUsd(Number(d.minStakeUsd)) })
-      .catch(() => {})
+      .then(d => { setMinStakeUsd(d?.minStakeUsd ? Number(d.minStakeUsd) : 100) })
+      .catch(() => { setMinStakeUsd(100) })
   }, [])
 
   const periods = rewardConfig.periodDurations.map((days, i) => {
@@ -155,7 +155,10 @@ export function Staking() {
             }
           </div>
           <p className="text-sm text-muted-foreground mt-4 text-center">
-            {t(`Min $${minStakeUsd} | Principal unlocked at maturity, 0 fee withdrawal`, `最低质押 $${minStakeUsd} | 本金到期解锁，全额提取 0 手续费`)}
+            {minStakeUsd === null
+              ? <span className="inline-block h-4 w-48 rounded bg-muted animate-pulse align-middle" />
+              : t(`Min $${minStakeUsd} | Principal unlocked at maturity, 0 fee withdrawal`, `最低质押 $${minStakeUsd} | 本金到期解锁，全额提取 0 手续费`)
+            }
           </p>
         </div>
 
