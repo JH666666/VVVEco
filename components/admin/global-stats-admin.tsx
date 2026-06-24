@@ -425,7 +425,9 @@ export function GlobalStatsAdmin() {
 
         // When duration key changes, first zero out the old mapping entry on-chain.
         // durationRates is a mapping(uint256→uint256) — old key persists until cleared.
-        if (oldDuration !== durationDays && oldDuration > 0) {
+        // Guard: skip clear if old key is reused by another period in the new config
+        // (e.g. P3 old=30 clearing would wipe P1 new=30 that was just written).
+        if (oldDuration !== durationDays && oldDuration > 0 && !durations.includes(oldDuration)) {
           setSavingPeriodProgress(`${i + 1}/4 清除旧周期 ${oldDuration}天...`);
           toast({ title: `周期 ${i + 1}/4 清除旧周期...`, description: `请在钱包确认：setDurationRate(${oldDuration}, 0)` });
           try {
