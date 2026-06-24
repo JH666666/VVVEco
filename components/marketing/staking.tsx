@@ -14,7 +14,7 @@ function formatLevelThreshold(value: number) {
 
 export function Staking() {
   const { t } = useLanguage()
-  const { config: rewardConfig } = useRewardConfig()
+  const { config: rewardConfig, isLoading: rewardLoading } = useRewardConfig()
   const [minStakeUsd, setMinStakeUsd] = useState(10)
   useEffect(() => {
     fetch('/api/admin/chain-params')
@@ -130,18 +130,29 @@ export function Staking() {
             <h3 className="font-serif text-xl font-medium text-foreground">{t("Choose Staking Period", "选择质押周期")}</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {periods.map((period) => (
-              <div
-                key={period.days}
-                className="bg-card rounded-xl p-6 border border-border text-center hover:border-primary transition-colors"
-              >
-                <div className="font-serif text-4xl font-medium text-foreground">{period.days}</div>
-                <div className="text-sm text-muted-foreground mb-4">{t("Days", "天")}</div>
-                <div className="text-lg font-medium text-primary">{period.rate}</div>
-                <div className="text-xs text-muted-foreground mb-2">{t("Daily Rate", "日收益率")}</div>
-                <div className="text-sm font-medium text-accent">{period.total}</div>
-              </div>
-            ))}
+            {rewardLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-card rounded-xl p-6 border border-border text-center space-y-3">
+                    <div className="h-10 w-16 mx-auto rounded bg-muted animate-pulse" />
+                    <div className="h-3 w-8 mx-auto rounded bg-muted animate-pulse" />
+                    <div className="h-5 w-12 mx-auto rounded bg-muted animate-pulse" />
+                    <div className="h-3 w-16 mx-auto rounded bg-muted animate-pulse" />
+                    <div className="h-4 w-10 mx-auto rounded bg-muted animate-pulse" />
+                  </div>
+                ))
+              : periods.map((period) => (
+                  <div
+                    key={period.days}
+                    className="bg-card rounded-xl p-6 border border-border text-center hover:border-primary transition-colors"
+                  >
+                    <div className="font-serif text-4xl font-medium text-foreground">{period.days}</div>
+                    <div className="text-sm text-muted-foreground mb-4">{t("Days", "天")}</div>
+                    <div className="text-lg font-medium text-primary">{period.rate}</div>
+                    <div className="text-xs text-muted-foreground mb-2">{t("Daily Rate", "日收益率")}</div>
+                    <div className="text-sm font-medium text-accent">{period.total}</div>
+                  </div>
+                ))
+            }
           </div>
           <p className="text-sm text-muted-foreground mt-4 text-center">
             {t(`Min $${minStakeUsd} | Principal unlocked at maturity, 0 fee withdrawal`, `最低质押 $${minStakeUsd} | 本金到期解锁，全额提取 0 手续费`)}

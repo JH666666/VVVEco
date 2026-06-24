@@ -127,11 +127,12 @@ async function fetchRewardConfigAPI(): Promise<RewardConfig> {
 
 export function useRewardConfig() {
   const [config, setConfig] = useState<RewardConfig>(() => getDefaultRewardConfig())
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     fetchRewardConfigAPI()
-      .then(setConfig)
-      .catch(() => setConfig(getDefaultRewardConfig()))
+      .then(next => { setConfig(next); setIsLoading(false) })
+      .catch(() => { setConfig(getDefaultRewardConfig()); setIsLoading(false) })
   }, [])
 
   const updateRewardConfig = useCallback(async (next: RewardConfig) => {
@@ -163,5 +164,5 @@ export function useRewardConfig() {
     }).catch(() => {})
   }, [])
 
-  return { config, updateRewardConfig, resetRewards }
+  return { config, updateRewardConfig, resetRewards, isLoading }
 }
