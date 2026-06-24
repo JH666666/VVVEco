@@ -50,8 +50,8 @@ export function About() {
                   <h4 className="font-medium text-foreground mb-1">{t("Flexible Staking", "灵活质押")}</h4>
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     {t(
-                      "Coin-based and Fiat-based dual modes, 7-60 day flexible periods, up to 1% daily yield, real-time earnings.",
-                      "币本位与金本位双模式可选，7-60 天灵活周期，最高可达 1% 日收益率，收益实时到账。"
+                      "Coin-based and Fiat-based dual modes, 30-360 day flexible periods, up to 1% daily yield, real-time earnings.",
+                      "币本位与金本位双模式可选，30-360 天灵活周期，最高可达 1% 日收益率，收益实时到账。"
                     )}
                   </p>
                 </div>
