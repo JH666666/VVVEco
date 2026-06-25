@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") ?? "10", 10)));
     const registeredStart = searchParams.get("registeredStart") ?? "";
     const registeredEnd = searchParams.get("registeredEnd") ?? "";
+    const minStake = searchParams.get("minStake") ?? "";
+    const maxStake = searchParams.get("maxStake") ?? "";
 
     const where: Record<string, unknown> = {};
 
@@ -66,6 +68,20 @@ export async function GET(request: NextRequest) {
     }
     if (registeredEnd) {
       where.createdAt = { ...(where.createdAt as object ?? {}), lte: new Date(`${registeredEnd}T23:59:59.999Z`) };
+    }
+
+    const minStakeNum = minStake !== "" ? parseFloat(minStake) : null;
+    const maxStakeNum = maxStake !== "" ? parseFloat(maxStake) : null;
+    if (minStakeNum !== null || maxStakeNum !== null) {
+      const having: string[] = [];
+      if (minStakeNum !== null && minStakeNum > 0) having.push(`SUM(usd_value) >= ${minStakeNum}`);
+      if (maxStakeNum !== null) having.push(`SUM(usd_value) <= ${maxStakeNum}`);
+      if (having.length > 0) {
+        const rows = await prisma.$queryRawUnsafe<{ wallet_address: string }[]>(
+          `SELECT wallet_address FROM stake_orders GROUP BY wallet_address HAVING ${having.join(" AND ")}`
+        );
+        where.walletAddress = { in: rows.map(r => r.wallet_address) };
+      }
     }
 
     const [users, total] = await Promise.all([
