@@ -238,8 +238,22 @@ svg {
   }
 }
 
-/* Small screen (<=480px) touch improvements */
+/* Small screen (<=480px) layout guards for very low-end devices */
 @media screen and (max-width: 480px) {
+  /* Ensure flex containers don't collapse */
+  .flex {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+  }
+
+  /* Prevent any element from overflowing viewport width */
+  * {
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+
+  /* Make sure buttons and links are always visible */
   a,
   button {
     -webkit-tap-highlight-color: transparent;

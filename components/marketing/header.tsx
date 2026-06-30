@@ -31,8 +31,14 @@ export function Header({
   const { t } = useLanguage()
 
   return (
-    <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-5xl">
-      <nav className="flex h-[62px] items-center justify-between gap-2 px-4 bg-card/90 backdrop-blur-md rounded-full border border-border shadow-sm">
+    <header
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-5xl"
+      style={{ position: "fixed", top: "1rem", left: "50%", transform: "translateX(-50%)", WebkitTransform: "translateX(-50%)", zIndex: 50, width: "calc(100% - 2rem)", maxWidth: "64rem" }}
+    >
+      <nav
+        className="flex h-[62px] items-center justify-between gap-2 px-4 bg-card/90 backdrop-blur-md rounded-full border border-border shadow-sm"
+        style={{ display: "flex", height: "62px", alignItems: "center", justifyContent: "space-between" }}
+      >
         <Link
           href="/"
           className="flex min-w-0 shrink-0 items-center gap-2"
