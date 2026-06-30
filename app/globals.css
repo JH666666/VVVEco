@@ -13,30 +13,30 @@
   --popover-foreground: #143c62;
   --primary: #143c62;
   --primary-foreground: #edede5;
-  --secondary: color-mix(in srgb, #edede5 90%, #143c62);
+  --secondary: #d7dbd8;
   --secondary-foreground: #143c62;
-  --muted: color-mix(in srgb, #edede5 88%, #143c62);
-  --muted-foreground: color-mix(in srgb, #143c62 72%, #edede5);
+  --muted: #d3d8d5;
+  --muted-foreground: #516e87;
   --accent: #bd6700;
   --accent-foreground: #f5f1ea;
   --destructive: #bd6700;
   --destructive-foreground: #f5f1ea;
-  --border: color-mix(in srgb, #143c62 18%, #edede5);
-  --input: color-mix(in srgb, #edede5 92%, #143c62);
+  --border: #c6cdcd;
+  --input: #dcdfdb;
   --ring: #bd6700;
   --chart-1: #143c62;
   --chart-2: #bd6700;
   --chart-3: #bd6700;
-  --chart-4: color-mix(in srgb, #143c62 65%, #bd6700);
-  --chart-5: color-mix(in srgb, #bd6700 72%, #143c62);
+  --chart-4: #4f4b40;
+  --chart-5: #8e5b1b;
   --radius: 0.625rem;
   --sidebar: #edede5;
   --sidebar-foreground: #143c62;
   --sidebar-primary: #143c62;
   --sidebar-primary-foreground: #edede5;
-  --sidebar-accent: color-mix(in srgb, #edede5 90%, #143c62);
+  --sidebar-accent: #d7dbd8;
   --sidebar-accent-foreground: #143c62;
-  --sidebar-border: color-mix(in srgb, #143c62 18%, #edede5);
+  --sidebar-border: #c6cdcd;
   --sidebar-ring: #bd6700;
   
   /* Custom VVV Tokens - Venice Style */
@@ -44,8 +44,8 @@
   --venice-gold: #bd6700;
   --venice-teal: #bd6700;
   --venice-cream: #edede5;
-  --subtle-shadow: 0 1px 3px oklch(0.20 0.02 250 / 0.05);
-  --card-shadow: 0 2px 8px oklch(0.20 0.02 250 / 0.06);
+  --subtle-shadow: 0 1px 3px rgba(14, 28, 45, 0.05);
+  --card-shadow: 0 2px 8px rgba(14, 28, 45, 0.06);
 }
 
 .dark {
@@ -71,8 +71,8 @@
   --chart-1: #bd6700;
   --chart-2: #bd6700;
   --chart-3: #f5f1ea;
-  --chart-4: color-mix(in srgb, #bd6700 70%, #f5f1ea);
-  --chart-5: color-mix(in srgb, #bd6700 68%, #f5f1ea);
+  --chart-4: #ce9046;
+  --chart-5: #cf934b;
   --sidebar: #050b12;
   --sidebar-foreground: #f5f1ea;
   --sidebar-primary: #bd6700;
@@ -87,8 +87,8 @@
   --venice-gold: #bd6700;
   --venice-teal: #bd6700;
   --venice-cream: #f5f1ea;
-  --subtle-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
-  --card-shadow: 0 2px 12px oklch(0 0 0 / 0.4);
+  --subtle-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
@@ -191,18 +191,40 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.80 0.01 85);
+  background: #c8c5bf;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.70 0.01 85);
+  background: #afaca8;
 }
 
 .dark::-webkit-scrollbar-thumb {
-  background: oklch(0.25 0.015 250);
+  background: #353c45;
 }
 
 .dark::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.35 0.015 250);
+  background: #4a5260;
+}
+
+/* Prevent horizontal scroll on narrow viewports */
+html,
+body {
+  overflow-x: hidden;
+}
+
+/* backdrop-filter fallback for old Android WebView (Chrome < 76) */
+@supports not (backdrop-filter: blur(1px)) {
+  .bg-card\/90 {
+    background-color: rgba(237, 237, 229, 0.97);
+  }
+  .dark .bg-card\/90 {
+    background-color: rgba(11, 18, 26, 0.97);
+  }
+  .bg-card\/95 {
+    background-color: rgba(237, 237, 229, 0.98);
+  }
+  .dark .bg-card\/95 {
+    background-color: rgba(11, 18, 26, 0.98);
+  }
 }
