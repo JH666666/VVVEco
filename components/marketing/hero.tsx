@@ -19,9 +19,13 @@ export function Hero() {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-24 pb-16 px-4 overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/5 rounded-full blur-3xl" />
+      <div
+        className="absolute inset-0 overflow-hidden"
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden" }}
+        aria-hidden="true"
+      >
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" style={{ position: "absolute", top: "25%", left: "25%", width: "24rem", height: "24rem", borderRadius: "9999px" }} />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/5 rounded-full blur-3xl" style={{ position: "absolute", bottom: "25%", right: "25%", width: "20rem", height: "20rem", borderRadius: "9999px" }} />
       </div>
 
       <div className="relative max-w-4xl mx-auto text-center">
