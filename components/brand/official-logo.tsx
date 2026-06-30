@@ -15,7 +15,7 @@ export function OfficialLogo({
     return (
       <span
         className={`relative block shrink-0 ${className}`}
-        style={{ width: size, height: size }}
+        style={{ width: size, height: size, position: "relative", display: "block", overflow: "hidden", flexShrink: 0 }}
         aria-label="VVVeco official logo"
       >
         <Image
