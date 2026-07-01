@@ -208,7 +208,6 @@
 }
 
 /* Prevent horizontal scroll on narrow viewports */
-html,
 body {
   overflow-x: hidden;
 }
