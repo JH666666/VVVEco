@@ -115,6 +115,7 @@ export async function GET(request: NextRequest) {
         endTime: o.endTime,
         isWithdrawn: o.isWithdrawn,
         hiddenByAdmin: o.hiddenByAdmin,
+        isRepaired: o.isRepaired,
         claimedVvv,
         claimedUsd,
         pending,

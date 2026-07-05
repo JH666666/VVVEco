@@ -18,6 +18,7 @@ interface StakeOrder {
   startTime: string
   endTime: string
   isWithdrawn: boolean
+  isRepaired?: boolean
   claimedVvv: number
   claimedUsd: number
   pending: number
@@ -234,14 +235,14 @@ export function OrdersAdmin() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                {['钱包','UID','模式','金额(VVV)','USD','期限','日化','已领取','待领取','状态','开始时间'].map(h => (
+                {['钱包','UID','模式','金额(VVV)','USD','期限','日化','已领取','待领取','状态','开始时间','标记'].map(h => (
                   <th key={h} className="px-3 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {orders.length === 0 ? (
-                <tr><td colSpan={11} className="px-3 py-8 text-center text-muted-foreground">暂无数据</td></tr>
+                <tr><td colSpan={12} className="px-3 py-8 text-center text-muted-foreground">暂无数据</td></tr>
               ) : orders.map(o => (
                 <tr key={o.txHash} className="hover:bg-muted/30">
                   <td className="px-3 py-2 font-mono text-xs">{shortAddr(o.walletAddress)}</td>
@@ -255,6 +256,7 @@ export function OrdersAdmin() {
                   <td className="px-3 py-2 text-yellow-400">{o.pending.toFixed(4)}</td>
                   <td className="px-3 py-2"><span className={`rounded px-1.5 py-0.5 text-xs font-medium ${o.status==='active'?'bg-green-500/10 text-green-400':o.isWithdrawn?'bg-gray-500/10 text-gray-400':'bg-blue-500/10 text-blue-400'}`}>{o.isWithdrawn?'已赎回':o.status==='active'?'进行中':'到期'}</span></td>
                   <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(o.startTime)}</td>
+                  <td className="px-3 py-2">{o.isRepaired && <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-orange-500/10 text-orange-400">自动补录</span>}</td>
                 </tr>
               ))}
             </tbody>

@@ -53,6 +53,7 @@ model StakeOrder {
   isWithdrawn   Boolean       @default(false) @map("is_withdrawn")
   withdrawnTx   String?       @map("withdrawn_tx")
   hiddenByAdmin Boolean       @default(false) @map("hidden_by_admin")
+  isRepaired    Boolean       @default(false) @map("is_repaired")
   createdAt     DateTime      @default(now()) @map("created_at")
   claimRecords  ClaimRecord[]
   user          User          @relation(fields: [walletAddress], references: [walletAddress])

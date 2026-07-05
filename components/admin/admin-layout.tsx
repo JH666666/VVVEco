@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { BarChart3, Bell, ClipboardList, Clock, Globe, LogOut, Menu, Moon, ShieldCheck, Sun, UsersRound, WalletCards, X } from 'lucide-react'
+import { AlertTriangle, BarChart3, Bell, ClipboardList, Clock, Globe, LogOut, Menu, Moon, ShieldCheck, Sun, UsersRound, WalletCards, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminWalletProvider, truncateAddress, useAdminWallet } from '@/contexts/admin-wallet-context'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,8 @@ const adminNavItems = [
   { title: '用户数据管理', description: '地址、质押、团队与收益',       href: '/admin/users',        icon: UsersRound },
   { title: '订单数据管理', description: '质押订单、领取记录、推荐关系', href: '/admin/orders',       icon: ClipboardList },
   { title: '社群配置',     description: 'Telegram / X / Discord',      href: '/admin/social',       icon: Globe },
-  { title: '出款队列',     description: 'PayoutQueued 排队监控与 Flush',href: '/admin/payout-queue', icon: Clock },
+  { title: '出款队列',     description: 'PayoutQueued 排队监控与 Flush',href: '/admin/payout-queue',    icon: Clock },
+  { title: '漏单检测',     description: '链上补录缺失的质押订单',         href: '/admin/missing-orders', icon: AlertTriangle },
 ]
 
 export function AdminLayout({ children }: AdminLayoutProps) {
