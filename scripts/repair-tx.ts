@@ -29,7 +29,9 @@ const STAKING_ADDR = (
 const RPC_URL = process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org";
 
 const client = createPublicClient({ chain: base, transport: http(RPC_URL) });
-const prisma  = new PrismaClient();
+const prisma  = new PrismaClient({
+  datasources: { db: { url: process.env.DATABASE_URL } },
+});
 
 const STAKING_ABI = parseAbi([
   "event Staked(address indexed user, uint256 orderId, uint256 vvvAmountIn, uint256 usdValue, uint256 duration, bool isCoinBased, address referrer)",
