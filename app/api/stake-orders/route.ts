@@ -49,9 +49,14 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (!includeHidden) where.hiddenByAdmin = false;
     if (q) {
-      const wallet = await resolveWallet(q);
-      if (wallet) where.walletAddress = wallet;
-      else where.walletAddress = "__no_match__";
+      // 64-char hex → direct txHash lookup (bypasses sort/pagination issues)
+      if (/^0x[a-f0-9]{64}$/i.test(q)) {
+        where.txHash = q.toLowerCase();
+      } else {
+        const wallet = await resolveWallet(q);
+        if (wallet) where.walletAddress = wallet;
+        else where.walletAddress = "__no_match__";
+      }
     }
     if (status === "active") where.isWithdrawn = false;
     if (status === "completed") where.isWithdrawn = true;
@@ -71,7 +76,7 @@ export async function GET(request: NextRequest) {
     const [orders, total] = await Promise.all([
       prisma.stakeOrder.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: { startTime: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {

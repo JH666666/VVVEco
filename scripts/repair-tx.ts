@@ -41,8 +41,8 @@ const STAKING_ABI = parseAbi([
   "function ordersLength(address user) view returns (uint256)",
 ]);
 
-function toSqliteTimestamp(d: Date): string {
-  return d.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, ".000");
+function toISOTimestamp(d: Date): string {
+  return d.toISOString(); // "2025-07-05T12:34:56.000Z" — LibSQL text-sorts ISO format correctly
 }
 
 async function main() {
@@ -194,9 +194,9 @@ async function main() {
   // ── Step 6: 生成 SQL ───────────────────────────────────────────
   console.log("\n[6] 生成补录 SQL...");
 
-  const startSql = toSqliteTimestamp(startTime);
-  const endSql   = toSqliteTimestamp(endTime);
-  const nowSql   = toSqliteTimestamp(new Date());
+  const startSql = toISOTimestamp(startTime);
+  const endSql   = toISOTimestamp(endTime);
+  const nowSql   = toISOTimestamp(new Date());
 
   console.log("\n" + "=".repeat(64));
   console.log("① 根因：");
