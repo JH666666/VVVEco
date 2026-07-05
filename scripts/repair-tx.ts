@@ -16,6 +16,7 @@ dotenv.config({ path: ".env.local", override: true });
 import { createPublicClient, http, decodeEventLog, parseAbi } from "viem";
 import { base } from "viem/chains";
 import { PrismaClient } from "@prisma/client";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 
 // ── 目标参数（只修改这两行）─────────────────────────────────────────
 const TARGET_TX   = "0x2583f2adcb17a65616d8b44c92ea43ef418672550ac2c6cd8600e0616a7ed229" as `0x${string}`;
@@ -27,10 +28,11 @@ const STAKING_ADDR = (
 ) as `0x${string}`;
 
 const RPC_URL = process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org";
+const DB_URL  = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
 
 const client = createPublicClient({ chain: base, transport: http(RPC_URL) });
 const prisma  = new PrismaClient({
-  datasources: { db: { url: process.env.DATABASE_URL } },
+  adapter: new PrismaLibSql({ url: DB_URL }),
 });
 
 const STAKING_ABI = parseAbi([
