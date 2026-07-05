@@ -30,17 +30,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ total: cached.total });
   }
 
-  // DB-first: if no TeamReward rows exist for this wallet, chain has no events yet.
-  // Avoids unnecessary eth_getLogs calls on a fresh V2 deployment.
+  // DB-first: sum directly from TeamReward table — avoids scanning 300k+ blocks per request.
+  // DB is authoritative when records exist; chain scan only runs as fallback when DB is empty.
   try {
-    const dbCount = await prisma.teamReward.count({ where: { beneficiaryAddr: wallet } });
-    if (dbCount === 0) {
-      cache.set(wallet, { total: "0", expiresAt: Date.now() + TTL_MS });
-      return NextResponse.json({ total: "0" });
+    const dbAgg = await prisma.teamReward.aggregate({
+      where: { beneficiaryAddr: wallet },
+      _sum: { amount: true },
+      _count: { id: true },
+    });
+    if (dbAgg._count.id === 0) {
+      // No DB records at all — fall through to chain scan (new wallet, no rewards yet)
+    } else {
+      // amount is stored in VVV; convert to wei string to match chain-scan format
+      const vvv = dbAgg._sum.amount ?? 0;
+      const weiTotal = BigInt(Math.round(vvv * 1e12)) * BigInt(1e6); // avoid float overflow
+      const total = weiTotal.toString();
+      cache.set(wallet, { total, expiresAt: Date.now() + TTL_MS });
+      return NextResponse.json({ total });
     }
   } catch (dbErr) {
     // DB unavailable — fall through to chain scan
-    console.warn("[team-rewards/total] DB count failed, falling through to chain scan:", dbErr);
+    console.warn("[team-rewards/total] DB sum failed, falling through to chain scan:", dbErr);
   }
 
   try {
