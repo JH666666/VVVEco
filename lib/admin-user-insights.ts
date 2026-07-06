@@ -61,6 +61,7 @@ export interface UserInsight {
   registeredAtMs: number | null
   referrer: string
   referrerDisplay: string
+  referrerUid?: number | null
   directCount: number
   teamCount: number
   teamStakeUsd: number

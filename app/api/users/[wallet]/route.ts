@@ -185,6 +185,7 @@ export async function GET(
       registeredAtMs: user.createdAt.getTime(),
       referrer: user.referrer?.walletAddress ?? "",
       referrerDisplay: user.referrer ? shortAddr(user.referrer.walletAddress) : "无",
+      referrerUid: user.referrer?.uid ?? null,
       directCount: user._count.referrals,
       teamCount: team.length,
       teamStakeUsd,

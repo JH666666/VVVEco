@@ -593,15 +593,24 @@ export function UserAdmin() {
               <CardDescription>展示用户上级关系和当前邀请码。</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-3">
+              {/* 完整地址 */}
               <div className="rounded-lg border border-border p-4">
                 <p className="text-xs text-muted-foreground">完整地址</p>
                 {insight.uid > 0 && (
-                  <p className="mt-1 font-mono text-sm text-foreground">
-                    <span className="text-muted-foreground">UID </span>
-                    <span className="tabular-nums">{insight.uid}</span>
-                  </p>
+                  <div className="mt-1 flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">UID</span>
+                    <span className="tabular-nums font-mono text-sm text-foreground">{insight.uid}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0"
+                      onClick={() => handleCopyAddress(String(insight.uid))}
+                    >
+                      {copiedAddress === String(insight.uid) ? <Check className="h-3 w-3 text-chart-1" /> : <Copy className="h-3 w-3" />}
+                    </Button>
+                  </div>
                 )}
-                <div className="mt-2 flex items-start gap-2">
+                <div className="mt-1 flex items-start gap-1">
                   <p className="break-all font-mono text-sm text-foreground">{insight.address}</p>
                   <Button
                     variant="ghost"
@@ -613,14 +622,71 @@ export function UserAdmin() {
                   </Button>
                 </div>
               </div>
+
+              {/* 上级钱包 */}
               <div className="rounded-lg border border-border p-4">
                 <p className="text-xs text-muted-foreground">上级钱包</p>
-                <p className="mt-2 font-mono text-sm text-foreground">{insight.referrerDisplay}</p>
+                {insight.referrer ? (
+                  <>
+                    {insight.referrerUid && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">UID</span>
+                        <span className="tabular-nums font-mono text-sm text-foreground">{insight.referrerUid}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={() => handleCopyAddress(String(insight.referrerUid))}
+                        >
+                          {copiedAddress === String(insight.referrerUid) ? <Check className="h-3 w-3 text-chart-1" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-start gap-1">
+                      <p className="break-all font-mono text-sm text-foreground">{insight.referrer}</p>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => handleCopyAddress(insight.referrer)}
+                      >
+                        {copiedAddress === insight.referrer ? <Check className="h-4 w-4 text-chart-1" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 h-7 px-2 text-xs"
+                      onClick={() => handleSelectUser(insight.referrer)}
+                    >
+                      <Users className="mr-1 h-3 w-3" />
+                      查看上级
+                    </Button>
+                  </>
+                ) : (
+                  <p className="mt-2 font-mono text-sm text-foreground">无</p>
+                )}
               </div>
+
+              {/* 邀请码 */}
               <div className="rounded-lg border border-border p-4">
                 <p className="text-xs text-muted-foreground">邀请码</p>
-                <p className="mt-2 font-mono text-sm text-foreground">{insight.inviteCode}</p>
+                <div className="mt-2 flex items-center gap-1">
+                  <p className="font-mono text-sm text-foreground">{insight.inviteCode ?? '—'}</p>
+                  {insight.inviteCode && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0"
+                      onClick={() => handleCopyAddress(insight.inviteCode)}
+                    >
+                      {copiedAddress === insight.inviteCode ? <Check className="h-3 w-3 text-chart-1" /> : <Copy className="h-3 w-3" />}
+                    </Button>
+                  )}
+                </div>
               </div>
+
+              {/* 注册时间 */}
               <div className="rounded-lg border border-border p-4">
                 <p className="text-xs text-muted-foreground">注册时间</p>
                 <p className="mt-2 text-sm text-foreground">{insight.registeredAt}</p>
