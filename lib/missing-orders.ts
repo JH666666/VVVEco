@@ -12,6 +12,26 @@ import {
 import { base } from "viem/chains";
 import { prisma } from "@/lib/prisma";
 
+// Same charset and logic as POST /api/stake-orders
+const CHAR_SET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+async function generateUniqueInviteCode(): Promise<string> {
+  for (let i = 0; i < 20; i++) {
+    let code = "";
+    do {
+      code = Array.from({ length: 8 }, () =>
+        CHAR_SET[Math.floor(Math.random() * CHAR_SET.length)]
+      ).join("");
+    } while (!/[A-Z]/.test(code) || !/\d/.test(code));
+    const exists = await prisma.user.findUnique({
+      where: { inviteCode: code },
+      select: { walletAddress: true },
+    });
+    if (!exists) return code;
+  }
+  return `V${Date.now().toString(36).toUpperCase().slice(-7)}`;
+}
+
 const STAKING_ADDR = (
   process.env.NEXT_PUBLIC_VVECO_STAKING ?? "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64"
 ) as `0x${string}`;
@@ -277,6 +297,20 @@ export async function repairMissingOrder(order: MissingOrder): Promise<void> {
   console.log(
     `[missing-orders] repaired txHash=${order.txHash} wallet=${order.walletAddress} reason=chain_success_db_missing`
   );
+
+  // Generate invite code if user doesn't have one (mirrors POST /api/stake-orders logic)
+  const userRecord = await prisma.user.findUnique({
+    where: { walletAddress: order.walletAddress },
+    select: { inviteCode: true },
+  });
+  if (userRecord && !userRecord.inviteCode) {
+    const inviteCode = await generateUniqueInviteCode();
+    await prisma.user.update({
+      where: { walletAddress: order.walletAddress },
+      data: { inviteCode },
+    });
+    console.log(`[missing-orders] generated invite code for ${order.walletAddress}`);
+  }
 }
 
 /** Scan and repair all missing orders in the last `blocksBack` blocks. */
