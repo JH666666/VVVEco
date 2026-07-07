@@ -281,18 +281,21 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
       </header>
 
-      {/* Mobile Overlay — always in DOM so no touch-event gaps during slide animation.
-          Uses opacity + pointer-events instead of conditional render. */}
-      <div
-        aria-hidden="true"
-        style={{ touchAction: 'none' }}
-        className={cn(
-          'fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-200',
-          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        )}
-        onClick={closeMobile}
-        onTouchEnd={(e) => { e.preventDefault(); closeMobile() }}
-      />
+      {/* Mobile Overlay — inline styles only, no Tailwind, so it works in all Android WebViews */}
+      {mobileOpen && (
+        <div
+          aria-hidden="true"
+          onClick={closeMobile}
+          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); closeMobile() }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 40,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        />
+      )}
 
       {/* Sidebar */}
       <aside
@@ -414,15 +417,47 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Mobile Sidebar — max-width 80vw so it never fully covers small screens */}
+      {/* Mobile Sidebar — display:none/flex via inline style, no CSS transforms (transform broken in some Android WebViews) */}
       <aside
-        className={cn(
-          'fixed top-14 left-0 z-50 h-[calc(100dvh-3.5rem)] w-72 max-w-[80vw]',
-          'flex flex-col border-r border-sidebar-border bg-sidebar',
-          'transition-transform duration-300 ease-in-out lg:hidden',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
+        style={{
+          display: mobileOpen ? 'flex' : 'none',
+          position: 'fixed',
+          top: '3.5rem',
+          left: 0,
+          zIndex: 50,
+          height: 'calc(100vh - 3.5rem)',
+          width: '78vw',
+          maxWidth: '300px',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          borderRight: '1px solid var(--sidebar-border)',
+          backgroundColor: 'var(--sidebar)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
       >
+        {/* Close button row — guaranteed close mechanism for all browsers */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', minHeight: '3.25rem', borderBottom: '1px solid var(--sidebar-border)', flexShrink: 0 }}>
+          <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>菜单</span>
+          <button
+            type="button"
+            onClick={closeMobile}
+            onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); closeMobile() }}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '2.5rem', height: '2.5rem',
+              borderRadius: '0.5rem',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+            aria-label="关闭菜单"
+          >
+            <X style={{ width: '1.25rem', height: '1.25rem' }} />
+          </button>
+        </div>
+
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
           {menuItems.map((item) => {
