@@ -213,13 +213,38 @@ export function Sidebar({ className }: SidebarProps) {
   // Close mobile menu on resize to desktop
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setMobileOpen(false)
-      }
+      if (window.innerWidth >= 1024) setMobileOpen(false)
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Android back button: push a history entry when drawer opens so
+  // the system back gesture fires popstate instead of leaving the page.
+  useEffect(() => {
+    if (!mobileOpen) return
+    window.history.pushState({ mobileMenu: true }, '')
+    const onPop = () => setMobileOpen(false)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [mobileOpen])
+
+  // Prevent body scroll while drawer is open (iOS & Android WebView).
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.touchAction = 'none'
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.touchAction = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.touchAction = ''
+    }
+  }, [mobileOpen])
+
+  const closeMobile = () => setMobileOpen(false)
 
   return (
     <>
@@ -256,13 +281,18 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
       </header>
 
-      {/* Mobile Overlay */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+      {/* Mobile Overlay — always in DOM so no touch-event gaps during slide animation.
+          Uses opacity + pointer-events instead of conditional render. */}
+      <div
+        aria-hidden="true"
+        style={{ touchAction: 'none' }}
+        className={cn(
+          'fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-200',
+          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        )}
+        onClick={closeMobile}
+        onTouchEnd={(e) => { e.preventDefault(); closeMobile() }}
+      />
 
       {/* Sidebar */}
       <aside
@@ -384,10 +414,12 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar — max-width 80vw so it never fully covers small screens */}
       <aside
         className={cn(
-          'fixed top-14 left-0 z-50 h-[calc(100vh-3.5rem)] w-72 flex flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 lg:hidden',
+          'fixed top-14 left-0 z-50 h-[calc(100dvh-3.5rem)] w-72 max-w-[80vw]',
+          'flex flex-col border-r border-sidebar-border bg-sidebar',
+          'transition-transform duration-300 ease-in-out lg:hidden',
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -399,6 +431,7 @@ export function Sidebar({ className }: SidebarProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={closeMobile}
                 className={cn(
                   'group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all',
                   isActive
@@ -421,6 +454,7 @@ export function Sidebar({ className }: SidebarProps) {
                 href={item.href}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={closeMobile}
                 className="group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-all"
               >
                 <item.icon className="h-5 w-5 shrink-0" />
@@ -457,7 +491,6 @@ export function Sidebar({ className }: SidebarProps) {
           <div className="flex gap-2 justify-start">
             <SocialIcons config={socialConfig} language={language} />
           </div>
-
         </div>
       </aside>
 
