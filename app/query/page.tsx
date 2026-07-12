@@ -85,6 +85,9 @@ export default function ShareholderQueryPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<QueryResult | null>(null)
   const [error, setError] = useState('')
+  const [teamPage, setTeamPage] = useState(1)
+
+  const TEAM_PAGE_SIZE = 10
 
   const isValid = /^0x[a-fA-F0-9]{40}$/.test(address.trim())
 
@@ -98,6 +101,7 @@ export default function ShareholderQueryPage() {
     setError('')
     setLoading(true)
     setResult(null)
+    setTeamPage(1)
     try {
       const res = await fetch(`/api/shareholder/${encodeURIComponent(addr)}`)
       const data = await res.json()
@@ -189,26 +193,57 @@ export default function ShareholderQueryPage() {
               </div>
             )}
 
-            {/* 团队成员明细 */}
-            {result.teamMembers && result.teamMembers.length > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h2 className="mb-3 text-base font-semibold text-foreground">团队成员明细</h2>
-                <div className="space-y-2">
-                  {result.teamMembers.map((m) => (
-                    <div key={m.address} className="rounded-lg border border-border/60 px-3 py-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-foreground">{m.displayAddress}</span>
-                        <span className="text-muted-foreground">第 {m.level} 层</span>
+            {/* 团队成员明细（分页） */}
+            {result.teamMembers && result.teamMembers.length > 0 && (() => {
+              const members = result.teamMembers
+              const totalPages = Math.max(1, Math.ceil(members.length / TEAM_PAGE_SIZE))
+              const page = Math.min(teamPage, totalPages)
+              const start = (page - 1) * TEAM_PAGE_SIZE
+              const pageItems = members.slice(start, start + TEAM_PAGE_SIZE)
+              return (
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-foreground">团队成员明细</h2>
+                    <span className="text-xs text-muted-foreground">共 {members.length} 人</span>
+                  </div>
+                  <div className="space-y-2">
+                    {pageItems.map((m) => (
+                      <div key={m.address} className="rounded-lg border border-border/60 px-3 py-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-foreground">{m.displayAddress}</span>
+                          <span className="text-muted-foreground">第 {m.level} 层</span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between text-muted-foreground">
+                          <span>入金 {usd(m.deposit)}</span>
+                          <span>出金 {usd(m.withdraw)}</span>
+                        </div>
                       </div>
-                      <div className="mt-1 flex items-center justify-between text-muted-foreground">
-                        <span>入金 {usd(m.deposit)}</span>
-                        <span>出金 {usd(m.withdraw)}</span>
-                      </div>
+                    ))}
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setTeamPage((p) => Math.max(1, p - 1))}
+                        disabled={page <= 1}
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground disabled:opacity-40"
+                      >
+                        上一页
+                      </button>
+                      <span className="text-xs text-muted-foreground">{page} / {totalPages} 页</span>
+                      <button
+                        type="button"
+                        onClick={() => setTeamPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={page >= totalPages}
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground disabled:opacity-40"
+                      >
+                        下一页
+                      </button>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
             <p className="px-2 text-center text-[11px] leading-relaxed text-muted-foreground/70">
               出金含领取收益、团队奖励及赎回本金，按税前金额统计。质押业绩指当前有效质押（未赎回且未到期）。团队数据统计您名下全部下级成员。
