@@ -601,7 +601,6 @@ export function UserAdmin() {
                 </p>
                 {insight.teamDepositUsd != null && (
                   <div className="mt-3 space-y-1 border-t border-border pt-3 text-xs">
-                    <p className="text-[11px] text-muted-foreground/70">团队 1~15 层统计</p>
                     <p className="flex justify-between text-muted-foreground">
                       <span>团队累计入金</span>
                       <span className="font-medium text-foreground">{formatUsdFull(insight.teamDepositUsd)}</span>
