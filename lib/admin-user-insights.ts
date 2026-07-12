@@ -16,7 +16,7 @@ import { getUserLevelOverride, readUserLevelOverrides } from '@/lib/user-level-o
 const LOCAL_WEB3_SIM_STORAGE_KEY = 'vvveco-local-web3-sim'
 const DAY_MS = 24 * 60 * 60 * 1000
 // 资金统计的团队层数（仅影响入金/出金统计口径，不改变佣金结算层数）
-const TEAM_STAT_LAYERS = 15
+const TEAM_STAT_LAYERS = 20
 
 interface SimStorageState {
   referrals?: Record<string, string>
