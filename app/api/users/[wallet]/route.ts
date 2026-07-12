@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const DEFAULT_LEVEL_THRESHOLDS = [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000];
 const DAY_MS = 24 * 60 * 60 * 1000;
+// 资金统计的团队层数（仅影响入金/出金统计口径，不改变佣金结算层数）
+const TEAM_STAT_LAYERS = 15;
 
 function calculateLevel(teamStake: number, thresholds: number[]) {
   for (let i = thresholds.length - 1; i >= 0; i--) {
@@ -182,37 +184,38 @@ export async function GET(
     const personalWithdrawUsd = personalClaimedUsd + teamClaimedUsd + totalRedeemedUsd;
     const personalNetUsd = personalWithdrawUsd - personalDepositUsd;
 
-    // ── 团队资金统计 (下方第 1~12 层，去重、去环、排除本人) ──
-    const team12Members = await collectTeam(walletAddress, 12);
-    const team12Addresses = team12Members.map((m) => m.address);
+    // ── 团队资金统计 (下方第 1~TEAM_STAT_LAYERS 层，去重、去环、排除本人) ──
+    // 出金金额均为税前（gross）：amountUsd 存的是税前收益，不扣手续费
+    const teamStatMembers = await collectTeam(walletAddress, TEAM_STAT_LAYERS);
+    const teamStatAddresses = teamStatMembers.map((m) => m.address);
 
     let teamDepositUsd = 0;
     let teamWithdrawUsd = 0;
-    if (team12Addresses.length > 0) {
-      const [t12Orders, t12Claims, t12Rewards] = await Promise.all([
+    if (teamStatAddresses.length > 0) {
+      const [tOrders, tClaims, tRewards] = await Promise.all([
         // 入金 + 赎回本金：仅统计存在的订单，isWithdrawn 区分是否赎回
         prisma.stakeOrder.findMany({
-          where: { walletAddress: { in: team12Addresses } },
+          where: { walletAddress: { in: teamStatAddresses } },
           select: { usdValue: true, isWithdrawn: true },
         }),
-        // 领取收益（每笔 claim 独立 txHash，无重复）
+        // 领取收益（每笔 claim 独立 txHash，无重复；amountUsd 为税前）
         prisma.claimRecord.findMany({
-          where: { walletAddress: { in: team12Addresses } },
+          where: { walletAddress: { in: teamStatAddresses } },
           select: { amountUsd: true },
         }),
         // 分享 / 等级 / 平级收益：仅统计已支付(claimed)记录
         prisma.teamReward.findMany({
-          where: { beneficiaryAddr: { in: team12Addresses }, claimed: true },
+          where: { beneficiaryAddr: { in: teamStatAddresses }, claimed: true },
           select: { amount: true },
         }),
       ]);
 
-      teamDepositUsd = t12Orders.reduce((s, o) => s + o.usdValue, 0);
-      const teamRedeemedUsd = t12Orders
+      teamDepositUsd = tOrders.reduce((s, o) => s + o.usdValue, 0);
+      const teamRedeemedUsd = tOrders
         .filter((o) => o.isWithdrawn)
         .reduce((s, o) => s + o.usdValue, 0);
-      const teamClaimRewardUsd = t12Claims.reduce((s, c) => s + c.amountUsd, 0);
-      const teamRewardPaidUsd = t12Rewards.reduce((s, r) => s + r.amount, 0);
+      const teamClaimRewardUsd = tClaims.reduce((s, c) => s + c.amountUsd, 0);
+      const teamRewardPaidUsd = tRewards.reduce((s, r) => s + r.amount, 0);
       teamWithdrawUsd = teamClaimRewardUsd + teamRewardPaidUsd + teamRedeemedUsd;
     }
     const teamNetUsd = teamWithdrawUsd - teamDepositUsd;

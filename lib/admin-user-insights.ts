@@ -15,6 +15,8 @@ import { getUserLevelOverride, readUserLevelOverrides } from '@/lib/user-level-o
 
 const LOCAL_WEB3_SIM_STORAGE_KEY = 'vvveco-local-web3-sim'
 const DAY_MS = 24 * 60 * 60 * 1000
+// 资金统计的团队层数（仅影响入金/出金统计口径，不改变佣金结算层数）
+const TEAM_STAT_LAYERS = 15
 
 interface SimStorageState {
   referrals?: Record<string, string>
@@ -384,21 +386,21 @@ export function getUserInsight(input: string, nowMs = Date.now()): UserInsight |
   const personalWithdrawUsd = personalClaimedUsd + teamClaimedUsd + totalRedeemedUsd
   const personalNetUsd = personalWithdrawUsd - personalDepositUsd
 
-  // ── 团队资金统计 (下方第 1~12 层，地址去重、单一父级天然去环) ──
-  const team12Members = collectTeam(address, state.referrals, 1, 12)
-  const team12Addresses = new Set(team12Members.map(member => member.address.toLowerCase()))
-  const team12Orders = state.stakes.filter(order => team12Addresses.has(order.account.toLowerCase()))
-  const team12OrderIds = new Set(team12Orders.map(order => order.id))
-  const teamDepositUsd = team12Orders.reduce((sum, order) => sum + order.usdValue, 0)
-  const teamRedeemedUsd = team12Orders.reduce((sum, order) => sum + redeemedToUsd(order), 0)
+  // ── 团队资金统计 (下方第 1~TEAM_STAT_LAYERS 层，地址去重、单一父级天然去环) ──
+  const teamStatMembers = collectTeam(address, state.referrals, 1, TEAM_STAT_LAYERS)
+  const teamStatAddresses = new Set(teamStatMembers.map(member => member.address.toLowerCase()))
+  const teamStatOrders = state.stakes.filter(order => teamStatAddresses.has(order.account.toLowerCase()))
+  const teamStatOrderIds = new Set(teamStatOrders.map(order => order.id))
+  const teamDepositUsd = teamStatOrders.reduce((sum, order) => sum + order.usdValue, 0)
+  const teamRedeemedUsd = teamStatOrders.reduce((sum, order) => sum + redeemedToUsd(order), 0)
   const teamClaimRewardUsd = state.claims
-    .filter(claim => team12OrderIds.has(claim.orderId))
+    .filter(claim => teamStatOrderIds.has(claim.orderId))
     .reduce((sum, claim) => {
-      const order = team12Orders.find(item => item.id === claim.orderId)
+      const order = teamStatOrders.find(item => item.id === claim.orderId)
       return sum + (order ? claimToUsd(claim, order) : 0)
     }, 0)
   const teamRewardPaidUsd = state.teamRewards
-    .filter(reward => reward.claimed && team12Addresses.has(reward.beneficiary.toLowerCase()))
+    .filter(reward => reward.claimed && teamStatAddresses.has(reward.beneficiary.toLowerCase()))
     .reduce((sum, reward) => sum + reward.amount * SIM_VVV_USD_PRICE, 0)
   const teamWithdrawUsd = teamClaimRewardUsd + teamRewardPaidUsd + teamRedeemedUsd
   const teamNetUsd = teamWithdrawUsd - teamDepositUsd
