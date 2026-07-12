@@ -10,9 +10,38 @@
  *  - 团队 = 当前地址下方第 1~TEAM_STAT_LAYERS 层，地址去重、去环、排除本人
  */
 import { prisma } from "@/lib/prisma";
+import { createPublicClient, http, formatEther } from "viem";
+import { base } from "viem/chains";
 
 // 资金统计的团队层数（仅影响入金/出金统计口径，不改变佣金结算层数）
 export const TEAM_STAT_LAYERS = 15;
+
+// 团队奖励以 VVV 代币发放，需按 VVV/USD 价格换算成 USD 计入出金。
+const STAKING_ADDR = (
+  process.env.NEXT_PUBLIC_VVECO_STAKING ?? "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64"
+) as `0x${string}`;
+const RPC_URL = process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org";
+const FALLBACK_VVV_USD = 0.15; // 链上取价失败时的兜底价
+
+const priceClient = createPublicClient({ chain: base, transport: http(RPC_URL) });
+const GET_LATEST_PRICE_ABI = [
+  { name: "getLatestPrice", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+] as const;
+
+/** 读取当前 VVV/USD 价格（1e18 精度）。失败时回退到兜底价。 */
+async function fetchVvvUsdPrice(): Promise<number> {
+  try {
+    const raw = (await priceClient.readContract({
+      address: STAKING_ADDR,
+      abi: GET_LATEST_PRICE_ABI,
+      functionName: "getLatestPrice",
+    })) as bigint;
+    const price = Number(formatEther(raw));
+    return price > 0 ? price : FALLBACK_VVV_USD;
+  } catch {
+    return FALLBACK_VVV_USD;
+  }
+}
 
 export interface WithdrawBreakdown {
   claimReward: number; // 领取收益
@@ -112,8 +141,10 @@ async function fetchRaw(addresses: string[]) {
       where: { walletAddress: { in: addresses } },
       select: { walletAddress: true, amountUsd: true },
     }),
+    // 团队奖励自动发放到上级钱包（下级领取时直接打款），记录即已支付，
+    // 不按 claimed 过滤；amount 为 VVV，后续按价格换算成 USD。
     prisma.teamReward.findMany({
-      where: { beneficiaryAddr: { in: addresses }, claimed: true },
+      where: { beneficiaryAddr: { in: addresses } },
       select: { beneficiaryAddr: true, amount: true },
     }),
   ]);
@@ -123,6 +154,7 @@ async function fetchRaw(addresses: string[]) {
 function toBlock(
   raw: Awaited<ReturnType<typeof fetchRaw>>,
   now: number,
+  vvvUsdPrice: number,
 ): FundBlock {
   const deposit = raw.orders.reduce((s, o) => s + o.usdValue, 0);
   const redeemed = raw.orders.filter((o) => o.isWithdrawn).reduce((s, o) => s + o.usdValue, 0);
@@ -131,7 +163,9 @@ function toBlock(
     .filter((o) => !o.isWithdrawn && o.endTime.getTime() > now)
     .reduce((s, o) => s + o.usdValue, 0);
   const claimReward = raw.claims.reduce((s, c) => s + c.amountUsd, 0);
-  const teamReward = raw.rewards.reduce((s, r) => s + r.amount, 0);
+  // 团队奖励：VVV 数量 × 当前 VVV/USD 价格
+  const teamRewardVvv = raw.rewards.reduce((s, r) => s + r.amount, 0);
+  const teamReward = teamRewardVvv * vvvUsdPrice;
   const withdraw = claimReward + teamReward + redeemed;
   return {
     deposit,
@@ -172,10 +206,11 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
   if (!user) return empty;
 
   const now = Date.now();
+  const vvvUsdPrice = await fetchVvvUsdPrice();
 
   // ── 个人 ──
   const personalRaw = await fetchRaw([address]);
-  const personal = toBlock(personalRaw, now);
+  const personal = toBlock(personalRaw, now, vvvUsdPrice);
 
   const orderRows = await prisma.stakeOrder.findMany({
     where: { walletAddress: address },
@@ -205,7 +240,7 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
   const members = await collectTeam(address, TEAM_STAT_LAYERS);
   const memberAddrs = members.map((m) => m.address);
   const teamRaw = await fetchRaw(memberAddrs);
-  const team = toBlock(teamRaw, now);
+  const team = toBlock(teamRaw, now, vvvUsdPrice);
 
   // 逐成员拆分
   const depositBy: Record<string, number> = {};
@@ -218,7 +253,8 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
     withdrawBy[c.walletAddress] = (withdrawBy[c.walletAddress] ?? 0) + c.amountUsd;
   }
   for (const r of teamRaw.rewards) {
-    withdrawBy[r.beneficiaryAddr] = (withdrawBy[r.beneficiaryAddr] ?? 0) + r.amount;
+    // 团队奖励 VVV → USD
+    withdrawBy[r.beneficiaryAddr] = (withdrawBy[r.beneficiaryAddr] ?? 0) + r.amount * vvvUsdPrice;
   }
 
   const teamMembers: TeamMemberDetail[] = members

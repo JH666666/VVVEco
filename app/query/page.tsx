@@ -120,7 +120,7 @@ export default function ShareholderQueryPage() {
       <div className="mx-auto w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">资金查询</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">业绩查询</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             输入您的钱包地址，查询个人及团队的入金 / 出金 / 质押业绩
           </p>
@@ -259,7 +259,7 @@ export default function ShareholderQueryPage() {
             })()}
 
             <p className="px-2 text-center text-[11px] leading-relaxed text-muted-foreground/70">
-              出金含领取收益、团队奖励及赎回本金，按税前金额统计。质押业绩指当前有效质押（未赎回且未到期）。团队数据统计您名下全部下级成员。
+              出金含领取收益、团队奖励及赎回本金，按税前金额统计（团队奖励以 VVV 发放，按当前 VVV 价格换算成 USD）。质押业绩指当前有效质押（未赎回且未到期）。团队数据统计您名下全部下级成员。
             </p>
           </div>
         )}
