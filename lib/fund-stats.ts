@@ -21,15 +21,21 @@ const STAKING_ADDR = (
   process.env.NEXT_PUBLIC_VVECO_STAKING ?? "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64"
 ) as `0x${string}`;
 const RPC_URL = process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org";
-const FALLBACK_VVV_USD = 0.15; // 链上取价失败时的兜底价
+const LAST_RESORT_VVV_USD = 0.15; // 实时价与历史成交价都取不到时的最后兜底
 
 const priceClient = createPublicClient({ chain: base, transport: http(RPC_URL) });
 const GET_LATEST_PRICE_ABI = [
   { name: "getLatestPrice", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
 ] as const;
 
-/** 读取当前 VVV/USD 价格（1e18 精度）。失败时回退到兜底价。 */
+/**
+ * 读取 VVV/USD 价格：
+ *  1) 优先取链上实时价 getLatestPrice()
+ *  2) 实时价取不到时，用数据库里最近一笔真实成交价 (claim_records.priceAtClaim)
+ *  3) 都没有时才用最后兜底常量
+ */
 async function fetchVvvUsdPrice(): Promise<number> {
+  // 1) 链上实时价
   try {
     const raw = (await priceClient.readContract({
       address: STAKING_ADDR,
@@ -37,10 +43,25 @@ async function fetchVvvUsdPrice(): Promise<number> {
       functionName: "getLatestPrice",
     })) as bigint;
     const price = Number(formatEther(raw));
-    return price > 0 ? price : FALLBACK_VVV_USD;
+    if (price > 0) return price;
   } catch {
-    return FALLBACK_VVV_USD;
+    // 落到数据库兜底
   }
+
+  // 2) 数据库最近真实成交价
+  try {
+    const last = await prisma.claimRecord.findFirst({
+      where: { priceAtClaim: { gt: 0 } },
+      orderBy: { createdAt: "desc" },
+      select: { priceAtClaim: true },
+    });
+    if (last && last.priceAtClaim > 0) return last.priceAtClaim;
+  } catch {
+    // 落到最后兜底
+  }
+
+  // 3) 最后兜底
+  return LAST_RESORT_VVV_USD;
 }
 
 export interface WithdrawBreakdown {
