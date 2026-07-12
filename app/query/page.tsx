@@ -2,22 +2,46 @@
 
 import { useState } from 'react'
 
+interface WithdrawBreakdown {
+  claimReward: number
+  teamReward: number
+  redeemed: number
+}
 interface FundBlock {
   deposit: number
   withdraw: number
   net: number
+  stakeActiveUsd: number
+  breakdown: WithdrawBreakdown
   memberCount?: number
 }
-
+interface PersonalOrder {
+  id: string
+  mode: 'coin' | 'fiat'
+  usdValue: number
+  period: number
+  periodUnit: string
+  startTime: string
+  status: '进行中' | '已完成'
+}
+interface TeamMember {
+  address: string
+  displayAddress: string
+  level: number
+  deposit: number
+  withdraw: number
+}
 interface QueryResult {
   found: boolean
   address: string
   uid?: number | null
   personal?: FundBlock
   team?: FundBlock
+  personalOrders?: PersonalOrder[]
+  teamMembers?: TeamMember[]
 }
 
-function formatUsd(value: number) {
+function usd(value: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -25,17 +49,17 @@ function formatUsd(value: number) {
   }).format(value)
 }
 
-function StatRow({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
+function StatRow({ label, value, strong, sub }: { label: string; value: number; strong?: boolean; sub?: boolean }) {
   const color = strong ? (value >= 0 ? 'text-emerald-500' : 'text-red-500') : 'text-foreground'
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`text-sm font-semibold tabular-nums ${color}`}>{formatUsd(value)}</span>
+    <div className={`flex items-center justify-between ${sub ? 'py-1' : 'py-2 border-b border-border/60 last:border-0'}`}>
+      <span className={`${sub ? 'pl-3 text-xs text-muted-foreground/80' : 'text-sm text-muted-foreground'}`}>{label}</span>
+      <span className={`tabular-nums ${sub ? 'text-xs text-muted-foreground' : 'text-sm font-semibold'} ${sub ? '' : color}`}>{usd(value)}</span>
     </div>
   )
 }
 
-function ResultCard({ title, data }: { title: string; data: FundBlock }) {
+function FundCard({ title, data }: { title: string; data: FundBlock }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="mb-2 flex items-center justify-between">
@@ -46,6 +70,11 @@ function ResultCard({ title, data }: { title: string; data: FundBlock }) {
       </div>
       <StatRow label="累计入金" value={data.deposit} />
       <StatRow label="累计出金" value={data.withdraw} />
+      {/* 出金构成拆分 */}
+      <StatRow label="· 领取收益" value={data.breakdown.claimReward} sub />
+      <StatRow label="· 团队奖励" value={data.breakdown.teamReward} sub />
+      <StatRow label="· 赎回本金" value={data.breakdown.redeemed} sub />
+      <StatRow label="质押业绩（有效）" value={data.stakeActiveUsd} />
       <StatRow label="资金差额" value={data.net} strong />
     </div>
   )
@@ -91,7 +120,7 @@ export default function ShareholderQueryPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">资金查询</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            输入您的钱包地址，查询个人及团队的入金 / 出金情况
+            输入您的钱包地址，查询个人及团队的入金 / 出金 / 质押业绩
           </p>
         </div>
 
@@ -135,10 +164,54 @@ export default function ShareholderQueryPage() {
                 <p className="mt-1 text-xs text-muted-foreground">UID {result.uid}</p>
               ) : null}
             </div>
-            <ResultCard title="个人资金" data={result.personal} />
-            <ResultCard title="团队资金" data={result.team} />
+
+            <FundCard title="个人资金" data={result.personal} />
+            <FundCard title="团队资金" data={result.team} />
+
+            {/* 个人质押订单明细 */}
+            {result.personalOrders && result.personalOrders.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <h2 className="mb-3 text-base font-semibold text-foreground">个人质押订单明细</h2>
+                <div className="space-y-2">
+                  {result.personalOrders.map((o) => (
+                    <div key={o.id} className="rounded-lg border border-border/60 px-3 py-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-foreground">{usd(o.usdValue)}</span>
+                        <span className={o.status === '进行中' ? 'text-emerald-500' : 'text-muted-foreground'}>{o.status}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-muted-foreground">
+                        <span>{o.mode === 'coin' ? '币本位' : '金本位'} · {o.period}{o.periodUnit === 'hour' ? '时' : '天'}</span>
+                        <span>{o.startTime}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 团队成员明细 */}
+            {result.teamMembers && result.teamMembers.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <h2 className="mb-3 text-base font-semibold text-foreground">团队成员明细</h2>
+                <div className="space-y-2">
+                  {result.teamMembers.map((m) => (
+                    <div key={m.address} className="rounded-lg border border-border/60 px-3 py-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-foreground">{m.displayAddress}</span>
+                        <span className="text-muted-foreground">第 {m.level} 层</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-muted-foreground">
+                        <span>入金 {usd(m.deposit)}</span>
+                        <span>出金 {usd(m.withdraw)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <p className="px-2 text-center text-[11px] leading-relaxed text-muted-foreground/70">
-              出金含领取收益、团队奖励及赎回本金，按税前金额统计。团队数据统计您名下全部下级成员。
+              出金含领取收益、团队奖励及赎回本金，按税前金额统计。质押业绩指当前有效质押（未赎回且未到期）。团队数据统计您名下全部下级成员。
             </p>
           </div>
         )}

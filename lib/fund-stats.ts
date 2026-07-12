@@ -1,8 +1,7 @@
 /**
- * Shared fund-statistics computation.
- * Returns ONLY aggregate deposit/withdraw/net figures for a wallet and its
- * downline — no member addresses, no order details, no platform-wide data.
- * Used by the admin user detail and the public shareholder self-query page.
+ * Shared fund-statistics computation for the shareholder self-query page.
+ * Returns the querent's own personal + downline (15-layer) figures with
+ * detail breakdowns. No platform-wide data is exposed.
  *
  * 口径说明：
  *  - 入金 = 累计质押金额 (stake_orders.usd_value)
@@ -15,25 +14,66 @@ import { prisma } from "@/lib/prisma";
 // 资金统计的团队层数（仅影响入金/出金统计口径，不改变佣金结算层数）
 export const TEAM_STAT_LAYERS = 15;
 
-export interface FundStats {
+export interface WithdrawBreakdown {
+  claimReward: number; // 领取收益
+  teamReward: number; // 团队奖励（分享/等级/平级，已支付）
+  redeemed: number; // 赎回本金
+}
+
+export interface FundBlock {
+  deposit: number;
+  withdraw: number;
+  net: number;
+  stakeActiveUsd: number; // 质押业绩 = 当前有效质押（未赎回且未到期）
+  breakdown: WithdrawBreakdown;
+}
+
+export interface PersonalOrderDetail {
+  id: string; // shortened tx hash
+  mode: "coin" | "fiat";
+  usdValue: number;
+  period: number;
+  periodUnit: string;
+  startTime: string; // formatted YYYY-MM-DD HH:mm
+  status: "进行中" | "已完成";
+}
+
+export interface TeamMemberDetail {
+  address: string;
+  displayAddress: string;
+  level: number;
+  deposit: number;
+  withdraw: number;
+}
+
+export interface FundDetail {
   found: boolean;
   address: string;
   uid: number | null;
-  personalDepositUsd: number;
-  personalWithdrawUsd: number;
-  personalNetUsd: number;
-  teamDepositUsd: number;
-  teamWithdrawUsd: number;
-  teamNetUsd: number;
-  teamMemberCount: number;
+  personal: FundBlock;
+  team: FundBlock & { memberCount: number };
+  personalOrders: PersonalOrderDetail[];
+  teamMembers: TeamMemberDetail[];
+}
+
+function shortAddr(addr: string) {
+  return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
+}
+
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function formatDate(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /**
  * BFS downline referrals up to `maxLevel` levels.
  * visited-set dedupes addresses and prevents referral cycles / self-recount.
  */
-async function collectTeamAddresses(rootAddr: string, maxLevel: number): Promise<string[]> {
-  const result: string[] = [];
+async function collectTeam(rootAddr: string, maxLevel: number): Promise<Array<{ address: string; level: number }>> {
+  const result: Array<{ address: string; level: number }> = [];
   let frontier = [rootAddr];
   const visited = new Set([rootAddr]);
 
@@ -46,7 +86,7 @@ async function collectTeamAddresses(rootAddr: string, maxLevel: number): Promise
     for (const child of children) {
       if (!visited.has(child.walletAddress)) {
         visited.add(child.walletAddress);
-        result.push(child.walletAddress);
+        result.push({ address: child.walletAddress, level });
         frontier.push(child.walletAddress);
       }
     }
@@ -54,52 +94,73 @@ async function collectTeamAddresses(rootAddr: string, maxLevel: number): Promise
   return result;
 }
 
-/** Aggregate gross deposit / withdraw for a set of wallet addresses. */
-async function aggregateFunds(addresses: string[]): Promise<{ deposit: number; withdraw: number }> {
-  if (addresses.length === 0) return { deposit: 0, withdraw: 0 };
-
+/** Raw per-address fund rows for a set of wallet addresses. */
+async function fetchRaw(addresses: string[]) {
+  if (addresses.length === 0) {
+    return { orders: [], claims: [], rewards: [] } as {
+      orders: { walletAddress: string; usdValue: number; isWithdrawn: boolean; endTime: Date }[];
+      claims: { walletAddress: string; amountUsd: number }[];
+      rewards: { beneficiaryAddr: string; amount: number }[];
+    };
+  }
   const [orders, claims, rewards] = await Promise.all([
-    // 入金 + 赎回本金
     prisma.stakeOrder.findMany({
       where: { walletAddress: { in: addresses } },
-      select: { usdValue: true, isWithdrawn: true },
+      select: { walletAddress: true, usdValue: true, isWithdrawn: true, endTime: true },
     }),
-    // 领取收益（税前 amountUsd，每笔独立 txHash 无重复）
     prisma.claimRecord.findMany({
       where: { walletAddress: { in: addresses } },
-      select: { amountUsd: true },
+      select: { walletAddress: true, amountUsd: true },
     }),
-    // 分享 / 等级 / 平级收益：仅统计已支付 (claimed)
     prisma.teamReward.findMany({
       where: { beneficiaryAddr: { in: addresses }, claimed: true },
-      select: { amount: true },
+      select: { beneficiaryAddr: true, amount: true },
     }),
   ]);
-
-  const deposit = orders.reduce((s, o) => s + o.usdValue, 0);
-  const redeemed = orders.filter((o) => o.isWithdrawn).reduce((s, o) => s + o.usdValue, 0);
-  const claimReward = claims.reduce((s, c) => s + c.amountUsd, 0);
-  const rewardPaid = rewards.reduce((s, r) => s + r.amount, 0);
-  const withdraw = claimReward + rewardPaid + redeemed;
-
-  return { deposit, withdraw };
+  return { orders, claims, rewards };
 }
 
-/** Compute personal + team fund statistics for a single wallet address. */
-export async function computeFundStats(walletInput: string): Promise<FundStats> {
+function toBlock(
+  raw: Awaited<ReturnType<typeof fetchRaw>>,
+  now: number,
+): FundBlock {
+  const deposit = raw.orders.reduce((s, o) => s + o.usdValue, 0);
+  const redeemed = raw.orders.filter((o) => o.isWithdrawn).reduce((s, o) => s + o.usdValue, 0);
+  // 质押业绩 = 当前有效质押（未赎回且未到期）
+  const stakeActiveUsd = raw.orders
+    .filter((o) => !o.isWithdrawn && o.endTime.getTime() > now)
+    .reduce((s, o) => s + o.usdValue, 0);
+  const claimReward = raw.claims.reduce((s, c) => s + c.amountUsd, 0);
+  const teamReward = raw.rewards.reduce((s, r) => s + r.amount, 0);
+  const withdraw = claimReward + teamReward + redeemed;
+  return {
+    deposit,
+    withdraw,
+    net: withdraw - deposit,
+    stakeActiveUsd,
+    breakdown: { claimReward, teamReward, redeemed },
+  };
+}
+
+/** Compute personal + team fund detail for a single wallet address. */
+export async function computeFundDetail(walletInput: string): Promise<FundDetail> {
   const address = walletInput.trim().toLowerCase();
 
-  const empty: FundStats = {
+  const emptyBlock: FundBlock = {
+    deposit: 0,
+    withdraw: 0,
+    net: 0,
+    stakeActiveUsd: 0,
+    breakdown: { claimReward: 0, teamReward: 0, redeemed: 0 },
+  };
+  const empty: FundDetail = {
     found: false,
     address,
     uid: null,
-    personalDepositUsd: 0,
-    personalWithdrawUsd: 0,
-    personalNetUsd: 0,
-    teamDepositUsd: 0,
-    teamWithdrawUsd: 0,
-    teamNetUsd: 0,
-    teamMemberCount: 0,
+    personal: emptyBlock,
+    team: { ...emptyBlock, memberCount: 0 },
+    personalOrders: [],
+    teamMembers: [],
   };
 
   if (!/^0x[a-f0-9]{40}$/.test(address)) return empty;
@@ -110,23 +171,73 @@ export async function computeFundStats(walletInput: string): Promise<FundStats> 
   });
   if (!user) return empty;
 
-  // 个人（仅本人地址）
-  const personal = await aggregateFunds([address]);
+  const now = Date.now();
 
-  // 团队（下方 1~15 层，去重去环排除本人）
-  const teamAddresses = await collectTeamAddresses(address, TEAM_STAT_LAYERS);
-  const team = await aggregateFunds(teamAddresses);
+  // ── 个人 ──
+  const personalRaw = await fetchRaw([address]);
+  const personal = toBlock(personalRaw, now);
+
+  const orderRows = await prisma.stakeOrder.findMany({
+    where: { walletAddress: address },
+    orderBy: { startTime: "desc" },
+    select: {
+      txHash: true,
+      mode: true,
+      usdValue: true,
+      period: true,
+      periodUnit: true,
+      startTime: true,
+      endTime: true,
+      isWithdrawn: true,
+    },
+  });
+  const personalOrders: PersonalOrderDetail[] = orderRows.map((o) => ({
+    id: `${o.txHash.slice(0, 8)}...${o.txHash.slice(-4)}`,
+    mode: o.mode as "coin" | "fiat",
+    usdValue: o.usdValue,
+    period: o.period,
+    periodUnit: o.periodUnit ?? "day",
+    startTime: formatDate(o.startTime),
+    status: !o.isWithdrawn && o.endTime.getTime() > now ? "进行中" : "已完成",
+  }));
+
+  // ── 团队 (1~15 层，去重去环排除本人) ──
+  const members = await collectTeam(address, TEAM_STAT_LAYERS);
+  const memberAddrs = members.map((m) => m.address);
+  const teamRaw = await fetchRaw(memberAddrs);
+  const team = toBlock(teamRaw, now);
+
+  // 逐成员拆分
+  const depositBy: Record<string, number> = {};
+  const withdrawBy: Record<string, number> = {};
+  for (const o of teamRaw.orders) {
+    depositBy[o.walletAddress] = (depositBy[o.walletAddress] ?? 0) + o.usdValue;
+    if (o.isWithdrawn) withdrawBy[o.walletAddress] = (withdrawBy[o.walletAddress] ?? 0) + o.usdValue;
+  }
+  for (const c of teamRaw.claims) {
+    withdrawBy[c.walletAddress] = (withdrawBy[c.walletAddress] ?? 0) + c.amountUsd;
+  }
+  for (const r of teamRaw.rewards) {
+    withdrawBy[r.beneficiaryAddr] = (withdrawBy[r.beneficiaryAddr] ?? 0) + r.amount;
+  }
+
+  const teamMembers: TeamMemberDetail[] = members
+    .map((m) => ({
+      address: m.address,
+      displayAddress: shortAddr(m.address),
+      level: m.level,
+      deposit: depositBy[m.address] ?? 0,
+      withdraw: withdrawBy[m.address] ?? 0,
+    }))
+    .sort((a, b) => b.deposit - a.deposit || a.level - b.level);
 
   return {
     found: true,
     address,
     uid: user.uid,
-    personalDepositUsd: personal.deposit,
-    personalWithdrawUsd: personal.withdraw,
-    personalNetUsd: personal.withdraw - personal.deposit,
-    teamDepositUsd: team.deposit,
-    teamWithdrawUsd: team.withdraw,
-    teamNetUsd: team.withdraw - team.deposit,
-    teamMemberCount: teamAddresses.length,
+    personal,
+    team: { ...team, memberCount: members.length },
+    personalOrders,
+    teamMembers,
   };
 }
