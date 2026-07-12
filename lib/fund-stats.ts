@@ -21,7 +21,6 @@ const STAKING_ADDR = (
   process.env.NEXT_PUBLIC_VVECO_STAKING ?? "0x5ec768D99Cdc49a95E29811Ce97a313f294EBC64"
 ) as `0x${string}`;
 const RPC_URL = process.env.BASE_MAINNET_RPC ?? "https://mainnet.base.org";
-const LAST_RESORT_VVV_USD = 0.15; // 实时价与历史成交价都取不到时的最后兜底
 
 const priceClient = createPublicClient({ chain: base, transport: http(RPC_URL) });
 const GET_LATEST_PRICE_ABI = [
@@ -29,39 +28,34 @@ const GET_LATEST_PRICE_ABI = [
 ] as const;
 
 /**
- * 读取 VVV/USD 价格：
- *  1) 优先取链上实时价 getLatestPrice()
+ * 读取 VVV/USD 价格，只用真实价格：
+ *  1) 链上实时价 getLatestPrice()（最多重试 3 次）
  *  2) 实时价取不到时，用数据库里最近一笔真实成交价 (claim_records.priceAtClaim)
- *  3) 都没有时才用最后兜底常量
+ * 不使用任何写死的常量价格。
  */
 async function fetchVvvUsdPrice(): Promise<number> {
-  // 1) 链上实时价
-  try {
-    const raw = (await priceClient.readContract({
-      address: STAKING_ADDR,
-      abi: GET_LATEST_PRICE_ABI,
-      functionName: "getLatestPrice",
-    })) as bigint;
-    const price = Number(formatEther(raw));
-    if (price > 0) return price;
-  } catch {
-    // 落到数据库兜底
+  // 1) 链上实时价（重试 3 次）
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const raw = (await priceClient.readContract({
+        address: STAKING_ADDR,
+        abi: GET_LATEST_PRICE_ABI,
+        functionName: "getLatestPrice",
+      })) as bigint;
+      const price = Number(formatEther(raw));
+      if (price > 0) return price;
+    } catch {
+      // 重试；用尽后落到数据库兜底
+    }
   }
 
   // 2) 数据库最近真实成交价
-  try {
-    const last = await prisma.claimRecord.findFirst({
-      where: { priceAtClaim: { gt: 0 } },
-      orderBy: { createdAt: "desc" },
-      select: { priceAtClaim: true },
-    });
-    if (last && last.priceAtClaim > 0) return last.priceAtClaim;
-  } catch {
-    // 落到最后兜底
-  }
-
-  // 3) 最后兜底
-  return LAST_RESORT_VVV_USD;
+  const last = await prisma.claimRecord.findFirst({
+    where: { priceAtClaim: { gt: 0 } },
+    orderBy: { createdAt: "desc" },
+    select: { priceAtClaim: true },
+  });
+  return last?.priceAtClaim ?? 0;
 }
 
 export interface WithdrawBreakdown {
