@@ -74,6 +74,12 @@ export interface UserInsight {
   teamClaimedUsd: number
   teamPendingUsd: number
   teamRewardUsd: number
+  personalDepositUsd?: number
+  personalWithdrawUsd?: number
+  personalNetUsd?: number
+  teamDepositUsd?: number
+  teamWithdrawUsd?: number
+  teamNetUsd?: number
   autoLevel?: number
   manualLevel?: number | null
   chainLevel?: number
@@ -266,8 +272,8 @@ function getRegisteredAtMs(address: string, state: ReturnType<typeof readSimStat
   return timestamps.length > 0 ? Math.min(...timestamps) : null
 }
 
-function collectTeam(address: string, referrals: Record<string, string>, level = 1): TeamUserInsight[] {
-  if (level > 7) return []
+function collectTeam(address: string, referrals: Record<string, string>, level = 1, maxLevel = 7): TeamUserInsight[] {
+  if (level > maxLevel) return []
 
   return Object.entries(referrals)
     .filter(([, parent]) => parent.toLowerCase() === address.toLowerCase())
@@ -279,7 +285,7 @@ function collectTeam(address: string, referrals: Record<string, string>, level =
         stakeUsd: 0,
         orderCount: 0,
       },
-      ...collectTeam(child, referrals, level + 1),
+      ...collectTeam(child, referrals, level + 1, maxLevel),
     ])
 }
 
@@ -372,6 +378,31 @@ export function getUserInsight(input: string, nowMs = Date.now()): UserInsight |
   const manualLevel = getUserLevelOverride(address, levelOverrides)
   const effectiveLevel = manualLevel ?? autoLevel
 
+  // ── 个人资金统计 ──
+  // 入金 = 累计质押；出金 = 领取收益 + 团队各类奖励(已支付) + 赎回本金
+  const personalDepositUsd = userOrders.reduce((sum, order) => sum + order.usdValue, 0)
+  const personalWithdrawUsd = personalClaimedUsd + teamClaimedUsd + totalRedeemedUsd
+  const personalNetUsd = personalWithdrawUsd - personalDepositUsd
+
+  // ── 团队资金统计 (下方第 1~12 层，地址去重、单一父级天然去环) ──
+  const team12Members = collectTeam(address, state.referrals, 1, 12)
+  const team12Addresses = new Set(team12Members.map(member => member.address.toLowerCase()))
+  const team12Orders = state.stakes.filter(order => team12Addresses.has(order.account.toLowerCase()))
+  const team12OrderIds = new Set(team12Orders.map(order => order.id))
+  const teamDepositUsd = team12Orders.reduce((sum, order) => sum + order.usdValue, 0)
+  const teamRedeemedUsd = team12Orders.reduce((sum, order) => sum + redeemedToUsd(order), 0)
+  const teamClaimRewardUsd = state.claims
+    .filter(claim => team12OrderIds.has(claim.orderId))
+    .reduce((sum, claim) => {
+      const order = team12Orders.find(item => item.id === claim.orderId)
+      return sum + (order ? claimToUsd(claim, order) : 0)
+    }, 0)
+  const teamRewardPaidUsd = state.teamRewards
+    .filter(reward => reward.claimed && team12Addresses.has(reward.beneficiary.toLowerCase()))
+    .reduce((sum, reward) => sum + reward.amount * SIM_VVV_USD_PRICE, 0)
+  const teamWithdrawUsd = teamClaimRewardUsd + teamRewardPaidUsd + teamRedeemedUsd
+  const teamNetUsd = teamWithdrawUsd - teamDepositUsd
+
   return {
     uid: getUserUid(address),
     address,
@@ -394,6 +425,12 @@ export function getUserInsight(input: string, nowMs = Date.now()): UserInsight |
     teamClaimedUsd,
     teamPendingUsd,
     teamRewardUsd,
+    personalDepositUsd,
+    personalWithdrawUsd,
+    personalNetUsd,
+    teamDepositUsd,
+    teamWithdrawUsd,
+    teamNetUsd,
     autoLevel,
     manualLevel,
     effectiveLevel,

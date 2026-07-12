@@ -20,13 +20,14 @@ function shortAddr(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-6)}`;
 }
 
-// BFS downstream referrals up to 7 levels
-async function collectTeam(rootAddr: string) {
+// BFS downstream referrals up to `maxLevel` levels.
+// visited-set dedupes addresses and prevents referral cycles / self-recount.
+async function collectTeam(rootAddr: string, maxLevel = 7) {
   const result: Array<{ address: string; level: number }> = [];
   let frontier = [rootAddr];
   const visited = new Set([rootAddr]);
 
-  for (let level = 1; level <= 7 && frontier.length > 0; level++) {
+  for (let level = 1; level <= maxLevel && frontier.length > 0; level++) {
     const children = await prisma.user.findMany({
       where: { referrerAddress: { in: frontier } },
       select: { walletAddress: true },
@@ -175,6 +176,47 @@ export async function GET(
     const manualLevel = user.levelOverride;
     const effectiveLevel = manualLevel ?? autoLevel;
 
+    // ── 个人资金统计 (deposit / withdraw / net) ──
+    // 入金 = 累计质押金额；出金 = 领取收益 + 团队各类奖励(已支付) + 赎回本金
+    const personalDepositUsd = totalStakedUsd;
+    const personalWithdrawUsd = personalClaimedUsd + teamClaimedUsd + totalRedeemedUsd;
+    const personalNetUsd = personalWithdrawUsd - personalDepositUsd;
+
+    // ── 团队资金统计 (下方第 1~12 层，去重、去环、排除本人) ──
+    const team12Members = await collectTeam(walletAddress, 12);
+    const team12Addresses = team12Members.map((m) => m.address);
+
+    let teamDepositUsd = 0;
+    let teamWithdrawUsd = 0;
+    if (team12Addresses.length > 0) {
+      const [t12Orders, t12Claims, t12Rewards] = await Promise.all([
+        // 入金 + 赎回本金：仅统计存在的订单，isWithdrawn 区分是否赎回
+        prisma.stakeOrder.findMany({
+          where: { walletAddress: { in: team12Addresses } },
+          select: { usdValue: true, isWithdrawn: true },
+        }),
+        // 领取收益（每笔 claim 独立 txHash，无重复）
+        prisma.claimRecord.findMany({
+          where: { walletAddress: { in: team12Addresses } },
+          select: { amountUsd: true },
+        }),
+        // 分享 / 等级 / 平级收益：仅统计已支付(claimed)记录
+        prisma.teamReward.findMany({
+          where: { beneficiaryAddr: { in: team12Addresses }, claimed: true },
+          select: { amount: true },
+        }),
+      ]);
+
+      teamDepositUsd = t12Orders.reduce((s, o) => s + o.usdValue, 0);
+      const teamRedeemedUsd = t12Orders
+        .filter((o) => o.isWithdrawn)
+        .reduce((s, o) => s + o.usdValue, 0);
+      const teamClaimRewardUsd = t12Claims.reduce((s, c) => s + c.amountUsd, 0);
+      const teamRewardPaidUsd = t12Rewards.reduce((s, r) => s + r.amount, 0);
+      teamWithdrawUsd = teamClaimRewardUsd + teamRewardPaidUsd + teamRedeemedUsd;
+    }
+    const teamNetUsd = teamWithdrawUsd - teamDepositUsd;
+
     return NextResponse.json({
       uid: user.uid,
       address: user.walletAddress,
@@ -198,6 +240,12 @@ export async function GET(
       teamClaimedUsd,
       teamPendingUsd,
       teamRewardUsd,
+      personalDepositUsd,
+      personalWithdrawUsd,
+      personalNetUsd,
+      teamDepositUsd,
+      teamWithdrawUsd,
+      teamNetUsd,
       autoLevel,
       manualLevel,
       effectiveLevel,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, Check, Copy, Gift, Search, Users, Wallet, Network, Clock, Eye, EyeOff, Pencil } from 'lucide-react'
 import { getUserInsight, type UserInsight, type UserListInsight } from '@/lib/admin-user-insights'
+import { cn } from '@/lib/utils'
 import { formatInteger, formatUsdFull } from '@/lib/global-stats'
 import { useAdminControls } from '@/lib/admin-controls'
 import { Button } from '@/components/ui/button'
@@ -547,6 +548,24 @@ export function UserAdmin() {
                   <p>累计质押金额 {formatUsdFull(insight.totalStakedUsd)}</p>
                   <p>累计赎回金额 {formatUsdFull(insight.totalRedeemedUsd)}</p>
                 </div>
+                {insight.personalDepositUsd != null && (
+                  <div className="mt-3 space-y-1 border-t border-border pt-3 text-xs">
+                    <p className="flex justify-between text-muted-foreground">
+                      <span>个人累计入金</span>
+                      <span className="font-medium text-foreground">{formatUsdFull(insight.personalDepositUsd)}</span>
+                    </p>
+                    <p className="flex justify-between text-muted-foreground">
+                      <span>个人累计出金</span>
+                      <span className="font-medium text-foreground">{formatUsdFull(insight.personalWithdrawUsd ?? 0)}</span>
+                    </p>
+                    <p className="flex justify-between text-muted-foreground">
+                      <span>个人资金差额</span>
+                      <span className={cn('font-semibold', (insight.personalNetUsd ?? 0) >= 0 ? 'text-emerald-500' : 'text-destructive')}>
+                        {formatUsdFull(insight.personalNetUsd ?? 0)}
+                      </span>
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -580,6 +599,25 @@ export function UserAdmin() {
                 <p className="mt-2 text-xs text-muted-foreground">
                   直推 {formatInteger(insight.directCount)} · 团队业绩 {formatUsdFull(insight.teamStakeUsd)}
                 </p>
+                {insight.teamDepositUsd != null && (
+                  <div className="mt-3 space-y-1 border-t border-border pt-3 text-xs">
+                    <p className="text-[11px] text-muted-foreground/70">团队 1~12 层统计</p>
+                    <p className="flex justify-between text-muted-foreground">
+                      <span>团队累计入金</span>
+                      <span className="font-medium text-foreground">{formatUsdFull(insight.teamDepositUsd)}</span>
+                    </p>
+                    <p className="flex justify-between text-muted-foreground">
+                      <span>团队累计出金</span>
+                      <span className="font-medium text-foreground">{formatUsdFull(insight.teamWithdrawUsd ?? 0)}</span>
+                    </p>
+                    <p className="flex justify-between text-muted-foreground">
+                      <span>团队资金差额</span>
+                      <span className={cn('font-semibold', (insight.teamNetUsd ?? 0) >= 0 ? 'text-emerald-500' : 'text-destructive')}>
+                        {formatUsdFull(insight.teamNetUsd ?? 0)}
+                      </span>
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
