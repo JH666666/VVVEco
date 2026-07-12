@@ -33,7 +33,7 @@ const GET_LATEST_PRICE_ABI = [
  *  2) 实时价取不到时，用数据库里最近一笔真实成交价 (claim_records.priceAtClaim)
  * 不使用任何写死的常量价格。
  */
-async function fetchVvvUsdPrice(): Promise<number> {
+export async function getVvvUsdPrice(): Promise<number> {
   // 1) 链上实时价（重试 3 次）
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -221,7 +221,7 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
   if (!user) return empty;
 
   const now = Date.now();
-  const vvvUsdPrice = await fetchVvvUsdPrice();
+  const vvvUsdPrice = await getVvvUsdPrice();
 
   // ── 个人 ──
   const personalRaw = await fetchRaw([address]);

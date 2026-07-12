@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getVvvUsdPrice } from "@/lib/fund-stats";
 import { NextRequest, NextResponse } from "next/server";
 
 const DEFAULT_LEVEL_THRESHOLDS = [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000];
@@ -131,14 +132,14 @@ export async function GET(
     const personalClaimedUsd = orders.reduce((s, o) => s + o.claimedUsd, 0);
     const personalPendingUsd = orders.reduce((s, o) => s + o.pendingUsd, 0);
 
+    // 团队奖励以 VVV 发放，且自动打款到上级钱包（claimed 恒为 false），
+    // 记录即已支付。按当前 VVV/USD 价格换算成 USD。
+    const vvvUsdPrice = await getVvvUsdPrice();
     const teamRewardRecords = user.teamRewardsAsBeneficiary;
-    const teamClaimedUsd = teamRewardRecords
-      .filter((r) => r.claimed)
-      .reduce((s, r) => s + r.amount, 0);
-    const teamPendingUsd = teamRewardRecords
-      .filter((r) => !r.claimed)
-      .reduce((s, r) => s + r.amount, 0);
-    const teamRewardUsd = teamClaimedUsd + teamPendingUsd;
+    const teamRewardVvv = teamRewardRecords.reduce((s, r) => s + r.amount, 0);
+    const teamRewardUsd = teamRewardVvv * vvvUsdPrice;
+    const teamClaimedUsd = teamRewardUsd; // 全部视为已支付
+    const teamPendingUsd = 0;
 
     // ── Team (BFS 7 levels) ──
     const teamMembers = await collectTeam(walletAddress);
@@ -203,9 +204,9 @@ export async function GET(
           where: { walletAddress: { in: teamStatAddresses } },
           select: { amountUsd: true },
         }),
-        // 分享 / 等级 / 平级收益：仅统计已支付(claimed)记录
+        // 分享 / 等级 / 平级收益：自动发放，记录即已支付，不按 claimed 过滤
         prisma.teamReward.findMany({
-          where: { beneficiaryAddr: { in: teamStatAddresses }, claimed: true },
+          where: { beneficiaryAddr: { in: teamStatAddresses } },
           select: { amount: true },
         }),
       ]);
@@ -215,7 +216,8 @@ export async function GET(
         .filter((o) => o.isWithdrawn)
         .reduce((s, o) => s + o.usdValue, 0);
       const teamClaimRewardUsd = tClaims.reduce((s, c) => s + c.amountUsd, 0);
-      const teamRewardPaidUsd = tRewards.reduce((s, r) => s + r.amount, 0);
+      // 团队奖励 VVV → USD
+      const teamRewardPaidUsd = tRewards.reduce((s, r) => s + r.amount, 0) * vvvUsdPrice;
       teamWithdrawUsd = teamClaimRewardUsd + teamRewardPaidUsd + teamRedeemedUsd;
     }
     const teamNetUsd = teamWithdrawUsd - teamDepositUsd;
