@@ -86,8 +86,7 @@ export default function ShareholderQueryPage() {
   const [result, setResult] = useState<QueryResult | null>(null)
   const [error, setError] = useState('')
   const [teamPage, setTeamPage] = useState(1)
-
-  const TEAM_PAGE_SIZE = 10
+  const [teamPageSize, setTeamPageSize] = useState(20)
 
   const isValid = /^0x[a-fA-F0-9]{40}$/.test(address.trim())
 
@@ -196,16 +195,31 @@ export default function ShareholderQueryPage() {
             {/* 团队成员明细（分页） */}
             {result.teamMembers && result.teamMembers.length > 0 && (() => {
               const members = result.teamMembers
-              const totalPages = Math.max(1, Math.ceil(members.length / TEAM_PAGE_SIZE))
+              const totalPages = Math.max(1, Math.ceil(members.length / teamPageSize))
               const page = Math.min(teamPage, totalPages)
-              const start = (page - 1) * TEAM_PAGE_SIZE
-              const pageItems = members.slice(start, start + TEAM_PAGE_SIZE)
+              const start = (page - 1) * teamPageSize
+              const pageItems = members.slice(start, start + teamPageSize)
               return (
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-base font-semibold text-foreground">团队成员明细</h2>
                     <span className="text-xs text-muted-foreground">共 {members.length} 人</span>
                   </div>
+                  {members.length > 20 && (
+                    <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>每页</span>
+                      {[20, 50, 100].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => { setTeamPageSize(n); setTeamPage(1) }}
+                          className={`rounded-md border px-2 py-0.5 font-medium transition-colors ${teamPageSize === n ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {pageItems.map((m) => (
                       <div key={m.address} className="rounded-lg border border-border/60 px-3 py-2 text-xs">
