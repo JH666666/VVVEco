@@ -75,7 +75,6 @@ function FundCard({ title, data }: { title: string; data: FundBlock }) {
       <StatRow label="· 团队奖励" value={data.breakdown.teamReward} sub />
       <StatRow label="· 赎回本金" value={data.breakdown.redeemed} sub />
       <StatRow label="质押业绩（有效）" value={data.stakeActiveUsd} />
-      <StatRow label="资金差额" value={data.net} strong />
     </div>
   )
 }
