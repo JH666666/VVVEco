@@ -299,7 +299,11 @@ function calculateLevel(teamStakeUsd: number, thresholds: number[]) {
   return 1
 }
 
-export function getUserInsight(input: string, nowMs = Date.now()): UserInsight | null {
+export function getUserInsight(
+  input: string,
+  nowMs = Date.now(),
+  vvvUsdPrice = SIM_VVV_USD_PRICE,
+): UserInsight | null {
   const state = readSimState()
   const address = resolveUserAddress(input, state)
 
@@ -362,13 +366,11 @@ export function getUserInsight(input: string, nowMs = Date.now()): UserInsight |
   const userTeamRewards = state.teamRewards.filter(
     reward => reward.beneficiary.toLowerCase() === address.toLowerCase(),
   )
-  const teamClaimedUsd = userTeamRewards
-    .filter(reward => reward.claimed)
-    .reduce((sum, reward) => sum + reward.amount * SIM_VVV_USD_PRICE, 0)
-  const teamPendingUsd = userTeamRewards
-    .filter(reward => !reward.claimed)
-    .reduce((sum, reward) => sum + reward.amount * SIM_VVV_USD_PRICE, 0)
-  const teamRewardUsd = teamClaimedUsd + teamPendingUsd
+  // 团队奖励自动发放到上级钱包（claimed 恒为 false），记录即已支付；
+  // amount 为 VVV，按传入的实时价格换算成 USD。
+  const teamRewardUsd = userTeamRewards.reduce((sum, reward) => sum + reward.amount * vvvUsdPrice, 0)
+  const teamClaimedUsd = teamRewardUsd // 全部视为已支付
+  const teamPendingUsd = 0
   const totalClaimedUsd = personalClaimedUsd + teamClaimedUsd
   const totalPendingUsd = personalPendingUsd + teamPendingUsd
   const totalRedeemedUsd = userOrders.reduce((sum, order) => sum + redeemedToUsd(order), 0)
@@ -400,8 +402,8 @@ export function getUserInsight(input: string, nowMs = Date.now()): UserInsight |
       return sum + (order ? claimToUsd(claim, order) : 0)
     }, 0)
   const teamRewardPaidUsd = state.teamRewards
-    .filter(reward => reward.claimed && teamStatAddresses.has(reward.beneficiary.toLowerCase()))
-    .reduce((sum, reward) => sum + reward.amount * SIM_VVV_USD_PRICE, 0)
+    .filter(reward => teamStatAddresses.has(reward.beneficiary.toLowerCase()))
+    .reduce((sum, reward) => sum + reward.amount * vvvUsdPrice, 0)
   const teamWithdrawUsd = teamClaimRewardUsd + teamRewardPaidUsd + teamRedeemedUsd
   const teamNetUsd = teamWithdrawUsd - teamDepositUsd
 

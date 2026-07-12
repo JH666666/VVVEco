@@ -57,6 +57,15 @@ export function UserAdmin() {
   const [nicknames, setNicknames] = useState<Record<string, string>>({})
   const [copiedAddress, setCopiedAddress] = useState('')
   const [pageSize, setPageSize] = useState(20)
+  const [vvvPrice, setVvvPrice] = useState<number | null>(null)
+
+  // Real VVV/USD price for the sim fallback (team-reward USD conversion).
+  useEffect(() => {
+    fetch('/api/vvv-price')
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => { if (data && typeof data.price === 'number' && data.price > 0) setVvvPrice(data.price) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     try {
@@ -114,7 +123,7 @@ export function UserAdmin() {
       }
     } catch {
       // Fallback to localStorage
-      setInsight(getUserInsight(query, Date.now()))
+      setInsight(getUserInsight(query, Date.now(), vvvPrice ?? undefined))
     }
   }
 
@@ -128,10 +137,10 @@ export function UserAdmin() {
         const data = await res.json()
         setInsight(data as UserInsight)
       } else {
-        setInsight(getUserInsight(address, Date.now()))
+        setInsight(getUserInsight(address, Date.now(), vvvPrice ?? undefined))
       }
     } catch {
-      setInsight(getUserInsight(address, Date.now()))
+      setInsight(getUserInsight(address, Date.now(), vvvPrice ?? undefined))
     }
   }
 
