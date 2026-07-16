@@ -142,38 +142,8 @@ export function Staking() {
           </p>
         </div>
 
-        {/* Team system */}
-        <div className="bg-card rounded-2xl p-8 md:p-12 border border-border mb-16">
-          <div className="flex items-center gap-2 mb-6">
-            <Users className="w-5 h-5 text-primary" />
-            <h3 className="font-serif text-xl font-medium text-foreground">{t("V1-V8 Level System", "V1-V8 等级体系")}</h3>
-          </div>
-          <p className="text-muted-foreground mb-8">
-            {t(
-              "Compressed-tier system — auto-upgrade when team performance reaches threshold, higher level means higher reward ratio. Invitation rewards are settled separately from team performance.",
-              "根据层数紧缩制，团队总业绩达标自动升级，等级越高奖励比例越高。邀请奖励独立结算，不参与团队业绩考核。"
-            )}
-          </p>
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
-            {levels.map((item, index) => (
-              <div
-                key={item.level}
-                className={`rounded-xl p-4 text-center ${
-                  index < 4 ? 'bg-secondary' : 'bg-primary/10'
-                }`}
-              >
-                <div className={`text-lg font-medium ${index >= 4 ? 'text-primary' : 'text-foreground'}`}>
-                  {item.level}
-                </div>
-                <div className="text-xl font-serif font-medium text-foreground mt-1">{item.rate}</div>
-                <div className="text-xs text-muted-foreground mt-1">{item.threshold}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Invite system */}
-        <div className="bg-primary rounded-2xl p-8 md:p-12 text-white">
+        <div className="bg-primary rounded-2xl p-8 md:p-12 text-white mb-16">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
               <div className="flex items-center gap-2 mb-4">
@@ -215,6 +185,36 @@ export function Staking() {
                 <div className="text-sm text-white/70 mt-1">{t("Cumulative System", "累加制")}</div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Team system */}
+        <div className="bg-card rounded-2xl p-8 md:p-12 border border-border">
+          <div className="flex items-center gap-2 mb-6">
+            <Users className="w-5 h-5 text-primary" />
+            <h3 className="font-serif text-xl font-medium text-foreground">{t("V1-V8 Level System", "V1-V8 等级体系")}</h3>
+          </div>
+          <p className="text-muted-foreground mb-8">
+            {t(
+              "Compressed-tier system — auto-upgrade when team performance reaches threshold, higher level means higher reward ratio. Invitation rewards are settled separately from team performance.",
+              "根据层数紧缩制，团队总业绩达标自动升级，等级越高奖励比例越高。邀请奖励独立结算，不参与团队业绩考核。"
+            )}
+          </p>
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+            {levels.map((item, index) => (
+              <div
+                key={item.level}
+                className={`rounded-xl p-4 text-center ${
+                  index < 4 ? 'bg-secondary' : 'bg-primary/10'
+                }`}
+              >
+                <div className={`text-lg font-medium ${index >= 4 ? 'text-primary' : 'text-foreground'}`}>
+                  {item.level}
+                </div>
+                <div className="text-xl font-serif font-medium text-foreground mt-1">{item.rate}</div>
+                <div className="text-xs text-muted-foreground mt-1">{item.threshold}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
