@@ -144,47 +144,27 @@ export function Staking() {
 
         {/* Invite system */}
         <div className="bg-primary rounded-2xl p-8 md:p-12 text-white mb-16">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Gift className="w-5 h-5" />
-                <span className="text-sm font-medium uppercase tracking-wider">{t("Referral System", "邀请机制")}</span>
-              </div>
-              <h3 className="font-serif text-2xl md:text-3xl font-medium mb-4">
-                {t("Share Your Invite Code, Grow Your Team", "分享邀请码，邀请好友加入")}
-              </h3>
-              <p className="text-white/80 leading-relaxed mb-6">
-                {t(
-                  `Every user has a unique invite code. Downstream claims within three generations generate invitation rewards: ${rewardConfig.generationRates[0]}% for first generation, ${rewardConfig.generationRates[1]}% for second, and ${rewardConfig.generationRates[2]}% for third.`,
-                  `每位用户都有专属邀请码。三代内成员领取质押收益时，会产生邀请奖励：一代 ${rewardConfig.generationRates[0]}%，二代 ${rewardConfig.generationRates[1]}%，三代 ${rewardConfig.generationRates[2]}%。`
-                )}
-              </p>
-              <Link
-                href="/stake"
-                className="inline-flex items-center gap-2 bg-white text-primary px-6 py-3 rounded-full text-sm font-medium hover:bg-white/90 transition-colors"
-              >
-                {t("Start Staking", "立即开始质押")}
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <Gift className="w-5 h-5" />
+              <span className="text-sm font-medium uppercase tracking-wider">{t("Referral System", "邀请机制")}</span>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white/10 rounded-xl p-6 text-center">
-                <div className="text-3xl md:text-4xl font-serif font-medium">10%</div>
-                <div className="text-sm text-white/70 mt-1">{t("Peer Bonus", "平级奖励")}</div>
-              </div>
-              <div className="bg-white/10 rounded-xl p-6 text-center">
-                <div className="text-3xl md:text-4xl font-serif font-medium">{rewardConfig.levelRates[7]}%</div>
-                <div className="text-sm text-white/70 mt-1">{t("V8 Max Commission", "V8 最高返佣")}</div>
-              </div>
-              <div className="bg-white/10 rounded-xl p-6 text-center">
-                <div className="text-3xl md:text-4xl font-serif font-medium">{t("Tiered", "代数")}</div>
-                <div className="text-sm text-white/70 mt-1">{t("Compression System", "紧缩制")}</div>
-              </div>
-              <div className="bg-white/10 rounded-xl p-6 text-center">
-                <div className="text-3xl md:text-4xl font-serif font-medium">{t("Rank", "等级")}</div>
-                <div className="text-sm text-white/70 mt-1">{t("Cumulative System", "累加制")}</div>
-              </div>
-            </div>
+            <h3 className="font-serif text-2xl md:text-3xl font-medium mb-4">
+              {t("Share Your Invite Code, Grow Your Team", "分享邀请码，邀请好友加入")}
+            </h3>
+            <p className="text-white/80 leading-relaxed mb-6 max-w-2xl">
+              {t(
+                `Every user has a unique invite code. Downstream claims within three generations generate invitation rewards: ${rewardConfig.generationRates[0]}% for first generation, ${rewardConfig.generationRates[1]}% for second, and ${rewardConfig.generationRates[2]}% for third.`,
+                `每位用户都有专属邀请码。三代内成员领取质押收益时，会产生邀请奖励：一代 ${rewardConfig.generationRates[0]}%，二代 ${rewardConfig.generationRates[1]}%，三代 ${rewardConfig.generationRates[2]}%。`
+              )}
+            </p>
+            <Link
+              href="/stake"
+              className="inline-flex items-center gap-2 bg-white text-primary px-6 py-3 rounded-full text-sm font-medium hover:bg-white/90 transition-colors"
+            >
+              {t("Start Staking", "立即开始质押")}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
 
@@ -215,6 +195,26 @@ export function Staking() {
                 <div className="text-xs text-muted-foreground mt-1">{item.threshold}</div>
               </div>
             ))}
+          </div>
+
+          {/* Reward highlights (moved from invite card) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            <div className="bg-secondary rounded-xl p-6 text-center">
+              <div className="text-3xl md:text-4xl font-serif font-medium text-foreground">10%</div>
+              <div className="text-sm text-muted-foreground mt-1">{t("Peer Bonus", "平级奖励")}</div>
+            </div>
+            <div className="bg-secondary rounded-xl p-6 text-center">
+              <div className="text-3xl md:text-4xl font-serif font-medium text-foreground">{rewardConfig.levelRates[7]}%</div>
+              <div className="text-sm text-muted-foreground mt-1">{t("V8 Max Commission", "V8 最高返佣")}</div>
+            </div>
+            <div className="bg-secondary rounded-xl p-6 text-center">
+              <div className="text-3xl md:text-4xl font-serif font-medium text-foreground">{t("Tiered", "代数")}</div>
+              <div className="text-sm text-muted-foreground mt-1">{t("Compression System", "紧缩制")}</div>
+            </div>
+            <div className="bg-secondary rounded-xl p-6 text-center">
+              <div className="text-3xl md:text-4xl font-serif font-medium text-foreground">{t("Rank", "等级")}</div>
+              <div className="text-sm text-muted-foreground mt-1">{t("Cumulative System", "累加制")}</div>
+            </div>
           </div>
         </div>
       </div>
