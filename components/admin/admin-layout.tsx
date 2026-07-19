@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { AlertTriangle, BarChart3, Bell, ClipboardList, Clock, Globe, LogOut, Menu, Moon, ShieldCheck, Sun, UsersRound, WalletCards, X } from 'lucide-react'
+import { AlertTriangle, BarChart3, Bell, ClipboardList, Clock, Gift, Globe, LogOut, Menu, Moon, ShieldCheck, Sun, UsersRound, WalletCards, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminWalletProvider, truncateAddress, useAdminWallet } from '@/contexts/admin-wallet-context'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ const adminNavItems = [
   { title: '社群配置',     description: 'Telegram / X / Discord',      href: '/admin/social',       icon: Globe },
   { title: '出款队列',     description: 'PayoutQueued 排队监控与 Flush',href: '/admin/payout-queue',    icon: Clock },
   { title: '漏单检测',     description: '链上补录缺失的质押订单',         href: '/admin/missing-orders', icon: AlertTriangle },
+  { title: '团队奖励补录', description: '链上补录缺失的团队奖励',         href: '/admin/missing-team-rewards', icon: Gift },
 ]
 
 export function AdminLayout({ children }: AdminLayoutProps) {
