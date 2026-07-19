@@ -1,9 +1,17 @@
 'use client'
 
-import { useState } from 'react'
-import { AlertTriangle, RefreshCw, Wrench } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { AlertTriangle, RefreshCw, Wrench, Clock, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+
+interface AutoScanConfig {
+  teamRewardEnabled: boolean
+  teamRewardIntervalMin: number
+  teamRewardBlocksBack: number
+  teamRewardLastRunAt: string | null
+  teamRewardLastResult: string | null
+}
 
 interface MissingTeamReward {
   txHash: string
@@ -32,6 +40,57 @@ export function MissingTeamRewardsPanel() {
   const [rows, setRows] = useState<MissingTeamReward[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lastResult, setLastResult] = useState<string | null>(null)
+
+  // 定时扫描配置
+  const [cfg, setCfg] = useState<AutoScanConfig | null>(null)
+  const [cfgEnabled, setCfgEnabled] = useState(false)
+  const [cfgInterval, setCfgInterval] = useState('10')
+  const [cfgBlocks, setCfgBlocks] = useState('2000')
+  const [savingCfg, setSavingCfg] = useState(false)
+  const [cfgMsg, setCfgMsg] = useState<string | null>(null)
+
+  const loadCfg = async () => {
+    try {
+      const res = await fetch('/api/admin/auto-scan-config', { credentials: 'include' })
+      if (!res.ok) return
+      const d = (await res.json()) as AutoScanConfig
+      setCfg(d)
+      setCfgEnabled(d.teamRewardEnabled)
+      setCfgInterval(String(d.teamRewardIntervalMin))
+      setCfgBlocks(String(d.teamRewardBlocksBack))
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    loadCfg()
+  }, [])
+
+  const handleSaveCfg = async () => {
+    setSavingCfg(true)
+    setCfgMsg(null)
+    try {
+      const res = await fetch('/api/admin/auto-scan-config', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamRewardEnabled: cfgEnabled,
+          teamRewardIntervalMin: parseInt(cfgInterval, 10) || 10,
+          teamRewardBlocksBack: parseInt(cfgBlocks, 10) || 2000,
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error ?? '保存失败')
+      setCfg(d)
+      setCfgMsg(cfgEnabled ? `✅ 已开启：每 ${d.teamRewardIntervalMin} 分钟自动扫描` : '✅ 已关闭自动扫描')
+    } catch (err: unknown) {
+      setCfgMsg(err instanceof Error ? '❌ ' + err.message : '❌ 保存失败')
+    } finally {
+      setSavingCfg(false)
+    }
+  }
 
   const handleScan = async () => {
     setScanning(true)
@@ -106,6 +165,61 @@ export function MissingTeamRewardsPanel() {
         </p>
       </div>
 
+      {/* 定时扫描配置 */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">自动定时扫描</span>
+        </div>
+        <div className="flex flex-wrap items-end gap-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={cfgEnabled}
+              onChange={(e) => setCfgEnabled(e.target.checked)}
+            />
+            开启自动扫描
+          </label>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">扫描间隔（分钟）</span>
+            <Input
+              type="number"
+              min={1}
+              max={1440}
+              className="h-9 w-24 text-sm"
+              value={cfgInterval}
+              onChange={(e) => setCfgInterval(e.target.value)}
+              disabled={!cfgEnabled}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">回溯区块数</span>
+            <Input
+              type="number"
+              min={100}
+              max={50000}
+              step={100}
+              className="h-9 w-28 text-sm"
+              value={cfgBlocks}
+              onChange={(e) => setCfgBlocks(e.target.value)}
+              disabled={!cfgEnabled}
+            />
+          </div>
+          <Button onClick={handleSaveCfg} disabled={savingCfg} size="sm">
+            {savingCfg ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+            保存
+          </Button>
+        </div>
+        <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+          <p>· 开启后，服务器每分钟检查一次，到达设定间隔就自动扫描补录，无需手动</p>
+          {cfg?.teamRewardLastRunAt && (
+            <p>· 上次自动运行：{new Date(cfg.teamRewardLastRunAt).toLocaleString('zh-CN', { hour12: false })}（{cfg.teamRewardLastResult ?? '-'}）</p>
+          )}
+          {cfgMsg && <p className="font-medium text-foreground">{cfgMsg}</p>}
+        </div>
+      </div>
+
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
@@ -148,8 +262,7 @@ export function MissingTeamRewardsPanel() {
           <li>· 团队奖励由下级领取时写库，写库失败会导致上级贡献奖励不显示、出金偏小</li>
           <li>· 金额、上下级均来自链上事件，不猜测</li>
           <li>· 补录需要能定位下级的质押订单；若下级订单本身也漏了，请先在“漏单检测”补订单</li>
-          <li>· 服务器可设定定时任务每 10 分钟自动扫描补录：</li>
-          <li className="pl-4 font-mono break-all">*/10 * * * * curl -sX POST http://localhost:3000/api/admin/missing-team-rewards -H &quot;Authorization: Bearer $CRON_SECRET&quot; -H &quot;Content-Type: application/json&quot; -d &apos;{'{}'}&apos;</li>
+          <li>· 自动定时扫描已内置（上方"自动定时扫描"卡片开启即可），无需再配服务器 crontab</li>
         </ul>
       </div>
 

@@ -64,6 +64,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/admin/web', '/admin/contract', '/admin/global', '/admin/users', '/admin/orders', '/admin/social',
+    '/admin/payout-queue', '/admin/missing-orders', '/admin/missing-team-rewards',
     // RSC payload requests for client-side navigation (Next.js App Router)
     '/_next/data/:path*/admin/:page*',
   ],
