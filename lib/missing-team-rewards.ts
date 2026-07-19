@@ -85,15 +85,16 @@ function computeMissingByCount(
   return missing;
 }
 
-/** 扫描最近 blocksBack 区块内的 TeamRewardAccrued 事件，返回 DB 中缺失的记录。 */
-export async function scanMissingTeamRewards(blocksBack = 1000): Promise<MissingTeamReward[]> {
-  const latestBlock = await client.getBlockNumber();
-  const rawFrom = latestBlock - BigInt(blocksBack);
-  const fromBlock = rawFrom < DEPLOY_BLOCK ? DEPLOY_BLOCK : rawFrom;
+/** 扫描指定区块区间 [fromBlock, toBlock] 内的 TeamRewardAccrued 事件，返回 DB 中缺失的记录。 */
+export async function scanMissingTeamRewardsRange(
+  fromBlock: bigint,
+  toBlock: bigint
+): Promise<MissingTeamReward[]> {
+  if (fromBlock > toBlock) return [];
 
   const allLogs: Awaited<ReturnType<typeof client.getLogs>> = [];
-  for (let start = fromBlock; start <= latestBlock; start += LOG_CHUNK) {
-    const end = start + LOG_CHUNK - 1n > latestBlock ? latestBlock : start + LOG_CHUNK - 1n;
+  for (let start = fromBlock; start <= toBlock; start += LOG_CHUNK) {
+    const end = start + LOG_CHUNK - 1n > toBlock ? toBlock : start + LOG_CHUNK - 1n;
     try {
       const chunk = await client.getLogs({
         address: STAKING_ADDR,
@@ -142,6 +143,46 @@ export async function scanMissingTeamRewards(blocksBack = 1000): Promise<Missing
   });
 
   return computeMissingByCount(candidates, existing);
+}
+
+/** 扫描最近 blocksBack 区块（从最新块往回）内缺失的团队奖励。用于手动即时检查。 */
+export async function scanMissingTeamRewards(blocksBack = 1000): Promise<MissingTeamReward[]> {
+  const latestBlock = await client.getBlockNumber();
+  const rawFrom = latestBlock - BigInt(blocksBack);
+  const fromBlock = rawFrom < DEPLOY_BLOCK ? DEPLOY_BLOCK : rawFrom;
+  return scanMissingTeamRewardsRange(fromBlock, latestBlock);
+}
+
+/**
+ * 断点续扫：从 lastBlock 之后扫到最新（单次最多 maxStep 块），补录缺失并返回新断点。
+ * lastBlock 为 null 时从合约部署块开始，分批把全部历史扫完。
+ */
+export async function scanAndRepairForwardTeamRewards(
+  lastBlock: number | null,
+  maxStep = 100000
+): Promise<{ repaired: number; skipped: number; fromBlock: number; toBlock: number; latest: number; caughtUp: boolean }> {
+  const latest = await client.getBlockNumber();
+  const start = lastBlock == null ? DEPLOY_BLOCK : BigInt(lastBlock) + 1n;
+
+  if (start > latest) {
+    return { repaired: 0, skipped: 0, fromBlock: Number(start), toBlock: Number(latest), latest: Number(latest), caughtUp: true };
+  }
+
+  const to = start + BigInt(maxStep) - 1n > latest ? latest : start + BigInt(maxStep) - 1n;
+  const missing = await scanMissingTeamRewardsRange(start, to);
+
+  let repaired = 0;
+  let skipped = 0;
+  for (const m of missing) {
+    try {
+      (await repairMissingTeamReward(m)) ? repaired++ : skipped++;
+    } catch (e) {
+      console.error(`[missing-team-rewards] forward repair failed tx=${m.txHash}:`, e);
+      skipped++;
+    }
+  }
+
+  return { repaired, skipped, fromBlock: Number(start), toBlock: Number(to), latest: Number(latest), caughtUp: to >= latest };
 }
 
 /** 确保用户存在（外键约束）。缺失时按 max(uid)+1 创建最小记录。 */

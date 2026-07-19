@@ -118,16 +118,17 @@ async function fetchOrderFromChain(
   }
 }
 
-/** Scan Staked events in the last `blocksBack` blocks and return orders missing from DB. */
-export async function scanMissingOrders(blocksBack = 1000): Promise<MissingOrder[]> {
-  const latestBlock = await client.getBlockNumber();
-  const rawFrom = latestBlock - BigInt(blocksBack);
-  const fromBlock = rawFrom < DEPLOY_BLOCK ? DEPLOY_BLOCK : rawFrom;
+/** Scan Staked events in block range [fromBlock, toBlock] and return orders missing from DB. */
+export async function scanMissingOrdersRange(
+  fromBlock: bigint,
+  toBlock: bigint
+): Promise<MissingOrder[]> {
+  if (fromBlock > toBlock) return [];
 
   // Collect all Staked logs in chunks to avoid RPC limits
   const allLogs: Awaited<ReturnType<typeof client.getLogs>> = [];
-  for (let start = fromBlock; start <= latestBlock; start += LOG_CHUNK) {
-    const end = start + LOG_CHUNK - 1n > latestBlock ? latestBlock : start + LOG_CHUNK - 1n;
+  for (let start = fromBlock; start <= toBlock; start += LOG_CHUNK) {
+    const end = start + LOG_CHUNK - 1n > toBlock ? toBlock : start + LOG_CHUNK - 1n;
     try {
       const chunk = await client.getLogs({
         address: STAKING_ADDR,
@@ -191,6 +192,48 @@ export async function scanMissingOrders(blocksBack = 1000): Promise<MissingOrder
   }
 
   return missing;
+}
+
+/** Scan the last `blocksBack` blocks (from tip). Used for manual/ad-hoc checks. */
+export async function scanMissingOrders(blocksBack = 1000): Promise<MissingOrder[]> {
+  const latestBlock = await client.getBlockNumber();
+  const rawFrom = latestBlock - BigInt(blocksBack);
+  const fromBlock = rawFrom < DEPLOY_BLOCK ? DEPLOY_BLOCK : rawFrom;
+  return scanMissingOrdersRange(fromBlock, latestBlock);
+}
+
+/**
+ * Checkpoint scan: from `lastBlock`+1 up to tip (at most `maxStep` blocks per run),
+ * repair any missing orders, and return the new checkpoint.
+ * `lastBlock === null` starts at the deploy block to sweep full history over runs.
+ */
+export async function scanAndRepairForwardOrders(
+  lastBlock: number | null,
+  maxStep = 100000
+): Promise<{ repaired: number; skipped: number; fromBlock: number; toBlock: number; latest: number; caughtUp: boolean }> {
+  const latest = await client.getBlockNumber();
+  const start = lastBlock == null ? DEPLOY_BLOCK : BigInt(lastBlock) + 1n;
+
+  if (start > latest) {
+    return { repaired: 0, skipped: 0, fromBlock: Number(start), toBlock: Number(latest), latest: Number(latest), caughtUp: true };
+  }
+
+  const to = start + BigInt(maxStep) - 1n > latest ? latest : start + BigInt(maxStep) - 1n;
+  const missing = await scanMissingOrdersRange(start, to);
+
+  let repaired = 0;
+  let skipped = 0;
+  for (const order of missing) {
+    try {
+      await repairMissingOrder(order);
+      repaired++;
+    } catch (e) {
+      console.error(`[missing-orders] forward repair failed tx=${order.txHash}:`, e);
+      skipped++;
+    }
+  }
+
+  return { repaired, skipped, fromBlock: Number(start), toBlock: Number(to), latest: Number(latest), caughtUp: to >= latest };
 }
 
 /** Repair a single order using its txHash (reads receipt + event + chain state). */

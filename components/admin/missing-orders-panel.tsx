@@ -55,7 +55,6 @@ export function MissingOrdersPanel() {
   const [cfg, setCfg] = useState<AutoScanConfig | null>(null)
   const [cfgEnabled, setCfgEnabled] = useState(false)
   const [cfgInterval, setCfgInterval] = useState('10')
-  const [cfgBlocks, setCfgBlocks] = useState('2000')
   const [savingCfg, setSavingCfg] = useState(false)
   const [cfgMsg, setCfgMsg] = useState<string | null>(null)
 
@@ -67,7 +66,6 @@ export function MissingOrdersPanel() {
         setCfg(d)
         setCfgEnabled(d.missingOrderEnabled)
         setCfgInterval(String(d.missingOrderIntervalMin))
-        setCfgBlocks(String(d.missingOrderBlocksBack))
       })
       .catch(() => {})
   }, [])
@@ -83,7 +81,6 @@ export function MissingOrdersPanel() {
         body: JSON.stringify({
           missingOrderEnabled: cfgEnabled,
           missingOrderIntervalMin: parseInt(cfgInterval, 10) || 10,
-          missingOrderBlocksBack: parseInt(cfgBlocks, 10) || 2000,
         }),
       })
       const d = await res.json()
@@ -198,26 +195,13 @@ export function MissingOrdersPanel() {
               disabled={!cfgEnabled}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">回溯区块数</span>
-            <Input
-              type="number"
-              min={100}
-              max={500000}
-              step={100}
-              className="h-9 w-28 text-sm"
-              value={cfgBlocks}
-              onChange={(e) => setCfgBlocks(e.target.value)}
-              disabled={!cfgEnabled}
-            />
-          </div>
           <Button onClick={handleSaveCfg} disabled={savingCfg} size="sm">
             {savingCfg ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
             保存
           </Button>
         </div>
         <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-          <p>· 开启后，服务器每分钟检查一次，到达设定间隔就自动扫描补录，无需手动</p>
+          <p>· 断点续扫：开启后从合约部署块开始把历史分批扫一遍（追赶中每分钟推进一次），追平后按间隔只扫新增，永不遗漏</p>
           {cfg?.missingOrderLastRunAt && (
             <p>· 上次自动运行：{new Date(cfg.missingOrderLastRunAt).toLocaleString('zh-CN', { hour12: false })}（{cfg.missingOrderLastResult ?? '-'}）</p>
           )}

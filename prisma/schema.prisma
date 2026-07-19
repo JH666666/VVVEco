@@ -192,11 +192,13 @@ model AutoScanConfig {
   teamRewardBlocksBack  Int       @default(2000)  @map("team_reward_blocks_back")
   teamRewardLastRunAt   DateTime? @map("team_reward_last_run_at")
   teamRewardLastResult  String?   @map("team_reward_last_result")
+  teamRewardLastBlock   Int?      @map("team_reward_last_block")
   missingOrderEnabled     Boolean   @default(false) @map("missing_order_enabled")
   missingOrderIntervalMin Int       @default(10)    @map("missing_order_interval_min")
   missingOrderBlocksBack  Int       @default(2000)  @map("missing_order_blocks_back")
   missingOrderLastRunAt   DateTime? @map("missing_order_last_run_at")
   missingOrderLastResult  String?   @map("missing_order_last_result")
+  missingOrderLastBlock   Int?      @map("missing_order_last_block")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
   @@map("auto_scan_config")

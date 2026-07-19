@@ -5,8 +5,11 @@
  * 在服务器进程内运行（配合 pm2 常驻），补录逻辑幂等，重复运行安全。
  */
 import { prisma } from "@/lib/prisma";
-import { scanAndRepairAllTeamRewards } from "@/lib/missing-team-rewards";
-import { scanAndRepairAll as scanAndRepairAllOrders } from "@/lib/missing-orders";
+import { scanAndRepairForwardTeamRewards } from "@/lib/missing-team-rewards";
+import { scanAndRepairForwardOrders } from "@/lib/missing-orders";
+
+// 断点续扫每次最多前进的区块数（限制单轮 RPC 负载，历史会分多轮扫完）
+const MAX_STEP = 100_000;
 
 let started = false;
 let running = false;
@@ -26,36 +29,43 @@ async function tick() {
     const cfg = await getAutoScanConfig();
     const now = Date.now();
 
-    // 团队奖励补录
+    // 团队奖励补录（断点续扫）
+    // 追赶历史阶段每分钟连续推进；追平后按设定间隔只扫新增。
+    const trCatchingUp =
+      cfg.teamRewardLastBlock == null || (cfg.teamRewardLastResult?.includes("追赶历史中") ?? false);
     if (
       cfg.teamRewardEnabled &&
-      now >= (cfg.teamRewardLastRunAt?.getTime() ?? 0) + cfg.teamRewardIntervalMin * 60_000
+      (trCatchingUp || now >= (cfg.teamRewardLastRunAt?.getTime() ?? 0) + cfg.teamRewardIntervalMin * 60_000)
     ) {
-      const res = await scanAndRepairAllTeamRewards(cfg.teamRewardBlocksBack);
+      const res = await scanAndRepairForwardTeamRewards(cfg.teamRewardLastBlock, MAX_STEP);
       await prisma.autoScanConfig.update({
         where: { id: 1 },
         data: {
           teamRewardLastRunAt: new Date(),
-          teamRewardLastResult: `补录 ${res.repaired} 笔，跳过 ${res.skipped} 笔`,
+          teamRewardLastBlock: res.toBlock,
+          teamRewardLastResult: `补录 ${res.repaired}，跳过 ${res.skipped}｜已扫至 ${res.toBlock}/${res.latest}${res.caughtUp ? "（已追平）" : "（追赶历史中）"}`,
         },
       });
-      console.log("[auto-scan] team-reward run:", res);
+      console.log("[auto-scan] team-reward:", res);
     }
 
-    // 漏单补录
+    // 漏单补录（断点续扫）
+    const moCatchingUp =
+      cfg.missingOrderLastBlock == null || (cfg.missingOrderLastResult?.includes("追赶历史中") ?? false);
     if (
       cfg.missingOrderEnabled &&
-      now >= (cfg.missingOrderLastRunAt?.getTime() ?? 0) + cfg.missingOrderIntervalMin * 60_000
+      (moCatchingUp || now >= (cfg.missingOrderLastRunAt?.getTime() ?? 0) + cfg.missingOrderIntervalMin * 60_000)
     ) {
-      const res = await scanAndRepairAllOrders(cfg.missingOrderBlocksBack);
+      const res = await scanAndRepairForwardOrders(cfg.missingOrderLastBlock, MAX_STEP);
       await prisma.autoScanConfig.update({
         where: { id: 1 },
         data: {
           missingOrderLastRunAt: new Date(),
-          missingOrderLastResult: `补录 ${res.repaired} 笔，跳过 ${res.skipped} 笔`,
+          missingOrderLastBlock: res.toBlock,
+          missingOrderLastResult: `补录 ${res.repaired}，跳过 ${res.skipped}｜已扫至 ${res.toBlock}/${res.latest}${res.caughtUp ? "（已追平）" : "（追赶历史中）"}`,
         },
       });
-      console.log("[auto-scan] missing-order run:", res);
+      console.log("[auto-scan] missing-order:", res);
     }
   } catch (e) {
     console.error("[auto-scan] tick error:", e);
