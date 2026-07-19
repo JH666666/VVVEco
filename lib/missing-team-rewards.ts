@@ -37,9 +37,52 @@ export interface MissingTeamReward {
   blockNumber: number;
 }
 
-/** 用 base txHash + 上级 + 下级 作为逻辑去重键（忽略 claimTxHash 的 _logIndex 后缀差异）。 */
-function dedupKey(baseTx: string, beneficiary: string, source: string) {
+/**
+ * 分组键：base txHash + 上级 + 下级（忽略 claimTxHash 的 _logIndex 后缀差异）。
+ * 注意：同一交易里，同一上级可能因多笔订单/多代收到多笔奖励，所以按"笔数"补，
+ * 不能只按 (交易|上级|下级) 判存在，否则会漏补。
+ */
+function groupKey(baseTx: string, beneficiary: string, source: string) {
   return `${baseTx.toLowerCase()}|${beneficiary.toLowerCase()}|${source.toLowerCase()}`;
+}
+
+/**
+ * 给定候选事件 + DB 已有记录，按分组"笔数差"计算真正缺失的事件。
+ * 每组：链上笔数 N，DB 已有 M，缺失 = N - M（取尚未精确匹配的事件补齐）。
+ */
+function computeMissingByCount(
+  candidates: MissingTeamReward[],
+  existing: Array<{ claimTxHash: string; beneficiaryAddr: string; sourceAddr: string }>
+): MissingTeamReward[] {
+  const existingCountByGroup = new Map<string, number>();
+  const existingExact = new Set<string>();
+  for (const e of existing) {
+    const base = e.claimTxHash.split("_")[0];
+    existingCountByGroup.set(
+      groupKey(base, e.beneficiaryAddr, e.sourceAddr),
+      (existingCountByGroup.get(groupKey(base, e.beneficiaryAddr, e.sourceAddr)) ?? 0) + 1
+    );
+    existingExact.add(e.claimTxHash.toLowerCase());
+  }
+
+  const byGroup = new Map<string, MissingTeamReward[]>();
+  for (const c of candidates) {
+    const g = groupKey(c.txHash, c.beneficiaryAddr, c.sourceAddr);
+    const arr = byGroup.get(g);
+    if (arr) arr.push(c);
+    else byGroup.set(g, [c]);
+  }
+
+  const missing: MissingTeamReward[] = [];
+  for (const [g, evs] of byGroup) {
+    const dbCount = existingCountByGroup.get(g) ?? 0;
+    const need = evs.length - dbCount;
+    if (need <= 0) continue;
+    // 优先补那些精确 claimTxHash 尚未入库的事件
+    const notExact = evs.filter((e) => !existingExact.has(e.claimTxHash.toLowerCase()));
+    missing.push(...notExact.slice(0, need));
+  }
+  return missing;
 }
 
 /** 扫描最近 blocksBack 区块内的 TeamRewardAccrued 事件，返回 DB 中缺失的记录。 */
@@ -92,25 +135,13 @@ export async function scanMissingTeamRewards(blocksBack = 1000): Promise<Missing
 
   if (candidates.length === 0) return [];
 
-  // 一次性拉取这些上级已有的团队奖励记录，构建去重集合
+  // 一次性拉取这些上级已有的团队奖励记录，按"笔数差"计算缺失
   const existing = await prisma.teamReward.findMany({
     where: { beneficiaryAddr: { in: Array.from(beneficiaries) } },
     select: { claimTxHash: true, beneficiaryAddr: true, sourceAddr: true },
   });
-  const existingKeys = new Set(
-    existing.map((e) => dedupKey(e.claimTxHash.split("_")[0], e.beneficiaryAddr, e.sourceAddr))
-  );
 
-  const missing: MissingTeamReward[] = [];
-  const seen = new Set<string>();
-  for (const c of candidates) {
-    const key = dedupKey(c.txHash, c.beneficiaryAddr, c.sourceAddr);
-    if (existingKeys.has(key) || seen.has(key)) continue;
-    seen.add(key);
-    missing.push(c);
-  }
-
-  return missing;
+  return computeMissingByCount(candidates, existing);
 }
 
 /** 确保用户存在（外键约束）。缺失时按 max(uid)+1 创建最小记录。 */
@@ -150,15 +181,11 @@ async function resolveSourceOrderTx(txHash: string, sourceAddr: string): Promise
   return order?.txHash ?? null;
 }
 
-/** 补录单条团队奖励。若已存在或无法满足外键则安全跳过。 */
+/** 补录单条团队奖励（按精确 claimTxHash 幂等）。若已存在或无法满足外键则安全跳过/报错。 */
 export async function repairMissingTeamReward(m: MissingTeamReward): Promise<boolean> {
-  // 幂等：再查一次是否已存在
+  // 幂等：按精确 claimTxHash（含 logIndex）判重，保证同交易同上级的多笔奖励各自独立补录
   const existing = await prisma.teamReward.findFirst({
-    where: {
-      beneficiaryAddr: m.beneficiaryAddr,
-      sourceAddr: m.sourceAddr,
-      claimTxHash: { startsWith: m.txHash },
-    },
+    where: { claimTxHash: m.claimTxHash },
     select: { id: true },
   });
   if (existing) return false;
@@ -173,23 +200,31 @@ export async function repairMissingTeamReward(m: MissingTeamReward): Promise<boo
     );
   }
 
-  await prisma.teamReward.create({
-    data: {
-      claimTxHash: m.claimTxHash,
-      beneficiaryAddr: m.beneficiaryAddr,
-      sourceAddr: m.sourceAddr,
-      sourceOrderTx,
-      rewardType: "generation",
-      generation: null,
-      rate: 0,
-      amount: m.amount,
-      claimed: true, // 团队奖励自动发放，链上已到账
-      claimedAt: new Date(),
-    },
-  });
+  try {
+    await prisma.teamReward.create({
+      data: {
+        claimTxHash: m.claimTxHash,
+        beneficiaryAddr: m.beneficiaryAddr,
+        sourceAddr: m.sourceAddr,
+        sourceOrderTx,
+        rewardType: "generation",
+        generation: null,
+        rate: 0,
+        amount: m.amount,
+        claimed: true, // 团队奖励自动发放，链上已到账
+        claimedAt: new Date(),
+      },
+    });
+  } catch (err) {
+    // 唯一约束冲突（并发/重复）视为已存在
+    if (err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "P2002") {
+      return false;
+    }
+    throw err;
+  }
 
   console.log(
-    `[missing-team-rewards] repaired tx=${m.txHash} 上级=${m.beneficiaryAddr} 下级=${m.sourceAddr} amount=${m.amount}VVV`
+    `[missing-team-rewards] repaired claimTx=${m.claimTxHash} 上级=${m.beneficiaryAddr} 下级=${m.sourceAddr} amount=${m.amount}VVV`
   );
   return true;
 }
@@ -198,13 +233,13 @@ export async function repairMissingTeamReward(m: MissingTeamReward): Promise<boo
 export async function repairTeamRewardByTxHash(
   txHash: string
 ): Promise<{ repaired: number; skipped: number }> {
-  const receipt = await client.getTransactionReceipt({ hash: txHash as `0x${string}` });
+  const tx = txHash.toLowerCase();
+  const receipt = await client.getTransactionReceipt({ hash: tx as `0x${string}` });
   if (!receipt) throw new Error("交易回执未找到");
   if (receipt.status !== "success") throw new Error("链上交易失败");
 
-  let repaired = 0;
-  let skipped = 0;
-
+  // 1) 解析这笔交易里所有 TeamRewardAccrued 事件
+  const candidates: MissingTeamReward[] = [];
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== STAKING_ADDR.toLowerCase()) continue;
     let decoded;
@@ -214,26 +249,34 @@ export async function repairTeamRewardByTxHash(
       continue; // 非本事件
     }
     const a = decoded.args as Record<string, unknown>;
-    const recipient = (a.recipient as string).toLowerCase();
-    const claimer = (a.claimer as string).toLowerCase();
     const bonus = a.bonus as bigint;
     if (bonus <= 0n) continue;
-
-    const m: MissingTeamReward = {
-      txHash: txHash.toLowerCase(),
+    candidates.push({
+      txHash: tx,
       logIndex: log.logIndex,
-      claimTxHash: `${txHash.toLowerCase()}_${log.logIndex}`,
-      beneficiaryAddr: recipient,
-      sourceAddr: claimer,
+      claimTxHash: `${tx}_${log.logIndex}`,
+      beneficiaryAddr: (a.recipient as string).toLowerCase(),
+      sourceAddr: (a.claimer as string).toLowerCase(),
       amount: Number(bonus) / 1e18,
       blockNumber: Number(receipt.blockNumber ?? 0n),
-    };
-    const ok = await repairMissingTeamReward(m);
-    ok ? repaired++ : skipped++;
+    });
   }
 
-  if (repaired === 0 && skipped === 0) {
-    throw new Error("该交易未找到 TeamRewardAccrued 事件");
+  if (candidates.length === 0) throw new Error("该交易未找到 TeamRewardAccrued 事件");
+
+  // 2) 按笔数差算出真正缺失的（同上级多笔也能全部补齐）
+  const existing = await prisma.teamReward.findMany({
+    where: { claimTxHash: { startsWith: tx } },
+    select: { claimTxHash: true, beneficiaryAddr: true, sourceAddr: true },
+  });
+  const missing = computeMissingByCount(candidates, existing);
+
+  // 3) 补录
+  let repaired = 0;
+  let skipped = candidates.length - missing.length; // 已存在的
+  for (const m of missing) {
+    const ok = await repairMissingTeamReward(m);
+    ok ? repaired++ : skipped++;
   }
   return { repaired, skipped };
 }
