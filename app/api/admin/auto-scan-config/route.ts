@@ -30,6 +30,15 @@ export async function POST(request: NextRequest) {
     if (typeof body.teamRewardBlocksBack === "number") {
       data.teamRewardBlocksBack = Math.min(500000, Math.max(100, Math.round(body.teamRewardBlocksBack)));
     }
+    if (typeof body.missingOrderEnabled === "boolean") {
+      data.missingOrderEnabled = body.missingOrderEnabled;
+    }
+    if (typeof body.missingOrderIntervalMin === "number") {
+      data.missingOrderIntervalMin = Math.min(1440, Math.max(1, Math.round(body.missingOrderIntervalMin)));
+    }
+    if (typeof body.missingOrderBlocksBack === "number") {
+      data.missingOrderBlocksBack = Math.min(500000, Math.max(100, Math.round(body.missingOrderBlocksBack)));
+    }
 
     const cfg = await prisma.autoScanConfig.update({ where: { id: 1 }, data });
     return NextResponse.json(cfg);

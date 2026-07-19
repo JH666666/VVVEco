@@ -6,6 +6,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { scanAndRepairAllTeamRewards } from "@/lib/missing-team-rewards";
+import { scanAndRepairAll as scanAndRepairAllOrders } from "@/lib/missing-orders";
 
 let started = false;
 let running = false;
@@ -23,21 +24,39 @@ async function tick() {
   running = true;
   try {
     const cfg = await getAutoScanConfig();
-    if (!cfg.teamRewardEnabled) return;
+    const now = Date.now();
 
-    const lastMs = cfg.teamRewardLastRunAt?.getTime() ?? 0;
-    const dueAt = lastMs + cfg.teamRewardIntervalMin * 60_000;
-    if (Date.now() < dueAt) return;
+    // 团队奖励补录
+    if (
+      cfg.teamRewardEnabled &&
+      now >= (cfg.teamRewardLastRunAt?.getTime() ?? 0) + cfg.teamRewardIntervalMin * 60_000
+    ) {
+      const res = await scanAndRepairAllTeamRewards(cfg.teamRewardBlocksBack);
+      await prisma.autoScanConfig.update({
+        where: { id: 1 },
+        data: {
+          teamRewardLastRunAt: new Date(),
+          teamRewardLastResult: `补录 ${res.repaired} 笔，跳过 ${res.skipped} 笔`,
+        },
+      });
+      console.log("[auto-scan] team-reward run:", res);
+    }
 
-    const res = await scanAndRepairAllTeamRewards(cfg.teamRewardBlocksBack);
-    await prisma.autoScanConfig.update({
-      where: { id: 1 },
-      data: {
-        teamRewardLastRunAt: new Date(),
-        teamRewardLastResult: `补录 ${res.repaired} 笔，跳过 ${res.skipped} 笔`,
-      },
-    });
-    console.log("[auto-scan] team-reward run:", res);
+    // 漏单补录
+    if (
+      cfg.missingOrderEnabled &&
+      now >= (cfg.missingOrderLastRunAt?.getTime() ?? 0) + cfg.missingOrderIntervalMin * 60_000
+    ) {
+      const res = await scanAndRepairAllOrders(cfg.missingOrderBlocksBack);
+      await prisma.autoScanConfig.update({
+        where: { id: 1 },
+        data: {
+          missingOrderLastRunAt: new Date(),
+          missingOrderLastResult: `补录 ${res.repaired} 笔，跳过 ${res.skipped} 笔`,
+        },
+      });
+      console.log("[auto-scan] missing-order run:", res);
+    }
   } catch (e) {
     console.error("[auto-scan] tick error:", e);
   } finally {
