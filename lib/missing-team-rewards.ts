@@ -6,7 +6,7 @@
  *
  * 所有数据来自链上，不猜测金额。
  */
-import { createPublicClient, http, parseAbiItem, decodeEventLog } from "viem";
+import { createPublicClient, http } from "viem";
 import { base } from "viem/chains";
 import { prisma } from "@/lib/prisma";
 
@@ -23,9 +23,17 @@ const client = createPublicClient({
   transport: http(RPC_URL, { retryCount: 2, retryDelay: 600 }),
 });
 
-const TEAM_REWARD_EVENT = parseAbiItem(
-  "event TeamRewardAccrued(address indexed recipient, address indexed claimer, uint256 bonus)"
-);
+// 链上实际 topic0（与前端/诊断脚本一致），用原生 eth_getLogs 过滤，避免 ABI 推导偏差
+const TEAM_REWARD_TOPIC =
+  "0xe07f61c526a4ace6d1e5cad0a84eddbf8e2733ce8383b0b2f1d76f07fb1cab49";
+
+interface RawLog {
+  topics: string[];
+  data: string;
+  transactionHash: string;
+  blockNumber: string;
+  logIndex: string;
+}
 
 export interface MissingTeamReward {
   txHash: string;
@@ -92,45 +100,60 @@ export async function scanMissingTeamRewardsRange(
 ): Promise<MissingTeamReward[]> {
   if (fromBlock > toBlock) return [];
 
-  const allLogs: Awaited<ReturnType<typeof client.getLogs>> = [];
+  // 用原生 eth_getLogs + 写死的 topic 过滤（与前端/诊断脚本一致），分段抓取
+  const allLogs: RawLog[] = [];
+  let succeeded = 0;
+  let failed = 0;
   for (let start = fromBlock; start <= toBlock; start += LOG_CHUNK) {
     const end = start + LOG_CHUNK - 1n > toBlock ? toBlock : start + LOG_CHUNK - 1n;
     try {
-      const chunk = await client.getLogs({
-        address: STAKING_ADDR,
-        event: TEAM_REWARD_EVENT,
-        fromBlock: start,
-        toBlock: end,
-      });
+      const chunk = (await client.request({
+        method: "eth_getLogs",
+        params: [
+          {
+            address: STAKING_ADDR,
+            topics: [TEAM_REWARD_TOPIC],
+            fromBlock: `0x${start.toString(16)}`,
+            toBlock: `0x${end.toString(16)}`,
+          },
+        ],
+      } as never)) as RawLog[];
       allLogs.push(...chunk);
+      succeeded++;
     } catch (err) {
-      console.error(`[missing-team-rewards] getLogs chunk ${start}-${end} failed:`, err);
+      failed++;
+      console.error(`[missing-team-rewards] eth_getLogs chunk ${start}-${end} failed:`, err);
     }
+  }
+
+  // 全部分段都失败 → 抛错，避免误报"未发现缺失"
+  if (succeeded === 0 && failed > 0) {
+    throw new Error(`链上日志查询失败（${failed} 个区块段全部失败），请稍后重试或更换 RPC`);
   }
 
   if (allLogs.length === 0) return [];
 
-  // 候选事件
+  // 候选事件（手动解码 topics/data）
   const candidates: MissingTeamReward[] = [];
   const beneficiaries = new Set<string>();
   for (const log of allLogs) {
-    const args = (log as { args?: Record<string, unknown> }).args;
     const txHash = log.transactionHash?.toLowerCase();
-    if (!args || !txHash || log.logIndex == null) continue;
-    const recipient = (args.recipient as string | undefined)?.toLowerCase();
-    const claimer = (args.claimer as string | undefined)?.toLowerCase();
-    const bonus = args.bonus as bigint | undefined;
-    if (!recipient || !claimer || bonus === undefined || bonus <= 0n) continue;
+    if (!txHash || log.logIndex == null || !log.topics || log.topics.length < 3) continue;
+    const recipient = ("0x" + log.topics[1].slice(-40)).toLowerCase();
+    const claimer = ("0x" + log.topics[2].slice(-40)).toLowerCase();
+    const bonus = log.data && log.data !== "0x" ? BigInt(log.data) : 0n;
+    if (bonus <= 0n) continue;
 
+    const logIndex = parseInt(log.logIndex, 16);
     beneficiaries.add(recipient);
     candidates.push({
       txHash,
-      logIndex: log.logIndex,
-      claimTxHash: `${txHash}_${log.logIndex}`,
+      logIndex,
+      claimTxHash: `${txHash}_${logIndex}`,
       beneficiaryAddr: recipient,
       sourceAddr: claimer,
       amount: Number(bonus) / 1e18,
-      blockNumber: Number(log.blockNumber ?? 0n),
+      blockNumber: parseInt(log.blockNumber, 16),
     });
   }
 
@@ -279,25 +302,20 @@ export async function repairTeamRewardByTxHash(
   if (!receipt) throw new Error("交易回执未找到");
   if (receipt.status !== "success") throw new Error("链上交易失败");
 
-  // 1) 解析这笔交易里所有 TeamRewardAccrued 事件
+  // 1) 解析这笔交易里所有 TeamRewardAccrued 事件（按写死的 topic 匹配，手动解码）
   const candidates: MissingTeamReward[] = [];
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== STAKING_ADDR.toLowerCase()) continue;
-    let decoded;
-    try {
-      decoded = decodeEventLog({ abi: [TEAM_REWARD_EVENT], data: log.data, topics: log.topics });
-    } catch {
-      continue; // 非本事件
-    }
-    const a = decoded.args as Record<string, unknown>;
-    const bonus = a.bonus as bigint;
+    if (log.topics[0]?.toLowerCase() !== TEAM_REWARD_TOPIC) continue;
+    if (log.topics.length < 3) continue;
+    const bonus = log.data && log.data !== "0x" ? BigInt(log.data) : 0n;
     if (bonus <= 0n) continue;
     candidates.push({
       txHash: tx,
       logIndex: log.logIndex,
       claimTxHash: `${tx}_${log.logIndex}`,
-      beneficiaryAddr: (a.recipient as string).toLowerCase(),
-      sourceAddr: (a.claimer as string).toLowerCase(),
+      beneficiaryAddr: ("0x" + log.topics[1].slice(-40)).toLowerCase(),
+      sourceAddr: ("0x" + log.topics[2].slice(-40)).toLowerCase(),
       amount: Number(bonus) / 1e18,
       blockNumber: Number(receipt.blockNumber ?? 0n),
     });
