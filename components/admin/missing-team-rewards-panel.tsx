@@ -40,6 +40,7 @@ export function MissingTeamRewardsPanel() {
   const [rows, setRows] = useState<MissingTeamReward[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lastResult, setLastResult] = useState<string | null>(null)
+  const [txInput, setTxInput] = useState('')
 
   // 定时扫描配置
   const [cfg, setCfg] = useState<AutoScanConfig | null>(null)
@@ -132,6 +133,31 @@ export function MissingTeamRewardsPanel() {
     }
   }
 
+  const handleRepairByTx = async () => {
+    const tx = txInput.trim()
+    if (!/^0x[a-fA-F0-9]{64}$/.test(tx)) {
+      setError('请输入合法的交易哈希（0x + 64 位）')
+      return
+    }
+    setRepairingTx(tx)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/missing-team-rewards', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txHash: tx }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '补录失败')
+      setLastResult(`✅ 交易 ${shortTx(tx)} 补录完成：成功 ${data.repaired} 笔，跳过 ${data.skipped} 笔`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '补录失败')
+    } finally {
+      setRepairingTx(null)
+    }
+  }
+
   const handleRepairAll = async () => {
     if (!rows || rows.length === 0) return
     setRepairing(true)
@@ -198,7 +224,7 @@ export function MissingTeamRewardsPanel() {
             <Input
               type="number"
               min={100}
-              max={50000}
+              max={500000}
               step={100}
               className="h-9 w-28 text-sm"
               value={cfgBlocks}
@@ -227,7 +253,7 @@ export function MissingTeamRewardsPanel() {
           <Input
             type="number"
             min={100}
-            max={50000}
+            max={500000}
             step={100}
             className="h-9 w-28 text-sm"
             value={blocksBack}
@@ -253,6 +279,36 @@ export function MissingTeamRewardsPanel() {
             {repairing ? '补录中...' : `全部补录（${rows.length} 笔）`}
           </Button>
         )}
+      </div>
+
+      {/* 按交易哈希直接补录 */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <p className="mb-2 text-sm font-semibold">按交易哈希补录</p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          已知某笔"领取"交易漏写团队奖励时，直接粘贴该交易哈希补录，不受回溯区块范围限制（最可靠）。
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            className="h-9 min-w-0 flex-1 font-mono text-xs"
+            placeholder="0x..."
+            value={txInput}
+            onChange={(e) => setTxInput(e.target.value)}
+            disabled={busy}
+          />
+          <Button
+            onClick={handleRepairByTx}
+            disabled={busy || !txInput.trim()}
+            size="sm"
+            variant="destructive"
+          >
+            {repairingTx === txInput.trim() ? (
+              <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Wrench className="mr-1.5 h-4 w-4" />
+            )}
+            补录该交易
+          </Button>
+        </div>
       </div>
 
       {/* Tips */}

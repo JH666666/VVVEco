@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       data.teamRewardIntervalMin = Math.min(1440, Math.max(1, Math.round(body.teamRewardIntervalMin)));
     }
     if (typeof body.teamRewardBlocksBack === "number") {
-      data.teamRewardBlocksBack = Math.min(50000, Math.max(100, Math.round(body.teamRewardBlocksBack)));
+      data.teamRewardBlocksBack = Math.min(500000, Math.max(100, Math.round(body.teamRewardBlocksBack)));
     }
 
     const cfg = await prisma.autoScanConfig.update({ where: { id: 1 }, data });

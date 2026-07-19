@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const blocksBack = Math.min(
-      50000,
+      500000,
       Math.max(100, parseInt(searchParams.get("blocksBack") ?? "1000", 10))
     );
     const missing = await scanMissingTeamRewards(blocksBack);
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const blocksBack =
       typeof body.blocksBack === "number"
-        ? Math.min(50000, Math.max(100, body.blocksBack))
+        ? Math.min(500000, Math.max(100, body.blocksBack))
         : 1000;
     const result = await scanAndRepairAllTeamRewards(blocksBack);
     return NextResponse.json(result);
