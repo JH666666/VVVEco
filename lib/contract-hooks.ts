@@ -668,7 +668,8 @@ export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
     : [];
   const { data, dataUpdatedAt, refetch } = useReadContracts({
     contracts,
-    query: { enabled: !!target && count > 0, refetchInterval: 90_000 },
+    // 不做定时轮询：待领取由前端按秒确定性累计，只需初次读一次基准 + 领取后 refetch()
+    query: { enabled: !!target && count > 0 },
   });
   const pendings = (data ?? []).map((r) =>
     r.status === "success" ? (r.result as bigint) : undefined
@@ -727,7 +728,8 @@ export function useOrdersClaimedAmounts(count: number, user?: `0x${string}`) {
     : [];
   const { data, refetch } = useReadContracts({
     contracts,
-    query: { enabled: !!target && count > 0, refetchInterval: 90_000 },
+    // 不做定时轮询：待领取由前端按秒确定性累计，只需初次读一次基准 + 领取后 refetch()
+    query: { enabled: !!target && count > 0 },
   });
   const claimed = (data ?? []).map((r) => {
     if (r.status !== "success") return undefined;
@@ -752,7 +754,7 @@ export function usePendingTeamReward(user?: `0x${string}`) {
     abi: STAKING_ABI,
     functionName: "pendingTeamReward",
     args: target ? [target] : undefined,
-    query: { refetchInterval: 60_000 },
+    query: { refetchInterval: 300_000 },
   });
   return { pendingVvv: (data as bigint) ?? 0n, refetch };
 }
@@ -824,7 +826,7 @@ export function useTeamRewardsTotal(user?: `0x${string}`) {
     }
 
     load();
-    const timer = setInterval(load, 90_000);
+    const timer = setInterval(load, 300_000);
     return () => { cancelled = true; clearInterval(timer); };
   }, [target]);
 
