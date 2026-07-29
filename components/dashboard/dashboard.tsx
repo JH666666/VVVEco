@@ -247,11 +247,11 @@ export function Dashboard() {
       setTimeout(() => { refetchPending() }, 4000)
       setTimeout(() => { refetchPending() }, 12000)
 
-      // 硬性上限：25 秒后无论回执是否到达都松开转圈（后台仍会继续处理），绝不卡死
+      // 硬性上限：15 秒后无论回执是否到达都松开转圈（后台仍继续读链确认），绝不卡死
       const capTimer = setTimeout(() => {
         releaseSpinner()
-        toast({ title: t("领取处理中", "Processing"), description: t("链上确认较慢，稍后在订单中核对即可", "Confirming is slow; re-check the order shortly") })
-      }, 25000)
+        toast({ title: t("仍在链上确认", "Confirming on-chain"), description: t("确认后订单会自动更新；若未到账说明领取未成功", "It will update once confirmed; if nothing arrives the claim didn't go through") })
+      }, 15000)
 
       // ── 后台：等待回执并解析事件——回执一到就松开转圈并弹"领取成功" ──
       logsPromise
@@ -387,12 +387,12 @@ export function Dashboard() {
         const accrualSinceRead = isExpired ? 0 : periodReward * (secsSinceRead / (unitMs / 1000))
         chainBased = Math.min(totalExpectedReward, basePending + accrualSinceRead)
       }
-      // 领取成功后 30 秒窗口内：从"归零时刻"起从 0 按秒累计（乐观），并取与链上值的较小者，
-      // 既能"立刻显示 0 并开始增长"，又不会因链上读取滞后而回跳到旧的大值。窗口后交回链上。
+      // 领取成功后：从"归零时刻"起从 0 按秒累计（这就是领取后真实的待领取），
+      // 并与链上值取较小者——既"立刻显示 0 并开始增长"，又不会因链上读取滞后回跳到旧的大值。
+      // 链上读取一旦追上（值≈从 0 累计），两者相等，无缝衔接。
       const resetAt = claimResetAt[order.id]
-      const inResetWindow = resetAt !== undefined && (now - resetAt) < 30_000
-      if (inResetWindow) {
-        const secsSinceReset = Math.max(0, (now - resetAt!) / 1000)
+      if (resetAt !== undefined) {
+        const secsSinceReset = Math.max(0, (now - resetAt) / 1000)
         const optimistic = isExpired ? 0 : Math.min(totalExpectedReward, periodReward * (secsSinceReset / (unitMs / 1000)))
         pendingReward = chainBased !== null ? Math.min(optimistic, chainBased) : optimistic
       } else if (chainBased !== null) {
