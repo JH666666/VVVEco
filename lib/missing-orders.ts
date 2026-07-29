@@ -203,6 +203,93 @@ export async function scanMissingOrders(blocksBack = 1000): Promise<MissingOrder
 }
 
 /**
+ * Scan a single wallet's Staked events across FULL history (deploy block → tip).
+ * Filters the event by the indexed `user`, so even a full-history sweep is cheap
+ * (only this address's stakes). This is the most reliable recovery for one address —
+ * it does not depend on a recent block window and won't miss old stakes.
+ */
+export async function scanMissingOrdersForWallet(
+  walletInput: string
+): Promise<MissingOrder[]> {
+  const user = walletInput.trim().toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(user)) return [];
+  const userAddr = user as `0x${string}`;
+  const latest = await client.getBlockNumber();
+
+  const allLogs: Awaited<ReturnType<typeof client.getLogs>> = [];
+  for (let start = DEPLOY_BLOCK; start <= latest; start += LOG_CHUNK) {
+    const end = start + LOG_CHUNK - 1n > latest ? latest : start + LOG_CHUNK - 1n;
+    try {
+      const chunk = await client.getLogs({
+        address: STAKING_ADDR,
+        event: STAKED_EVENT,
+        args: { user: userAddr },
+        fromBlock: start,
+        toBlock: end,
+      });
+      allLogs.push(...chunk);
+    } catch (err) {
+      console.error(`[missing-orders] wallet getLogs chunk ${start}-${end} failed:`, err);
+    }
+  }
+
+  if (allLogs.length === 0) return [];
+
+  const txHashes = [
+    ...new Set(
+      allLogs.map((l) => l.transactionHash?.toLowerCase()).filter((h): h is string => !!h)
+    ),
+  ];
+  const existing = await prisma.stakeOrder.findMany({
+    where: { txHash: { in: txHashes } },
+    select: { txHash: true },
+  });
+  const existingSet = new Set(existing.map((e) => e.txHash.toLowerCase()));
+
+  const missing: MissingOrder[] = [];
+  const seenTx = new Set<string>();
+  for (const log of allLogs) {
+    const txHash = log.transactionHash?.toLowerCase();
+    if (!txHash || existingSet.has(txHash) || seenTx.has(txHash)) continue;
+    seenTx.add(txHash);
+
+    const args = (log as { args?: Record<string, unknown> }).args;
+    const logUser = args?.user as `0x${string}` | undefined;
+    const orderIdBig = args?.orderId as bigint | undefined;
+    if (!logUser || orderIdBig === undefined) continue;
+
+    const orderId = Number(orderIdBig);
+    const chainData = await fetchOrderFromChain(logUser, orderId);
+    if (!chainData) {
+      console.warn(`[missing-orders] getOrder failed for ${logUser} orderId=${orderId} tx=${txHash}`);
+      continue;
+    }
+    missing.push({ txHash, walletAddress: logUser.toLowerCase(), orderId, ...chainData });
+  }
+
+  return missing;
+}
+
+/** Scan a single wallet's full history and repair any missing orders. */
+export async function scanAndRepairForWallet(
+  walletInput: string
+): Promise<{ repaired: number; skipped: number; found: number }> {
+  const missing = await scanMissingOrdersForWallet(walletInput);
+  let repaired = 0;
+  let skipped = 0;
+  for (const order of missing) {
+    try {
+      await repairMissingOrder(order);
+      repaired++;
+    } catch (err) {
+      console.error(`[missing-orders] wallet repair failed for ${order.txHash}:`, err);
+      skipped++;
+    }
+  }
+  return { repaired, skipped, found: missing.length };
+}
+
+/**
  * Checkpoint scan: from `lastBlock`+1 up to tip (at most `maxStep` blocks per run),
  * repair any missing orders, and return the new checkpoint.
  * `lastBlock === null` starts at the deploy block to sweep full history over runs.

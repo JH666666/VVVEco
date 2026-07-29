@@ -51,6 +51,10 @@ export function MissingOrdersPanel() {
   const [error, setError]               = useState<string | null>(null)
   const [lastResult, setLastResult]     = useState<string | null>(null)
 
+  // 按地址补录（扫描该地址全历史，不受区块窗口/时间限制）
+  const [walletInput, setWalletInput]   = useState('')
+  const [walletRepairing, setWalletRepairing] = useState(false)
+
   // 定时扫描配置
   const [cfg, setCfg] = useState<AutoScanConfig | null>(null)
   const [cfgEnabled, setCfgEnabled] = useState(false)
@@ -91,6 +95,36 @@ export function MissingOrdersPanel() {
       setCfgMsg(err instanceof Error ? '❌ ' + err.message : '❌ 保存失败')
     } finally {
       setSavingCfg(false)
+    }
+  }
+
+  const handleWalletRepair = async () => {
+    const w = walletInput.trim()
+    if (!/^0x[0-9a-fA-F]{40}$/.test(w)) {
+      setError('请输入正确的钱包地址（0x + 40 位十六进制）')
+      return
+    }
+    setWalletRepairing(true)
+    setError(null)
+    setLastResult(null)
+    try {
+      const res = await fetch('/api/admin/missing-orders', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: w }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '补录失败')
+      if ((data.found ?? 0) === 0) {
+        setLastResult(`✅ 该地址链上订单与数据库一致，无漏单（已扫描全历史）`)
+      } else {
+        setLastResult(`✅ 该地址补录完成：发现 ${data.found} 笔，成功 ${data.repaired} 笔，跳过 ${data.skipped} 笔`)
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '补录失败')
+    } finally {
+      setWalletRepairing(false)
     }
   }
 
@@ -156,7 +190,7 @@ export function MissingOrdersPanel() {
     }
   }
 
-  const busy = scanning || repairing || !!repairingTx
+  const busy = scanning || repairing || !!repairingTx || walletRepairing
 
   return (
     <div className="space-y-6">
@@ -206,6 +240,32 @@ export function MissingOrdersPanel() {
             <p>· 上次自动运行：{new Date(cfg.missingOrderLastRunAt).toLocaleString('zh-CN', { hour12: false })}（{cfg.missingOrderLastResult ?? '-'}）</p>
           )}
           {cfgMsg && <p className="font-medium text-foreground">{cfgMsg}</p>}
+        </div>
+      </div>
+
+      {/* 按地址补录（推荐用于单个丢失订单） */}
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+        <div className="mb-1 flex items-center gap-2">
+          <Wrench className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">按地址补录（推荐）</span>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          输入用户钱包地址，扫描该地址的全部链上质押（不受回溯区块数/时间限制），自动补录数据库中缺失的订单。单个丢失订单用这个最准。
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            placeholder="0x... 用户钱包地址"
+            className="h-9 flex-1 min-w-[240px] font-mono text-sm"
+            value={walletInput}
+            onChange={(e) => setWalletInput(e.target.value)}
+            disabled={walletRepairing}
+          />
+          <Button onClick={handleWalletRepair} disabled={walletRepairing || !walletInput.trim()} size="sm">
+            {walletRepairing
+              ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+              : <Wrench className="mr-1.5 h-4 w-4" />}
+            {walletRepairing ? '扫描补录中...' : '扫描并补录该地址'}
+          </Button>
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import {
   scanAndRepairAll,
   repairOrderByTxHash,
   repairMissingOrder,
+  scanAndRepairForWallet,
 } from "@/lib/missing-orders";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -52,6 +53,13 @@ export async function POST(request: NextRequest) {
       const order = await repairOrderByTxHash(body.txHash);
       await repairMissingOrder(order);
       return NextResponse.json({ repaired: 1, skipped: 0, order });
+    }
+
+    if (typeof body.wallet === "string" && body.wallet) {
+      // Repair all missing orders for one wallet — scans that address's full
+      // history (indexed event filter), so it never misses regardless of timing.
+      const result = await scanAndRepairForWallet(body.wallet);
+      return NextResponse.json(result);
     }
 
     // Scan and repair all missing orders
