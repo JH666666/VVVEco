@@ -157,6 +157,8 @@ export function Dashboard() {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'withdrawn'>('active')
   const [now, setNow] = useState(Date.now())
   const [claimingOrderIds, setClaimingOrderIds] = useState<Set<string>>(new Set())
+  // 领取成功后每单的"归零时刻"：从这一刻起待领取从 0 按秒重新累计（在链上读取追上前先乐观显示）
+  const [claimResetAt, setClaimResetAt] = useState<Record<string, number>>({})
   const personalClaimFrozen = isPersonalClaimFrozen(currentAddress)
   const [apiStakes, setApiStakes] = useState<typeof stakes>([])
   const [apiClaims, setApiClaims] = useState<typeof claims>([])
@@ -309,6 +311,8 @@ export function Dashboard() {
             }).catch(() => {})
           })
 
+          // 领取成功即刻把这单待领取归零、从 0 重新按秒累计（不等链上读取追上）
+          setClaimResetAt(prev => ({ ...prev, [order.id]: Date.now() }))
           refetchPending()
           toast({ title: isRewardPaid ? t("领取成功", "Claimed") : t("领取处理中", "Processing") })
         })
@@ -373,19 +377,28 @@ export function Dashboard() {
       const chainOrderId = chainOrderIdMap.get(order.id) ?? 0
       const chainPendingVvv = chainPendings[chainOrderId]
       let pendingReward: number
-      let claimedReward: number
+      let claimedReward = dbClaimedReward
+      // 链上口径的待领取（读取时刻基准 + 之后按秒累计）；读取失败为 null
+      let chainBased: number | null = null
       if (chainPendingVvv !== undefined && chainPendingVvv >= 0n) {
         const baseVvv = Number(chainPendingVvv) / 1e18
         const basePending = order.mode === 'coin' ? baseVvv : baseVvv * vvvPriceAtClaim
-        // 链上读取时刻之后的实时累计（未到期才继续累计，且不超过总应得）
         const secsSinceRead = chainReadAt ? Math.max(0, (now - chainReadAt) / 1000) : 0
         const accrualSinceRead = isExpired ? 0 : periodReward * (secsSinceRead / (unitMs / 1000))
-        pendingReward = Math.min(totalExpectedReward, basePending + accrualSinceRead)
-        // 已获收益用数据库领取记录（稳定，不随时间跳动；未领取即为 0）
-        claimedReward = dbClaimedReward
+        chainBased = Math.min(totalExpectedReward, basePending + accrualSinceRead)
+      }
+      // 领取成功后 30 秒窗口内：从"归零时刻"起从 0 按秒累计（乐观），并取与链上值的较小者，
+      // 既能"立刻显示 0 并开始增长"，又不会因链上读取滞后而回跳到旧的大值。窗口后交回链上。
+      const resetAt = claimResetAt[order.id]
+      const inResetWindow = resetAt !== undefined && (now - resetAt) < 30_000
+      if (inResetWindow) {
+        const secsSinceReset = Math.max(0, (now - resetAt!) / 1000)
+        const optimistic = isExpired ? 0 : Math.min(totalExpectedReward, periodReward * (secsSinceReset / (unitMs / 1000)))
+        pendingReward = chainBased !== null ? Math.min(optimistic, chainBased) : optimistic
+      } else if (chainBased !== null) {
+        pendingReward = chainBased
       } else {
         pendingReward = Math.max(0, accruedReward - dbClaimedReward)
-        claimedReward = dbClaimedReward
       }
       const withdrawn = order.isWithdrawn === true
 
