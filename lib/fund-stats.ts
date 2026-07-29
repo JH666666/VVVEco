@@ -63,6 +63,30 @@ export async function getChainPendingByOrder(
 }
 
 /**
+ * 批量读取任意 (地址, 订单号) 组合的链上待领取（VVV gross）。
+ * 用于订单管理等跨多个用户、指定订单号的场景。读取失败对应项为 undefined。
+ */
+export async function getChainPendingForPairs(
+  pairs: Array<{ user: string; orderId: number }>,
+): Promise<(bigint | undefined)[]> {
+  if (pairs.length === 0) return [];
+  try {
+    const results = await priceClient.multicall({
+      contracts: pairs.map((p) => ({
+        address: STAKING_ADDR,
+        abi: GET_PENDING_ABI,
+        functionName: "getPendingReward" as const,
+        args: [p.user as `0x${string}`, BigInt(p.orderId)] as const,
+      })),
+      allowFailure: true,
+    });
+    return results.map((r) => (r.status === "success" ? (r.result as bigint) : undefined));
+  } catch {
+    return Array(pairs.length).fill(undefined);
+  }
+}
+
+/**
  * 读取 VVV/USD 价格，只用真实价格：
  *  1) 链上实时价 getLatestPrice()（最多重试 3 次）
  *  2) 实时价取不到时，用数据库里最近一笔真实成交价 (claim_records.priceAtClaim)

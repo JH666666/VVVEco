@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { verifyStakeTx } from "@/lib/verify-tx";
 import { getLatestChainOrder } from "@/lib/chain-read";
+import { getVvvUsdPrice, getChainPendingForPairs } from "@/lib/fund-stats";
 import { NextRequest, NextResponse } from "next/server";
 
 const CHAR_SET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -87,10 +88,35 @@ export async function GET(request: NextRequest) {
       prisma.stakeOrder.count({ where }),
     ]);
 
-    const items = orders.map((o) => {
-      const claimedVvv = o.claimRecords.reduce((s, c) => s + c.amountVvv, 0);
-      const claimedUsd = o.claimRecords.reduce((s, c) => s + c.amountUsd, 0);
-      const now = Date.now();
+    // ── 链上口径：每单待领取从链上读取（已领取 = 累计应得 − 链上待领取），不依赖数据库领取记录 ──
+    const now = Date.now();
+    const vvvUsdPrice = await getVvvUsdPrice();
+    // 每个订单的链上 orderId = 该 owner 订单按开始时间升序的位置
+    const owners = [...new Set(orders.map((o) => o.walletAddress))];
+    const ownerOrders = owners.length > 0
+      ? await prisma.stakeOrder.findMany({
+          where: { walletAddress: { in: owners } },
+          select: { txHash: true, walletAddress: true, startTime: true },
+        })
+      : [];
+    const byOwner = new Map<string, { txHash: string; startTime: Date }[]>();
+    for (const oo of ownerOrders) {
+      const arr = byOwner.get(oo.walletAddress) ?? [];
+      arr.push(oo);
+      byOwner.set(oo.walletAddress, arr);
+    }
+    const chainOrderIdByTx = new Map<string, number>();
+    for (const [, arr] of byOwner) {
+      arr.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+      arr.forEach((oo, i) => chainOrderIdByTx.set(oo.txHash, i));
+    }
+    const chainPendings = await getChainPendingForPairs(
+      orders.map((o) => ({ user: o.walletAddress, orderId: chainOrderIdByTx.get(o.txHash) ?? 0 }))
+    );
+
+    const items = orders.map((o, idx) => {
+      const dbClaimedVvv = o.claimRecords.reduce((s, c) => s + c.amountVvv, 0);
+      const dbClaimedUsd = o.claimRecords.reduce((s, c) => s + c.amountUsd, 0);
       const elapsedMs = Math.max(0, now - o.startTime.getTime());
       const unitMs = o.periodUnit === "hour" ? 3600000 : 86400000;
       const periodMs = o.period * unitMs;
@@ -99,7 +125,29 @@ export async function GET(request: NextRequest) {
         : o.usdValue * (o.dailyRate / 100);
       const totalExpected = periodReward * o.period;
       const accrued = Math.min(totalExpected, periodReward * (elapsedMs / unitMs));
-      const pending = Math.max(0, accrued - (o.mode === "coin" ? claimedVvv : claimedUsd));
+
+      // 优先链上待领取；读取失败回退数据库领取记录
+      const chainPendingVvv = chainPendings[idx];
+      let claimedVvv: number;
+      let claimedUsd: number;
+      let pending: number;
+      if (chainPendingVvv !== undefined && chainPendingVvv >= 0n) {
+        const pv = Number(chainPendingVvv) / 1e18;
+        if (o.mode === "coin") {
+          pending = pv; // VVV
+          claimedVvv = Math.max(0, accrued - pending);
+          claimedUsd = claimedVvv * vvvUsdPrice;
+        } else {
+          const pendingUsd = pv * vvvUsdPrice;
+          pending = pendingUsd; // USD
+          claimedUsd = Math.max(0, accrued - pendingUsd);
+          claimedVvv = vvvUsdPrice > 0 ? claimedUsd / vvvUsdPrice : dbClaimedVvv;
+        }
+      } else {
+        claimedVvv = dbClaimedVvv;
+        claimedUsd = dbClaimedUsd;
+        pending = Math.max(0, accrued - (o.mode === "coin" ? dbClaimedVvv : dbClaimedUsd));
+      }
 
       return {
         txHash: o.txHash,
