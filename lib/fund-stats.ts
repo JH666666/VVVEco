@@ -292,14 +292,43 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
     select: {
       txHash: true,
       mode: true,
+      amount: true,
       usdValue: true,
       period: true,
       periodUnit: true,
+      dailyRate: true,
       startTime: true,
       endTime: true,
       isWithdrawn: true,
     },
   });
+
+  // 个人"领取收益"改用链上口径：已领取 = 累计应得 − 链上待领取,不依赖数据库领取记录。
+  // 仅当所有订单都成功读到链上待领取时才覆盖,否则保留数据库口径,避免部分缺失导致低估。
+  const ascPersonal = [...orderRows].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  const pIdxByTx = new Map<string, number>();
+  ascPersonal.forEach((o, i) => pIdxByTx.set(o.txHash, i));
+  const pChain = await getChainPendingByOrder(address, ascPersonal.length);
+  const allChainOk = ascPersonal.length > 0 && ascPersonal.every((_, i) => pChain[i] !== undefined);
+  if (allChainOk) {
+    let chainClaimUsd = 0;
+    for (const o of orderRows) {
+      const unitMs = o.periodUnit === "hour" ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+      const elapsedMs = Math.max(0, now - o.startTime.getTime());
+      const periodRewardUsd =
+        o.mode === "coin"
+          ? o.amount * (o.dailyRate / 100) * vvvUsdPrice
+          : o.usdValue * (o.dailyRate / 100);
+      const totalUsd = periodRewardUsd * o.period;
+      const accruedUsd = Math.min(totalUsd, periodRewardUsd * (elapsedMs / unitMs));
+      const pv = Number(pChain[pIdxByTx.get(o.txHash) ?? 0]) / 1e18;
+      const pendingUsd = pv * vvvUsdPrice;
+      chainClaimUsd += Math.max(0, accruedUsd - pendingUsd);
+    }
+    personal.breakdown.claimReward = chainClaimUsd;
+    personal.withdraw = chainClaimUsd + personal.breakdown.teamReward + personal.breakdown.redeemed;
+    personal.net = personal.withdraw - personal.deposit;
+  }
   const personalOrders: PersonalOrderDetail[] = orderRows.map((o) => ({
     id: `${o.txHash.slice(0, 8)}...${o.txHash.slice(-4)}`,
     mode: o.mode as "coin" | "fiat",
