@@ -668,7 +668,7 @@ export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
     : [];
   const { data, dataUpdatedAt, refetch } = useReadContracts({
     contracts,
-    query: { enabled: !!target && count > 0, refetchInterval: 30_000 },
+    query: { enabled: !!target && count > 0, refetchInterval: 90_000 },
   });
   const pendings = (data ?? []).map((r) =>
     r.status === "success" ? (r.result as bigint) : undefined
@@ -727,7 +727,7 @@ export function useOrdersClaimedAmounts(count: number, user?: `0x${string}`) {
     : [];
   const { data, refetch } = useReadContracts({
     contracts,
-    query: { enabled: !!target && count > 0, refetchInterval: 30_000 },
+    query: { enabled: !!target && count > 0, refetchInterval: 90_000 },
   });
   const claimed = (data ?? []).map((r) => {
     if (r.status !== "success") return undefined;
@@ -824,7 +824,7 @@ export function useTeamRewardsTotal(user?: `0x${string}`) {
     }
 
     load();
-    const timer = setInterval(load, 30_000);
+    const timer = setInterval(load, 90_000);
     return () => { cancelled = true; clearInterval(timer); };
   }, [target]);
 
