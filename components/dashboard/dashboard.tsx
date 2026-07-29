@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { SIM_VVV_USD_PRICE, useLocalWeb3Sim, type SimClaimRecord } from '@/contexts/local-web3-sim-context'
 import { isPersonalClaimFrozen, isPrincipalWithdrawalFrozen, useAdminControls } from '@/lib/admin-controls'
 import { fetchStakeOrders, fetchClaimRecords, createClaimRecord } from '@/lib/api-client'
-import { useClaimRewards, useWithdrawPrincipal, useLatestPrice, PAYOUT_ADDR } from '@/lib/contract-hooks'
+import { useClaimRewards, useWithdrawPrincipal, useLatestPrice, useOrdersPendingRewards, PAYOUT_ADDR } from '@/lib/contract-hooks'
 import { useWalletAuth } from '@/contexts/wallet-auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -186,6 +186,16 @@ export function Dashboard() {
   // 链上实时价格（BigInt wei → number USD）；0 时回退到编译期常量
   const vvvPriceAtClaim = latestPrice > 0n ? Number(latestPrice) / 1e18 : SIM_VVV_USD_PRICE
 
+  // 链上权威的每单待领取（VVV）。用它替代"时间累计−数据库领取记录"，
+  // 避免领取记录写库失败导致待领取卡住、赎回被挡。读取失败时回退到旧算法。
+  const userOrderCount = currentAddress
+    ? mergedStakes.filter(o => o.account.toLowerCase() === currentAddress.toLowerCase()).length
+    : 0
+  const chainPendings = useOrdersPendingRewards(
+    userOrderCount,
+    (currentAddress || undefined) as `0x${string}` | undefined,
+  )
+
   const refreshData = () => {
     if (!currentAddress) return
     fetchStakeOrders(currentAddress).then(newStakes => { if (newStakes.length > 0) setApiStakes(newStakes) })
@@ -326,10 +336,24 @@ export function Dashboard() {
       const elapsedMs = Math.max(0, effectiveNow - safeStartMs)
       const totalExpectedReward = periodReward * order.period
       const accruedReward = Math.min(totalExpectedReward, periodReward * (elapsedMs / unitMs))
-      const claimedReward = mergedClaims
+      const dbClaimedReward = mergedClaims
         .filter(claim => claim.orderId === order.id)
         .reduce((sum, claim) => sum + claim.amount, 0)
-      const pendingReward = Math.max(0, accruedReward - claimedReward)
+
+      // 优先用链上权威待领取；金本位把 VVV 按当前价换算成 USD。读取失败则回退旧算法。
+      const chainOrderId = chainOrderIdMap.get(order.id) ?? 0
+      const chainPendingVvv = chainPendings[chainOrderId]
+      let pendingReward: number
+      let claimedReward: number
+      if (chainPendingVvv !== undefined && chainPendingVvv >= 0n) {
+        const pendingVvv = Number(chainPendingVvv) / 1e18
+        pendingReward = order.mode === 'coin' ? pendingVvv : pendingVvv * vvvPriceAtClaim
+        // 已获收益 = 累计应得 − 链上待领取（避免依赖可能缺失的数据库领取记录）
+        claimedReward = Math.max(0, accruedReward - pendingReward)
+      } else {
+        pendingReward = Math.max(0, accruedReward - dbClaimedReward)
+        claimedReward = dbClaimedReward
+      }
 
       const isExpired = now >= endMs
       const withdrawn = order.isWithdrawn === true

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useReadContract, useWriteContract, useAccount, useChainId } from "wagmi";
+import { useReadContract, useReadContracts, useWriteContract, useAccount, useChainId } from "wagmi";
 import { parseEther, formatEther, encodeFunctionData, parseAbi } from "viem";
 
 type RawLog = { topics: string[]; data: string; address: string; logIndex?: string };
@@ -633,6 +633,32 @@ export function usePendingRewardForOrder(orderId: number, user?: `0x${string}`) 
     args: target ? [target, BigInt(orderId)] : undefined,
   });
   return (data as bigint) ?? 0n;
+}
+
+/**
+ * 批量读取某地址所有订单（orderId 0..count-1）的链上待领取（VVV gross）。
+ * 返回数组：索引 = orderId，值 = 待领取 VVV（bigint）；读取失败的项为 undefined。
+ * 用链上权威值替代"时间累计−数据库领取记录"，避免领取记录写库失败导致待领取卡住。
+ */
+export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
+  const { address } = useAccount();
+  const target = user ?? address;
+  const contracts = target && count > 0
+    ? Array.from({ length: count }, (_, i) => ({
+        address: STAKING_ADDR,
+        abi: STAKING_ABI,
+        functionName: "getPendingReward" as const,
+        args: [target, BigInt(i)] as const,
+        chainId: 8453,
+      }))
+    : [];
+  const { data } = useReadContracts({
+    contracts,
+    query: { enabled: !!target && count > 0, refetchInterval: 30_000 },
+  });
+  return (data ?? []).map((r) =>
+    r.status === "success" ? (r.result as bigint) : undefined
+  );
 }
 
 // ═══════════════ NEW: Team Reward Hooks ═══════════════
