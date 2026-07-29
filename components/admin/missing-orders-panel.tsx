@@ -55,6 +55,10 @@ export function MissingOrdersPanel() {
   const [walletInput, setWalletInput]   = useState('')
   const [walletRepairing, setWalletRepairing] = useState(false)
 
+  // 按交易哈希补录（最快，直接读回执，一次 RPC 调用）
+  const [txInput, setTxInput]           = useState('')
+  const [txRepairing, setTxRepairing]   = useState(false)
+
   // 定时扫描配置
   const [cfg, setCfg] = useState<AutoScanConfig | null>(null)
   const [cfgEnabled, setCfgEnabled] = useState(false)
@@ -95,6 +99,38 @@ export function MissingOrdersPanel() {
       setCfgMsg(err instanceof Error ? '❌ ' + err.message : '❌ 保存失败')
     } finally {
       setSavingCfg(false)
+    }
+  }
+
+  const handleTxRepair = async () => {
+    const h = txInput.trim()
+    if (!/^0x[0-9a-fA-F]{64}$/.test(h)) {
+      setError('请输入正确的交易哈希（0x + 64 位十六进制）')
+      return
+    }
+    setTxRepairing(true)
+    setError(null)
+    setLastResult(null)
+    try {
+      const res = await fetch('/api/admin/missing-orders', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txHash: h }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '补录失败')
+      const o = data.order
+      setLastResult(
+        o
+          ? `✅ 已补录：${shortAddr(o.walletAddress)} OrderID ${o.orderId}，${o.mode === 'coin' ? o.amount.toFixed(2) + ' VVV' : '$' + o.usdValue.toFixed(2)}，${o.period}天`
+          : `✅ 已补录 ${shortTx(h)}`
+      )
+      setTxInput('')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '补录失败')
+    } finally {
+      setTxRepairing(false)
     }
   }
 
@@ -243,11 +279,37 @@ export function MissingOrdersPanel() {
         </div>
       </div>
 
+      {/* 按交易哈希补录（最快） */}
+      <div className="rounded-lg border border-primary/40 bg-primary/5 p-4">
+        <div className="mb-1 flex items-center gap-2">
+          <Wrench className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">按交易哈希补录（最快）</span>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          有质押交易哈希时用这个：直接读链上回执，一次调用即可补录，秒级完成，不用扫描。
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            placeholder="0x... 质押交易哈希"
+            className="h-9 flex-1 min-w-[240px] font-mono text-sm"
+            value={txInput}
+            onChange={(e) => setTxInput(e.target.value)}
+            disabled={txRepairing}
+          />
+          <Button onClick={handleTxRepair} disabled={txRepairing || !txInput.trim()} size="sm">
+            {txRepairing
+              ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
+              : <Wrench className="mr-1.5 h-4 w-4" />}
+            {txRepairing ? '补录中...' : '按哈希补录'}
+          </Button>
+        </div>
+      </div>
+
       {/* 按地址补录（推荐用于单个丢失订单） */}
       <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
         <div className="mb-1 flex items-center gap-2">
           <Wrench className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">按地址补录（推荐）</span>
+          <span className="text-sm font-semibold">按地址补录</span>
         </div>
         <p className="mb-3 text-xs text-muted-foreground">
           输入用户钱包地址，扫描该地址的全部链上质押（不受回溯区块数/时间限制），自动补录数据库中缺失的订单。单个丢失订单用这个最准。
