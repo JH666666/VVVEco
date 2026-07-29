@@ -59,10 +59,6 @@ export function MissingOrdersPanel() {
   const [txInput, setTxInput]           = useState('')
   const [txRepairing, setTxRepairing]   = useState(false)
 
-  // 按领取交易哈希补录领取记录（RewardClaimed → claim_records）
-  const [claimTxInput, setClaimTxInput]     = useState('')
-  const [claimRepairing, setClaimRepairing] = useState(false)
-
   // 定时扫描配置
   const [cfg, setCfg] = useState<AutoScanConfig | null>(null)
   const [cfgEnabled, setCfgEnabled] = useState(false)
@@ -135,33 +131,6 @@ export function MissingOrdersPanel() {
       setError(err instanceof Error ? err.message : '补录失败')
     } finally {
       setTxRepairing(false)
-    }
-  }
-
-  const handleClaimTxRepair = async () => {
-    const h = claimTxInput.trim()
-    if (!/^0x[0-9a-fA-F]{64}$/.test(h)) {
-      setError('请输入正确的领取交易哈希（0x + 64 位十六进制）')
-      return
-    }
-    setClaimRepairing(true)
-    setError(null)
-    setLastResult(null)
-    try {
-      const res = await fetch('/api/admin/missing-orders', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claimTxHash: h }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? '补录失败')
-      setLastResult(`✅ 领取记录补录：成功 ${data.repaired ?? 0} 笔，跳过 ${data.skipped ?? 0} 笔`)
-      setClaimTxInput('')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '补录失败')
-    } finally {
-      setClaimRepairing(false)
     }
   }
 
@@ -257,7 +226,7 @@ export function MissingOrdersPanel() {
     }
   }
 
-  const busy = scanning || repairing || !!repairingTx || walletRepairing || claimRepairing
+  const busy = scanning || repairing || !!repairingTx || walletRepairing
 
   return (
     <div className="space-y-6">
@@ -303,7 +272,6 @@ export function MissingOrdersPanel() {
         </div>
         <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
           <p>· 断点续扫：开启后从合约部署块开始把历史分批扫一遍（追赶中每分钟推进一次），追平后按间隔只扫新增，永不遗漏</p>
-          <p>· 开启后会在同一区块范围<b>顺带补录「领取记录」</b>（RewardClaimed），让「已获收益」也不依赖前端写库</p>
           {cfg?.missingOrderLastRunAt && (
             <p>· 上次自动运行：{new Date(cfg.missingOrderLastRunAt).toLocaleString('zh-CN', { hour12: false })}（{cfg.missingOrderLastResult ?? '-'}）</p>
           )}
@@ -333,32 +301,6 @@ export function MissingOrdersPanel() {
               ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
               : <Wrench className="mr-1.5 h-4 w-4" />}
             {txRepairing ? '补录中...' : '按哈希补录'}
-          </Button>
-        </div>
-      </div>
-
-      {/* 按领取交易哈希补录"领取记录" */}
-      <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-        <div className="mb-1 flex items-center gap-2">
-          <Wrench className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">按哈希补录「领取记录」</span>
-        </div>
-        <p className="mb-3 text-xs text-muted-foreground">
-          某笔领取链上到账了但「已获收益」少算时用这个：填那笔<b>领取交易</b>的哈希，服务端读链把这笔领取记录补进库。金额来自链上。
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="0x... 领取交易哈希"
-            className="h-9 flex-1 min-w-[240px] font-mono text-sm"
-            value={claimTxInput}
-            onChange={(e) => setClaimTxInput(e.target.value)}
-            disabled={claimRepairing}
-          />
-          <Button onClick={handleClaimTxRepair} disabled={claimRepairing || !claimTxInput.trim()} size="sm">
-            {claimRepairing
-              ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
-              : <Wrench className="mr-1.5 h-4 w-4" />}
-            {claimRepairing ? '补录中...' : '补录领取记录'}
           </Button>
         </div>
       </div>

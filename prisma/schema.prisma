@@ -199,6 +199,12 @@ model AutoScanConfig {
   missingOrderLastRunAt   DateTime? @map("missing_order_last_run_at")
   missingOrderLastResult  String?   @map("missing_order_last_result")
   missingOrderLastBlock   Int?      @map("missing_order_last_block")
+  missingClaimEnabled     Boolean   @default(false) @map("missing_claim_enabled")
+  missingClaimIntervalMin Int       @default(10)    @map("missing_claim_interval_min")
+  missingClaimBlocksBack  Int       @default(2000)  @map("missing_claim_blocks_back")
+  missingClaimLastRunAt   DateTime? @map("missing_claim_last_run_at")
+  missingClaimLastResult  String?   @map("missing_claim_last_result")
+  missingClaimLastBlock   Int?      @map("missing_claim_last_block")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
   @@map("auto_scan_config")

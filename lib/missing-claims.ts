@@ -176,6 +176,67 @@ export async function scanAndRepairClaimsRange(fromBlock: number, toBlock: numbe
   return { repaired, skipped };
 }
 
+/**
+ * 断点续扫：从 lastBlock+1 扫到 tip（单轮最多 maxStep 区块），补录缺失领取记录，返回新断点。
+ * lastBlock === null 从合约部署块开始，分多轮扫完全历史。
+ */
+export async function scanAndRepairForwardClaims(
+  lastBlock: number | null,
+  maxStep = 100_000
+): Promise<{ repaired: number; skipped: number; fromBlock: number; toBlock: number; latest: number; caughtUp: boolean }> {
+  const latest = await client.getBlockNumber();
+  const start = lastBlock == null ? DEPLOY_BLOCK : BigInt(lastBlock) + 1n;
+  if (start > latest) {
+    return { repaired: 0, skipped: 0, fromBlock: Number(start), toBlock: Number(latest), latest: Number(latest), caughtUp: true };
+  }
+  const to = start + BigInt(maxStep) - 1n > latest ? latest : start + BigInt(maxStep) - 1n;
+  const missing = await scanMissingClaimsRange(start, to);
+  let repaired = 0;
+  let skipped = 0;
+  for (const c of missing) {
+    (await repairMissingClaim(c)) ? repaired++ : skipped++;
+  }
+  return { repaired, skipped, fromBlock: Number(start), toBlock: Number(to), latest: Number(latest), caughtUp: to >= latest };
+}
+
+/** 扫描最近 blocksBack 区块（供后台手动扫描）。 */
+export async function scanMissingClaims(blocksBack = 2000): Promise<MissingClaim[]> {
+  const latest = await client.getBlockNumber();
+  const rawFrom = latest - BigInt(blocksBack);
+  const fromBlock = rawFrom < DEPLOY_BLOCK ? DEPLOY_BLOCK : rawFrom;
+  return scanMissingClaimsRange(fromBlock, latest);
+}
+
+/**
+ * 自愈 auto_scan_config 表的 missing_claim_* 列（通过 App 自身连接，避免 CLI/env 不一致）。
+ * 幂等、每进程一次；重复列错误忽略。
+ */
+let claimCfgColsEnsured: Promise<void> | null = null;
+export function ensureAutoScanClaimColumns(): Promise<void> {
+  if (claimCfgColsEnsured) return claimCfgColsEnsured;
+  claimCfgColsEnsured = (async () => {
+    const stmts = [
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_enabled" BOOLEAN NOT NULL DEFAULT false`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_interval_min" INTEGER NOT NULL DEFAULT 10`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_blocks_back" INTEGER NOT NULL DEFAULT 2000`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_last_run_at" DATETIME`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_last_result" TEXT`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_last_block" INTEGER`,
+    ];
+    for (const sql of stmts) {
+      try {
+        await prisma.$executeRawUnsafe(sql);
+        console.log("[db-ensure] applied:", sql);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/duplicate column|already exists/i.test(msg)) continue;
+        console.warn("[db-ensure] skip:", sql, "-", msg);
+      }
+    }
+  })();
+  return claimCfgColsEnsured;
+}
+
 /** 按单笔领取交易哈希补录（供后台手动补录）。 */
 export async function repairClaimByTxHash(txHash: string): Promise<{ repaired: number; skipped: number }> {
   const tx = txHash.toLowerCase();

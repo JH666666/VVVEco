@@ -21,8 +21,9 @@ const adminNavItems = [
   { title: '订单数据管理', description: '质押订单、领取记录、推荐关系', href: '/admin/orders',       icon: ClipboardList },
   { title: '社群配置',     description: 'Telegram / X / Discord',      href: '/admin/social',       icon: Globe },
   { title: '出款队列',     description: 'PayoutQueued 排队监控与 Flush',href: '/admin/payout-queue',    icon: Clock },
-  { title: '漏单检测',     description: '链上补录缺失的质押订单',         href: '/admin/missing-orders', icon: AlertTriangle },
-  { title: '团队奖励补录', description: '链上补录缺失的团队奖励',         href: '/admin/missing-team-rewards', icon: Gift },
+  { title: '质押订单检测', description: '链上补录缺失的质押订单',         href: '/admin/missing-orders', icon: AlertTriangle },
+  { title: '领取收益检测', description: '链上补录缺失的领取记录',         href: '/admin/missing-claims', icon: WalletCards },
+  { title: '团队奖励检测', description: '链上补录缺失的团队奖励',         href: '/admin/missing-team-rewards', icon: Gift },
 ]
 
 export function AdminLayout({ children }: AdminLayoutProps) {

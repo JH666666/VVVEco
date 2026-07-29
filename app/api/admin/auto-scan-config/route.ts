@@ -1,5 +1,6 @@
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { getAutoScanConfig } from "@/lib/auto-scan-scheduler";
+import { ensureAutoScanClaimColumns } from "@/lib/missing-claims";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -8,6 +9,7 @@ export async function GET() {
   if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  await ensureAutoScanClaimColumns();
   return NextResponse.json(await getAutoScanConfig());
 }
 
@@ -17,6 +19,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
+    await ensureAutoScanClaimColumns();
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     await getAutoScanConfig(); // 确保存在
 
@@ -38,6 +41,15 @@ export async function POST(request: NextRequest) {
     }
     if (typeof body.missingOrderBlocksBack === "number") {
       data.missingOrderBlocksBack = Math.min(500000, Math.max(100, Math.round(body.missingOrderBlocksBack)));
+    }
+    if (typeof body.missingClaimEnabled === "boolean") {
+      data.missingClaimEnabled = body.missingClaimEnabled;
+    }
+    if (typeof body.missingClaimIntervalMin === "number") {
+      data.missingClaimIntervalMin = Math.min(1440, Math.max(1, Math.round(body.missingClaimIntervalMin)));
+    }
+    if (typeof body.missingClaimBlocksBack === "number") {
+      data.missingClaimBlocksBack = Math.min(500000, Math.max(100, Math.round(body.missingClaimBlocksBack)));
     }
 
     const cfg = await prisma.autoScanConfig.update({ where: { id: 1 }, data });
