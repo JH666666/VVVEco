@@ -252,8 +252,8 @@ export function OrdersAdmin() {
                   <td className="px-3 py-2">${o.usdValue.toFixed(2)}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{o.period}{o.periodUnit==='hour'?'时':'天'}</td>
                   <td className="px-3 py-2">{o.dailyRate}%</td>
-                  <td className="px-3 py-2 text-green-400">{o.claimedVvv.toFixed(4)}</td>
-                  <td className="px-3 py-2 text-yellow-400">{o.pending.toFixed(4)}</td>
+                  <td className="px-3 py-2 text-green-400">{o.mode==='coin'?`${o.claimedVvv.toFixed(4)} VVV`:`$${o.claimedUsd.toFixed(2)}`}</td>
+                  <td className="px-3 py-2 text-yellow-400">{o.mode==='coin'?`${o.pending.toFixed(4)} VVV`:`$${o.pending.toFixed(2)}`}</td>
                   <td className="px-3 py-2"><span className={`rounded px-1.5 py-0.5 text-xs font-medium ${o.status==='active'?'bg-green-500/10 text-green-400':o.isWithdrawn?'bg-gray-500/10 text-gray-400':'bg-blue-500/10 text-blue-400'}`}>{o.isWithdrawn?'已赎回':o.status==='active'?'进行中':'到期'}</span></td>
                   <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(o.startTime)}</td>
                   <td className="px-3 py-2">{o.isRepaired && <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-orange-500/10 text-orange-400">自动补录</span>}</td>

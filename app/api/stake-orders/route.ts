@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
         ? o.amount * (o.dailyRate / 100)
         : o.usdValue * (o.dailyRate / 100);
       const totalExpected = periodReward * o.period;
-      const accrued = Math.min(totalExpected, periodReward * Math.min(1, elapsedMs / unitMs));
+      const accrued = Math.min(totalExpected, periodReward * (elapsedMs / unitMs));
       const pending = Math.max(0, accrued - (o.mode === "coin" ? claimedVvv : claimedUsd));
 
       return {
