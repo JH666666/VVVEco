@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { repairTeamRewardByTxHash } from "@/lib/missing-team-rewards";
 import { NextRequest, NextResponse } from "next/server";
 
 async function resolveWallet(q: string): Promise<string | null> {
@@ -115,6 +116,20 @@ export async function POST(request: NextRequest) {
         feeAmount: body.feeAmount ?? 0,
       },
     });
+
+    // 自愈：领取时把这笔交易里派发给上级的推荐/团队奖励从链上读出并补录入库。
+    // 服务端读回执解析 TeamRewardAccrued（按笔数去重，不会与前端上报重复计），
+    // 即使前端上报团队奖励那一步失败，也能在领取入库时自动补齐。
+    // 后台执行、不阻断领取入库的响应（pm2 常驻进程会跑完）。
+    repairTeamRewardByTxHash(txHash)
+      .then((r) => {
+        if (r.repaired > 0) console.log(`[claims] auto-backfilled ${r.repaired} team reward(s) from claim ${txHash}`);
+      })
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        // "该交易未找到 TeamRewardAccrued 事件" 属正常（无上级/无奖励），忽略
+        if (!msg.includes("TeamRewardAccrued")) console.warn(`[claims] team reward auto-backfill skipped for ${txHash}:`, msg);
+      });
 
     return NextResponse.json(claim);
   } catch (error) {
