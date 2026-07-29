@@ -376,8 +376,10 @@ export function Dashboard() {
         const secsSinceRead = chainReadAt ? Math.max(0, (now - chainReadAt) / 1000) : 0
         const accrualSinceRead = isExpired ? 0 : periodReward * (secsSinceRead / (unitMs / 1000))
         pendingReward = Math.min(totalExpectedReward, basePending + accrualSinceRead)
-        // 已获收益用数据库领取记录（稳定，不随时间跳动；未领取即为 0）
-        claimedReward = dbClaimedReward
+        // 已获收益 = 累计应得 − 链上待领取（链上口径，含数据库没记到的链上领取）。
+        // 因 pendingReward 已含同一份时间累计，两者相减把累计项抵消 → 稳定不跳动。
+        // 已到期/已赎回订单：待领取归 0，此值即等于全部应得，不会因漏记领取而少算。
+        claimedReward = Math.max(0, accruedReward - pendingReward)
       } else {
         pendingReward = Math.max(0, accruedReward - dbClaimedReward)
         claimedReward = dbClaimedReward
