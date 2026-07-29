@@ -258,7 +258,9 @@ export function Dashboard() {
       }
       setApiClaims(prev => [...prev, optimisticClaim])
 
-      const saved = await createClaimRecord({
+      // DB 写入改为后台进行，不阻塞按钮/成功提示——领取本身链上已完成，
+      // 即使写库慢/失败也不会卡住 UI（后台各页面已改读链上）。
+      createClaimRecord({
         id: tx,
         orderId: order.id,
         account: currentAddress,
@@ -268,15 +270,15 @@ export function Dashboard() {
         priceUsd: vvvPriceAtClaim,
         createdAt: nowStr,
         createdAtMs: nowMs,
-      })
+      }).then((saved) => { if (saved) refreshData() }).catch(() => {})
 
-      // 解析 TeamRewardAccrued 事件，写入上级团队奖励记录
+      // 解析 TeamRewardAccrued 事件，后台写入上级团队奖励记录（不阻塞）
       const teamLogs = logs.filter(l => l.topics[0]?.toLowerCase() === TEAM_REWARD_TOPIC)
-      await Promise.allSettled(teamLogs.map(l => {
+      teamLogs.forEach(l => {
         const recipient = ("0x" + l.topics[1]?.slice(-40)) as string
         const bonus = l.data && l.data !== "0x" ? Number(BigInt(l.data)) / 1e18 : 0
-        if (!recipient || bonus <= 0) return Promise.resolve()
-        return fetch("/api/team-rewards", {
+        if (!recipient || bonus <= 0) return
+        fetch("/api/team-rewards", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -289,9 +291,8 @@ export function Dashboard() {
             amount: bonus,
           }),
         }).catch(() => {})
-      }))
+      })
       claimReward(order.id, order.pendingReward)
-      if (saved) refreshData()
 
       // 领取成功后立即重读链上待领取，让它马上归零（再补两次延时读，兜住节点同步延迟）
       refetchPending()
