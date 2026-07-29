@@ -215,34 +215,17 @@ export function Dashboard() {
     const TEAM_REWARD_TOPIC = "0xe07f61c526a4ace6d1e5cad0a84eddbf8e2733ce8383b0b2f1d76f07fb1cab49"
     const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
     setClaimingOrderIds(prev => new Set(prev).add(order.id))
+    let tx = ""
     try {
-      const { txHash: tx, logs } = await realClaim(BigInt(order.chainOrderId), order.pendingReward)
-      console.log('[claim] txHash:', tx, 'logs:', logs.length)
+      const claimResult = await realClaim(BigInt(order.chainOrderId), order.pendingReward)
+      tx = claimResult.txHash
+      const logsPromise = claimResult.logsPromise
+      console.log('[claim] txHash:', tx)
 
-      // VVVPayout 合约事件 topic（按合约源码定义）
-      const TOPIC_REWARD_PAID   = "0xa4b7979b77c5bef65740b7e1d7a09534eadc2803d5c1cfdae60fa28226be6da2"
-      const TOPIC_PAYOUT_QUEUED = "0xcdef26d95faf8a39763982c3e5ec41373bac21e6a955e3a210ada7f9c8d6152d"
+      // 交易已提交（钱包已返回 hash）——立即解除"领取中"并做乐观更新，
+      // 不再等待链上回执（回执解析放到后台），避免按钮一直转圈。
+      setClaimingOrderIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
 
-      // logs.address 可能大小写不一，统一 toLowerCase 后对比
-      const payoutLogs = logs.filter(l => l.address?.toLowerCase() === PAYOUT_ADDR.toLowerCase())
-      const topic0s    = payoutLogs.map(l => l.topics[0]?.toLowerCase())
-      console.log('[claim] payoutLogs:', payoutLogs.length, 'topics:', topic0s, 'allLogs:', logs.map(l => l.address))
-
-      const isRewardPaid = topic0s.includes(TOPIC_REWARD_PAID)
-      const isQueued     = topic0s.includes(TOPIC_PAYOUT_QUEUED)
-
-      // 没有任何出款事件：链上未出款，不写 DB，不显示成功
-      if (!isRewardPaid && !isQueued) {
-        console.warn('[claim] no payout event detected. payoutLogs:', payoutLogs.length, 'all log addrs:', logs.map(l => l.address))
-        toast({
-          title: t("出款事件未检测到", "Payout event not detected"),
-          description: t("Staking 已记账，但未检测到出款事件，请联系客服并提供 tx: " + tx, "Staking recorded but no payout event. Contact support with tx: " + tx),
-          variant: "destructive",
-        })
-        return
-      }
-
-      // 有出款事件才写 DB 和乐观更新
       const nowMs  = Date.now()
       const nowStr = new Date(nowMs).toLocaleString("zh-CN", { hour12: false })
       const optimisticClaim: SimClaimRecord = {
@@ -257,55 +240,87 @@ export function Dashboard() {
         createdAtMs: nowMs,
       }
       setApiClaims(prev => [...prev, optimisticClaim])
-
-      // DB 写入改为后台进行，不阻塞按钮/成功提示——领取本身链上已完成，
-      // 即使写库慢/失败也不会卡住 UI（后台各页面已改读链上）。
-      createClaimRecord({
-        id: tx,
-        orderId: order.id,
-        account: currentAddress,
-        amount: order.pendingReward,
-        amountVvv: order.mode === 'coin' ? order.pendingReward : order.pendingReward / vvvPriceAtClaim,
-        amountUsd: order.mode === 'fiat' ? order.pendingReward : order.pendingReward * vvvPriceAtClaim,
-        priceUsd: vvvPriceAtClaim,
-        createdAt: nowStr,
-        createdAtMs: nowMs,
-      }).then((saved) => { if (saved) refreshData() }).catch(() => {})
-
-      // 解析 TeamRewardAccrued 事件，后台写入上级团队奖励记录（不阻塞）
-      const teamLogs = logs.filter(l => l.topics[0]?.toLowerCase() === TEAM_REWARD_TOPIC)
-      teamLogs.forEach(l => {
-        const recipient = ("0x" + l.topics[1]?.slice(-40)) as string
-        const bonus = l.data && l.data !== "0x" ? Number(BigInt(l.data)) / 1e18 : 0
-        if (!recipient || bonus <= 0) return
-        fetch("/api/team-rewards", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            claimTxHash: tx + "_" + (l.logIndex ?? l.topics[1]?.slice(-8)),
-            beneficiaryAddr: recipient.toLowerCase(),
-            sourceAddr: currentAddress.toLowerCase(),
-            sourceOrderTx: order.id,
-            rewardType: "generation",
-            rate: 0,
-            amount: bonus,
-          }),
-        }).catch(() => {})
-      })
       claimReward(order.id, order.pendingReward)
 
-      // 领取成功后立即重读链上待领取，让它马上归零（再补两次延时读，兜住节点同步延迟）
+      // 领取已提交后立即重读链上待领取，让它马上归零（再补几次延时读，兜住节点同步延迟）
       refetchPending()
       setTimeout(() => { refetchPending() }, 3000)
       setTimeout(() => { refetchPending() }, 8000)
+      setTimeout(() => { refetchPending() }, 15000)
+      toast({ title: t("领取处理中", "Processing"), description: t("交易已提交，正在链上确认", "Transaction submitted, confirming on-chain") })
 
-      if (isRewardPaid) {
-        toast({ title: t("领取成功", "Claimed") })
-      } else {
-        // isQueued
-        toast({ title: t("领取处理中", "Processing") })
-      }
+      // ── 后台：等待回执并解析事件（出款事件检测 / 团队奖励 / 写库），不阻塞按钮 ──
+      logsPromise
+        .then(async (logs) => {
+          console.log('[claim] logs:', logs.length)
+          // VVVPayout 合约事件 topic（按合约源码定义）
+          const TOPIC_REWARD_PAID   = "0xa4b7979b77c5bef65740b7e1d7a09534eadc2803d5c1cfdae60fa28226be6da2"
+          const TOPIC_PAYOUT_QUEUED = "0xcdef26d95faf8a39763982c3e5ec41373bac21e6a955e3a210ada7f9c8d6152d"
+          const payoutLogs = logs.filter(l => l.address?.toLowerCase() === PAYOUT_ADDR.toLowerCase())
+          const topic0s    = payoutLogs.map(l => l.topics[0]?.toLowerCase())
+          const isRewardPaid = topic0s.includes(TOPIC_REWARD_PAID)
+          const isQueued     = topic0s.includes(TOPIC_PAYOUT_QUEUED)
+
+          if (!isRewardPaid && !isQueued) {
+            console.warn('[claim] no payout event detected. payoutLogs:', payoutLogs.length, 'all log addrs:', logs.map(l => l.address))
+            toast({
+              title: t("出款事件未检测到", "Payout event not detected"),
+              description: t("Staking 已记账，但未检测到出款事件，请联系客服并提供 tx: " + tx, "Staking recorded but no payout event. Contact support with tx: " + tx),
+              variant: "destructive",
+            })
+            return
+          }
+
+          // 写库（后台，各页面已改读链上，即使写库慢/失败也不卡 UI）
+          createClaimRecord({
+            id: tx,
+            orderId: order.id,
+            account: currentAddress,
+            amount: order.pendingReward,
+            amountVvv: order.mode === 'coin' ? order.pendingReward : order.pendingReward / vvvPriceAtClaim,
+            amountUsd: order.mode === 'fiat' ? order.pendingReward : order.pendingReward * vvvPriceAtClaim,
+            priceUsd: vvvPriceAtClaim,
+            createdAt: nowStr,
+            createdAtMs: nowMs,
+          }).then((saved) => { if (saved) refreshData() }).catch(() => {})
+
+          // 解析 TeamRewardAccrued 事件，后台写入上级团队奖励记录
+          const teamLogs = logs.filter(l => l.topics[0]?.toLowerCase() === TEAM_REWARD_TOPIC)
+          teamLogs.forEach(l => {
+            const recipient = ("0x" + l.topics[1]?.slice(-40)) as string
+            const bonus = l.data && l.data !== "0x" ? Number(BigInt(l.data)) / 1e18 : 0
+            if (!recipient || bonus <= 0) return
+            fetch("/api/team-rewards", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                claimTxHash: tx + "_" + (l.logIndex ?? l.topics[1]?.slice(-8)),
+                beneficiaryAddr: recipient.toLowerCase(),
+                sourceAddr: currentAddress.toLowerCase(),
+                sourceOrderTx: order.id,
+                rewardType: "generation",
+                rate: 0,
+                amount: bonus,
+              }),
+            }).catch(() => {})
+          })
+
+          refetchPending()
+          toast({ title: isRewardPaid ? t("领取成功", "Claimed") : t("领取处理中", "Processing") })
+        })
+        .catch((e: unknown) => {
+          // 回执确认失败（如链上 revert / 超时）：回滚乐观记录并提示
+          setApiClaims(prev => prev.filter(c => c.id !== tx))
+          const msg = (e as Error)?.message ?? ""
+          console.error('[claim] receipt error:', msg)
+          toast({
+            title: t("领取确认失败", "Confirmation failed"),
+            description: msg.slice(0, 120) || t("请稍后在订单中核对待领取金额", "Please re-check pending amount later"),
+            variant: "destructive",
+          })
+        })
     } catch (e: unknown) {
+      // 交易提交阶段失败（用户拒绝 / 钱包未返回 hash 等）
       setApiClaims(prev => prev.filter(c => c.orderId !== order.id || c.account !== currentAddress))
       const msg = (e as Error)?.message ?? ""
       console.error('[claim] error:', msg)

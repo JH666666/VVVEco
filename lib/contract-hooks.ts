@@ -402,11 +402,16 @@ export function useClaimRewards() {
     });
     console.log('[claim] txHash:', txHash);
     if (!txHash) throw new Error("交易未提交，钱包未返回交易 hash");
-    const receipt = await waitForRawReceipt(txHash);
-    if (!receipt) throw new Error("交易确认失败，未获取到链上回执");
-    if (receipt.status !== "0x1") throw new Error(`交易执行失败（status=${receipt.status}）`);
-    console.log('[claim] receipt.status:', receipt.status, 'logs count:', receipt.logs?.length ?? 0);
-    return { txHash, logs: receipt.logs ?? [] };
+    // 交易已提交（钱包已返回 hash），立即返回 txHash 让 UI 解除"领取中"状态。
+    // 回执解析（出款事件检测 / 团队奖励 / 写库）放到后台 logsPromise，不阻塞按钮。
+    const logsPromise = (async (): Promise<RawLog[]> => {
+      const receipt = await waitForRawReceipt(txHash);
+      if (!receipt) throw new Error("交易确认失败，未获取到链上回执");
+      if (receipt.status !== "0x1") throw new Error(`交易执行失败（status=${receipt.status}）`);
+      console.log('[claim] receipt.status:', receipt.status, 'logs count:', receipt.logs?.length ?? 0);
+      return receipt.logs ?? [];
+    })();
+    return { txHash, logsPromise };
   };
 }
 
