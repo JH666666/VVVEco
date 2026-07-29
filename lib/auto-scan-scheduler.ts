@@ -7,6 +7,7 @@
 import { prisma } from "@/lib/prisma";
 import { scanAndRepairForwardTeamRewards } from "@/lib/missing-team-rewards";
 import { scanAndRepairForwardOrders } from "@/lib/missing-orders";
+import { scanAndRepairClaimsRange } from "@/lib/missing-claims";
 
 // 断点续扫每次最多前进的区块数（限制单轮 RPC 负载，历史会分多轮扫完）
 const MAX_STEP = 100_000;
@@ -57,15 +58,22 @@ async function tick() {
       (moCatchingUp || now >= (cfg.missingOrderLastRunAt?.getTime() ?? 0) + cfg.missingOrderIntervalMin * 60_000)
     ) {
       const res = await scanAndRepairForwardOrders(cfg.missingOrderLastBlock, MAX_STEP);
+      // 同一区块范围顺带补录领取记录（RewardClaimed → claim_records），共用漏单的断点
+      let claim = { repaired: 0, skipped: 0 };
+      try {
+        claim = await scanAndRepairClaimsRange(res.fromBlock, res.toBlock);
+      } catch (e) {
+        console.error("[auto-scan] claim-record scan error:", e);
+      }
       await prisma.autoScanConfig.update({
         where: { id: 1 },
         data: {
           missingOrderLastRunAt: new Date(),
           missingOrderLastBlock: res.toBlock,
-          missingOrderLastResult: `补录 ${res.repaired}，跳过 ${res.skipped}｜已扫至 ${res.toBlock}/${res.latest}${res.caughtUp ? "（已追平）" : "（追赶历史中）"}`,
+          missingOrderLastResult: `补录订单 ${res.repaired}、领取 ${claim.repaired}，跳过 ${res.skipped}｜已扫至 ${res.toBlock}/${res.latest}${res.caughtUp ? "（已追平）" : "（追赶历史中）"}`,
         },
       });
-      console.log("[auto-scan] missing-order:", res);
+      console.log("[auto-scan] missing-order:", res, "claim:", claim);
     }
   } catch (e) {
     console.error("[auto-scan] tick error:", e);

@@ -7,6 +7,7 @@ import {
   scanAndRepairForWallet,
   ensureStakeOrderColumns,
 } from "@/lib/missing-orders";
+import { repairClaimByTxHash } from "@/lib/missing-claims";
 import { NextRequest, NextResponse } from "next/server";
 
 function isCronAuthed(request: NextRequest): boolean {
@@ -57,6 +58,12 @@ export async function POST(request: NextRequest) {
       const order = await repairOrderByTxHash(body.txHash);
       await repairMissingOrder(order);
       return NextResponse.json({ repaired: 1, skipped: 0, order });
+    }
+
+    if (typeof body.claimTxHash === "string" && body.claimTxHash) {
+      // 按单笔领取交易哈希补录领取记录（RewardClaimed → claim_records）
+      const result = await repairClaimByTxHash(body.claimTxHash);
+      return NextResponse.json(result);
     }
 
     if (typeof body.wallet === "string" && body.wallet) {
