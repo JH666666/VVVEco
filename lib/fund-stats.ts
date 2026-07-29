@@ -26,6 +26,41 @@ const priceClient = createPublicClient({ chain: base, transport: http(RPC_URL) }
 const GET_LATEST_PRICE_ABI = [
   { name: "getLatestPrice", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
 ] as const;
+const GET_PENDING_ABI = [
+  {
+    name: "getPendingReward",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }, { name: "orderId", type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+  },
+] as const;
+
+/**
+ * 批量读取某地址所有订单（链上 orderId 0..count-1）的待领取（VVV gross）。
+ * 用链上权威值,避免依赖数据库领取记录是否写入成功。
+ * 读取失败返回全 undefined,调用方回退到数据库口径。
+ */
+export async function getChainPendingByOrder(
+  user: string,
+  count: number,
+): Promise<(bigint | undefined)[]> {
+  if (count <= 0) return [];
+  try {
+    const results = await priceClient.multicall({
+      contracts: Array.from({ length: count }, (_, i) => ({
+        address: STAKING_ADDR,
+        abi: GET_PENDING_ABI,
+        functionName: "getPendingReward" as const,
+        args: [user as `0x${string}`, BigInt(i)] as const,
+      })),
+      allowFailure: true,
+    });
+    return results.map((r) => (r.status === "success" ? (r.result as bigint) : undefined));
+  } catch {
+    return Array(count).fill(undefined);
+  }
+}
 
 /**
  * 读取 VVV/USD 价格，只用真实价格：

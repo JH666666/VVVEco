@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getVvvUsdPrice } from "@/lib/fund-stats";
+import { getVvvUsdPrice, getChainPendingByOrder } from "@/lib/fund-stats";
 import { NextRequest, NextResponse } from "next/server";
 
 const DEFAULT_LEVEL_THRESHOLDS = [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000];
@@ -79,6 +79,16 @@ export async function GET(
     }
 
     const now = Date.now();
+    const vvvUsdPrice = await getVvvUsdPrice();
+
+    // 链上 orderId = 用户订单按开始时间升序的位置。读链上每单待领取,
+    // 已领取 = 累计应得 − 链上待领取,不依赖数据库领取记录是否写入成功。
+    const ascOrders = [...user.stakeOrders].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime()
+    );
+    const chainOrderIdByTx = new Map<string, number>();
+    ascOrders.forEach((o, i) => chainOrderIdByTx.set(o.txHash, i));
+    const chainPendings = await getChainPendingByOrder(walletAddress, ascOrders.length);
 
     // ── Compute per-order insight ──
     const orders = user.stakeOrders.map((order) => {
@@ -95,11 +105,34 @@ export async function GET(
       const totalExpected = periodReward * order.period;
       const accrued = Math.min(totalExpected, periodReward * (elapsedMs / unitMs));
 
-      const claimedVvv = order.claimRecords.reduce((s, c) => s + c.amountVvv, 0);
-      const claimedUsd = order.claimRecords.reduce((s, c) => s + c.amountUsd, 0);
-      const claimed = order.mode === "coin" ? claimedVvv : claimedUsd;
-      const pending = Math.max(0, accrued - claimed);
-      const pendingUsd = order.mode === "coin" ? pending * 0.15 : pending;
+      const claimedVvvDb = order.claimRecords.reduce((s, c) => s + c.amountVvv, 0);
+      const claimedUsdDb = order.claimRecords.reduce((s, c) => s + c.amountUsd, 0);
+
+      // 优先链上待领取（VVV）；金本位换算成 USD。读取失败回退数据库领取记录。
+      const chainPendingVvv = chainPendings[chainOrderIdByTx.get(order.txHash) ?? -1];
+      let claimed: number;
+      let claimedUsd: number;
+      let pending: number;
+      let pendingUsd: number;
+      if (chainPendingVvv !== undefined) {
+        const pv = Number(chainPendingVvv) / 1e18;
+        if (order.mode === "coin") {
+          pending = pv;
+          claimed = Math.max(0, accrued - pending);
+          claimedUsd = claimed * vvvUsdPrice;
+          pendingUsd = pending * vvvUsdPrice;
+        } else {
+          pendingUsd = pv * vvvUsdPrice;
+          pending = pendingUsd;
+          claimedUsd = Math.max(0, accrued - pendingUsd);
+          claimed = claimedUsd;
+        }
+      } else {
+        claimed = order.mode === "coin" ? claimedVvvDb : claimedUsdDb;
+        claimedUsd = claimedUsdDb;
+        pending = Math.max(0, accrued - claimed);
+        pendingUsd = order.mode === "coin" ? pending * vvvUsdPrice : pending;
+      }
       const progressPercent = Math.min(100, Math.max(0, (elapsedMs / periodMs) * 100));
       const isActive = !order.isWithdrawn && endMs > now;
 
@@ -134,7 +167,6 @@ export async function GET(
 
     // 团队奖励以 VVV 发放，且自动打款到上级钱包（claimed 恒为 false），
     // 记录即已支付。按当前 VVV/USD 价格换算成 USD。
-    const vvvUsdPrice = await getVvvUsdPrice();
     const teamRewardRecords = user.teamRewardsAsBeneficiary;
     const teamRewardVvv = teamRewardRecords.reduce((s, r) => s + r.amount, 0);
     const teamRewardUsd = teamRewardVvv * vvvUsdPrice;
