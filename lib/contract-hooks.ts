@@ -684,9 +684,34 @@ export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
  * 该值只有真正领取时才变化 → 稳定不跳动，且为链上权威（含数据库没记到的领取）。
  * 返回数组：索引 = orderId，值 = claimedAmount（bigint，已是对应展示单位）；失败为 undefined。
  */
-const GET_ORDER_READ_ABI = parseAbi([
-  "function getOrder(address user, uint256 orderId) view returns (tuple(uint256 vvvAmountIn, uint256 usdValue, uint256 startTime, uint256 endTime, uint256 duration, uint256 rate, bool isCoinBased, bool isWithdrawn, uint256 claimedAmount))",
-]);
+// 用 JSON 对象格式（abitype 的 human-readable parseAbi 不支持内联 tuple 命名字段）
+const GET_ORDER_READ_ABI = [
+  {
+    name: "getOrder",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "orderId", type: "uint256" },
+    ],
+    outputs: [
+      {
+        type: "tuple",
+        components: [
+          { name: "vvvAmountIn", type: "uint256" },
+          { name: "usdValue", type: "uint256" },
+          { name: "startTime", type: "uint256" },
+          { name: "endTime", type: "uint256" },
+          { name: "duration", type: "uint256" },
+          { name: "rate", type: "uint256" },
+          { name: "isCoinBased", type: "bool" },
+          { name: "isWithdrawn", type: "bool" },
+          { name: "claimedAmount", type: "uint256" },
+        ],
+      },
+    ],
+  },
+] as const;
 
 export function useOrdersClaimedAmounts(count: number, user?: `0x${string}`) {
   const { address } = useAccount();
