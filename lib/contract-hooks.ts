@@ -678,6 +678,44 @@ export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
   return { pendings, dataUpdatedAt, refetch };
 }
 
+/**
+ * 批量读取某地址所有订单的链上"已领取金额" claimedAmount。
+ * 合约语义：coin 模式 = 已支付 VVV（18 位）；fiat 模式 = 已入账 USD（18 位）。
+ * 该值只有真正领取时才变化 → 稳定不跳动，且为链上权威（含数据库没记到的领取）。
+ * 返回数组：索引 = orderId，值 = claimedAmount（bigint，已是对应展示单位）；失败为 undefined。
+ */
+const GET_ORDER_READ_ABI = parseAbi([
+  "function getOrder(address user, uint256 orderId) view returns (tuple(uint256 vvvAmountIn, uint256 usdValue, uint256 startTime, uint256 endTime, uint256 duration, uint256 rate, bool isCoinBased, bool isWithdrawn, uint256 claimedAmount))",
+]);
+
+export function useOrdersClaimedAmounts(count: number, user?: `0x${string}`) {
+  const { address } = useAccount();
+  const target = user ?? address;
+  const contracts = target && count > 0
+    ? Array.from({ length: count }, (_, i) => ({
+        address: STAKING_ADDR,
+        abi: GET_ORDER_READ_ABI,
+        functionName: "getOrder" as const,
+        args: [target, BigInt(i)] as const,
+        chainId: 8453,
+      }))
+    : [];
+  const { data, refetch } = useReadContracts({
+    contracts,
+    query: { enabled: !!target && count > 0, refetchInterval: 30_000 },
+  });
+  const claimed = (data ?? []).map((r) => {
+    if (r.status !== "success") return undefined;
+    const t = r.result as unknown;
+    if (t && typeof t === "object" && "claimedAmount" in (t as Record<string, unknown>)) {
+      return (t as { claimedAmount: bigint }).claimedAmount;
+    }
+    if (Array.isArray(t)) return t[8] as bigint;
+    return undefined;
+  });
+  return { claimed, refetch };
+}
+
 // ═══════════════ NEW: Team Reward Hooks ═══════════════
 
 /** 读取地址在链上累计的待领取团队奖励（VVV gross，领取时扣 10% 费） */

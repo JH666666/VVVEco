@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { SIM_VVV_USD_PRICE, useLocalWeb3Sim, type SimClaimRecord } from '@/contexts/local-web3-sim-context'
 import { isPersonalClaimFrozen, isPrincipalWithdrawalFrozen, useAdminControls } from '@/lib/admin-controls'
 import { fetchStakeOrders, fetchClaimRecords, createClaimRecord } from '@/lib/api-client'
-import { useClaimRewards, useWithdrawPrincipal, useLatestPrice, useOrdersPendingRewards, PAYOUT_ADDR } from '@/lib/contract-hooks'
+import { useClaimRewards, useWithdrawPrincipal, useLatestPrice, useOrdersPendingRewards, useOrdersClaimedAmounts, PAYOUT_ADDR } from '@/lib/contract-hooks'
 import { useWalletAuth } from '@/contexts/wallet-auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -195,6 +195,11 @@ export function Dashboard() {
     userOrderCount,
     (currentAddress || undefined) as `0x${string}` | undefined,
   )
+  // 链上"已领取金额"（claimedAmount）：coin=VVV，fiat=USD，只有真正领取才变 → 稳定不跳
+  const { claimed: chainClaimed, refetch: refetchClaimed } = useOrdersClaimedAmounts(
+    userOrderCount,
+    (currentAddress || undefined) as `0x${string}` | undefined,
+  )
 
   const refreshData = () => {
     if (!currentAddress) return
@@ -243,10 +248,10 @@ export function Dashboard() {
       claimReward(order.id, order.pendingReward)
 
       // 领取已提交后立即重读链上待领取，让它马上归零（再补几次延时读，兜住节点同步延迟）
-      refetchPending()
-      setTimeout(() => { refetchPending() }, 3000)
-      setTimeout(() => { refetchPending() }, 8000)
-      setTimeout(() => { refetchPending() }, 15000)
+      refetchPending(); refetchClaimed()
+      setTimeout(() => { refetchPending(); refetchClaimed() }, 3000)
+      setTimeout(() => { refetchPending(); refetchClaimed() }, 8000)
+      setTimeout(() => { refetchPending(); refetchClaimed() }, 15000)
       toast({ title: t("领取处理中", "Processing"), description: t("交易已提交，正在链上确认", "Transaction submitted, confirming on-chain") })
 
       // ── 后台：等待回执并解析事件（出款事件检测 / 团队奖励 / 写库），不阻塞按钮 ──
@@ -305,7 +310,7 @@ export function Dashboard() {
             }).catch(() => {})
           })
 
-          refetchPending()
+          refetchPending(); refetchClaimed()
           toast({ title: isRewardPaid ? t("领取成功", "Claimed") : t("领取处理中", "Processing") })
         })
         .catch((e: unknown) => {
@@ -376,13 +381,18 @@ export function Dashboard() {
         const secsSinceRead = chainReadAt ? Math.max(0, (now - chainReadAt) / 1000) : 0
         const accrualSinceRead = isExpired ? 0 : periodReward * (secsSinceRead / (unitMs / 1000))
         pendingReward = Math.min(totalExpectedReward, basePending + accrualSinceRead)
-        // 已获收益 = 累计应得 − 链上待领取（链上口径，含数据库没记到的链上领取）。
-        // 因 pendingReward 已含同一份时间累计，两者相减把累计项抵消 → 稳定不跳动。
-        // 已到期/已赎回订单：待领取归 0，此值即等于全部应得，不会因漏记领取而少算。
-        claimedReward = Math.max(0, accruedReward - pendingReward)
+        // 已获收益直接读链上订单的 claimedAmount（coin=VVV / fiat=USD，18 位），
+        // 只有真正领取才变化 → 稳定不跳动；含数据库没记到的链上领取；未领取即为 0。
+        const chainClaimedRaw = chainClaimed[chainOrderId]
+        claimedReward = chainClaimedRaw !== undefined && chainClaimedRaw >= 0n
+          ? Number(chainClaimedRaw) / 1e18
+          : dbClaimedReward
       } else {
         pendingReward = Math.max(0, accruedReward - dbClaimedReward)
-        claimedReward = dbClaimedReward
+        const chainClaimedRaw = chainClaimed[chainOrderId]
+        claimedReward = chainClaimedRaw !== undefined && chainClaimedRaw >= 0n
+          ? Number(chainClaimedRaw) / 1e18
+          : dbClaimedReward
       }
       const withdrawn = order.isWithdrawn === true
 
