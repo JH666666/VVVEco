@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyStakeTx } from "@/lib/verify-tx";
 import { getLatestChainOrder } from "@/lib/chain-read";
 import { getVvvUsdPrice, getChainPendingForPairs } from "@/lib/fund-stats";
+import { ensureStakeOrderColumns } from "@/lib/missing-orders";
 import { NextRequest, NextResponse } from "next/server";
 
 const CHAR_SET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -36,6 +37,7 @@ async function resolveWallet(q: string): Promise<string | null> {
 // GET /api/stake-orders?q=&status=&dateFrom=&dateTo=&minUsd=&maxUsd=
 export async function GET(request: NextRequest) {
   try {
+    await ensureStakeOrderColumns();
     const { searchParams } = new URL(request.url);
     const q        = (searchParams.get("q") ?? searchParams.get("wallet") ?? "").trim();
     const status   = searchParams.get("status") ?? "all";

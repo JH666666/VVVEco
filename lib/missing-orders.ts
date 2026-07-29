@@ -368,6 +368,36 @@ export async function repairOrderByTxHash(txHash: string): Promise<MissingOrder>
   };
 }
 
+/**
+ * Self-heal additive columns on the RUNTIME database.
+ *
+ * `prisma db push` from an interactive shell can miss the column when the pm2
+ * process runs with a different DATABASE_URL than the shell. Running the ALTER
+ * through the app's own Prisma connection guarantees it lands in the exact DB
+ * the server opens. Idempotent: duplicate-column errors are ignored. Runs once
+ * per process (cached promise).
+ */
+let columnsEnsured: Promise<void> | null = null;
+export function ensureStakeOrderColumns(): Promise<void> {
+  if (columnsEnsured) return columnsEnsured;
+  columnsEnsured = (async () => {
+    const stmts = [
+      `ALTER TABLE "stake_orders" ADD COLUMN "is_repaired" BOOLEAN NOT NULL DEFAULT false`,
+    ];
+    for (const sql of stmts) {
+      try {
+        await prisma.$executeRawUnsafe(sql);
+        console.log("[db-ensure] applied:", sql);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/duplicate column|already exists/i.test(msg)) continue;
+        console.warn("[db-ensure] skip:", sql, "-", msg);
+      }
+    }
+  })();
+  return columnsEnsured;
+}
+
 /** Ensure a user row exists (FK constraint). Creates a minimal record if absent. */
 async function ensureUser(walletAddress: string): Promise<void> {
   const user = await prisma.user.findUnique({
@@ -394,6 +424,7 @@ async function ensureUser(walletAddress: string): Promise<void> {
 
 /** Upsert a missing order to the DB and mark it as repaired. */
 export async function repairMissingOrder(order: MissingOrder): Promise<void> {
+  await ensureStakeOrderColumns();
   await ensureUser(order.walletAddress);
 
   await prisma.stakeOrder.upsert({

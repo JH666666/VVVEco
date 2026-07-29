@@ -5,6 +5,7 @@ import {
   repairOrderByTxHash,
   repairMissingOrder,
   scanAndRepairForWallet,
+  ensureStakeOrderColumns,
 } from "@/lib/missing-orders";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -46,6 +47,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // 自愈：确保运行库存在 is_repaired 列（通过 App 自身连接，避免 CLI/env 不一致）
+    await ensureStakeOrderColumns();
+
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
 
     if (typeof body.txHash === "string" && body.txHash) {
