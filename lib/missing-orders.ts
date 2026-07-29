@@ -90,7 +90,10 @@ export interface MissingOrder {
   startTime: Date;
   endTime: Date;
   isWithdrawn: boolean;
+  referrer?: string; // 链上 Staked 事件里已绑定的推荐人（address(0) 表示无）
 }
+
+const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
 
 async function fetchOrderFromChain(
   user: `0x${string}`,
@@ -175,6 +178,7 @@ export async function scanMissingOrdersRange(
     const user = args.user as `0x${string}` | undefined;
     const orderIdBig = args.orderId as bigint | undefined;
     if (!user || orderIdBig === undefined) continue;
+    const referrer = (args.referrer as string | undefined)?.toLowerCase();
 
     const orderId = Number(orderIdBig);
     const chainData = await fetchOrderFromChain(user, orderId);
@@ -187,6 +191,7 @@ export async function scanMissingOrdersRange(
       txHash,
       walletAddress: user.toLowerCase(),
       orderId,
+      referrer,
       ...chainData,
     });
   }
@@ -257,6 +262,7 @@ export async function scanMissingOrdersForWallet(
     const logUser = args?.user as `0x${string}` | undefined;
     const orderIdBig = args?.orderId as bigint | undefined;
     if (!logUser || orderIdBig === undefined) continue;
+    const referrer = (args?.referrer as string | undefined)?.toLowerCase();
 
     const orderId = Number(orderIdBig);
     const chainData = await fetchOrderFromChain(logUser, orderId);
@@ -264,7 +270,7 @@ export async function scanMissingOrdersForWallet(
       console.warn(`[missing-orders] getOrder failed for ${logUser} orderId=${orderId} tx=${txHash}`);
       continue;
     }
-    missing.push({ txHash, walletAddress: logUser.toLowerCase(), orderId, ...chainData });
+    missing.push({ txHash, walletAddress: logUser.toLowerCase(), orderId, referrer, ...chainData });
   }
 
   return missing;
@@ -337,6 +343,7 @@ export async function repairOrderByTxHash(txHash: string): Promise<MissingOrder>
 
   let user: `0x${string}` | null = null;
   let orderId: number | null = null;
+  let referrer: string | undefined;
 
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== STAKING_ADDR.toLowerCase()) continue;
@@ -349,6 +356,7 @@ export async function repairOrderByTxHash(txHash: string): Promise<MissingOrder>
       const a = decoded.args as Record<string, unknown>;
       user = a.user as `0x${string}`;
       orderId = Number(a.orderId as bigint);
+      referrer = (a.referrer as string | undefined)?.toLowerCase();
       break;
     } catch {
       // not this event
@@ -364,6 +372,7 @@ export async function repairOrderByTxHash(txHash: string): Promise<MissingOrder>
     txHash: txHash.toLowerCase(),
     walletAddress: user.toLowerCase(),
     orderId,
+    referrer,
     ...chainData,
   };
 }
@@ -426,6 +435,27 @@ async function ensureUser(walletAddress: string): Promise<void> {
 export async function repairMissingOrder(order: MissingOrder): Promise<void> {
   await ensureStakeOrderColumns();
   await ensureUser(order.walletAddress);
+
+  // 从链上 Staked 事件同步推荐关系（referrer），让"推荐"也服务端落库、不依赖用户浏览器注册。
+  // 只在数据库尚未有推荐人时回填；不覆盖已有关系。address(0)/自己/root 视为无效。
+  if (order.referrer && order.referrer !== ZERO_ADDR && order.referrer !== order.walletAddress) {
+    try {
+      const self = await prisma.user.findUnique({
+        where: { walletAddress: order.walletAddress },
+        select: { referrerAddress: true },
+      });
+      if (self && !self.referrerAddress) {
+        await ensureUser(order.referrer);
+        await prisma.user.update({
+          where: { walletAddress: order.walletAddress },
+          data: { referrerAddress: order.referrer },
+        });
+        console.log(`[missing-orders] backfilled referrer ${order.walletAddress} <- ${order.referrer}`);
+      }
+    } catch (e) {
+      console.warn(`[missing-orders] referrer backfill failed for ${order.walletAddress}:`, e);
+    }
+  }
 
   await prisma.stakeOrder.upsert({
     where: { txHash: order.txHash },
