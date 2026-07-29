@@ -656,13 +656,15 @@ export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
         chainId: 8453,
       }))
     : [];
-  const { data } = useReadContracts({
+  const { data, dataUpdatedAt } = useReadContracts({
     contracts,
     query: { enabled: !!target && count > 0, refetchInterval: 30_000 },
   });
-  return (data ?? []).map((r) =>
+  const pendings = (data ?? []).map((r) =>
     r.status === "success" ? (r.result as bigint) : undefined
   );
+  // dataUpdatedAt: 链上数据最近一次成功读取的时间戳；用于两次读取之间做平滑累计
+  return { pendings, dataUpdatedAt };
 }
 
 // ═══════════════ NEW: Team Reward Hooks ═══════════════

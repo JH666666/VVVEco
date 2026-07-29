@@ -191,7 +191,7 @@ export function Dashboard() {
   const userOrderCount = currentAddress
     ? mergedStakes.filter(o => o.account.toLowerCase() === currentAddress.toLowerCase()).length
     : 0
-  const chainPendings = useOrdersPendingRewards(
+  const { pendings: chainPendings, dataUpdatedAt: chainReadAt } = useOrdersPendingRewards(
     userOrderCount,
     (currentAddress || undefined) as `0x${string}` | undefined,
   )
@@ -340,22 +340,27 @@ export function Dashboard() {
         .filter(claim => claim.orderId === order.id)
         .reduce((sum, claim) => sum + claim.amount, 0)
 
-      // 优先用链上权威待领取；金本位把 VVV 按当前价换算成 USD。读取失败则回退旧算法。
+      const isExpired = now >= endMs
+
+      // 优先用链上权威待领取做基准；两次链上读取之间用时间累计平滑跳动。
+      // 金本位把 VVV 按当前价换算成 USD。读取失败则回退旧算法。
       const chainOrderId = chainOrderIdMap.get(order.id) ?? 0
       const chainPendingVvv = chainPendings[chainOrderId]
       let pendingReward: number
       let claimedReward: number
       if (chainPendingVvv !== undefined && chainPendingVvv >= 0n) {
-        const pendingVvv = Number(chainPendingVvv) / 1e18
-        pendingReward = order.mode === 'coin' ? pendingVvv : pendingVvv * vvvPriceAtClaim
-        // 已获收益 = 累计应得 − 链上待领取（避免依赖可能缺失的数据库领取记录）
+        const baseVvv = Number(chainPendingVvv) / 1e18
+        const basePending = order.mode === 'coin' ? baseVvv : baseVvv * vvvPriceAtClaim
+        // 链上读取时刻之后的实时累计（未到期才继续累计，且不超过总应得）
+        const secsSinceRead = chainReadAt ? Math.max(0, (now - chainReadAt) / 1000) : 0
+        const accrualSinceRead = isExpired ? 0 : periodReward * (secsSinceRead / (unitMs / 1000))
+        pendingReward = Math.min(totalExpectedReward, basePending + accrualSinceRead)
+        // 已获收益 = 累计应得 − 待领取（基准来自链上，已领取保持稳定）
         claimedReward = Math.max(0, accruedReward - pendingReward)
       } else {
         pendingReward = Math.max(0, accruedReward - dbClaimedReward)
         claimedReward = dbClaimedReward
       }
-
-      const isExpired = now >= endMs
       const withdrawn = order.isWithdrawn === true
 
       return {
