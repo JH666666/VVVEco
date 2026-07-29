@@ -231,7 +231,7 @@ export function MissingOrdersPanel() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">漏单检测</h1>
+        <h1 className="text-2xl font-semibold">质押订单检测</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           扫描链上 Staked 事件，找出数据库中缺失的质押订单并自动补录
         </p>

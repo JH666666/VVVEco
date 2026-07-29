@@ -182,7 +182,7 @@ export function MissingTeamRewardsPanel() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">团队奖励补录</h1>
+        <h1 className="text-2xl font-semibold">团队奖励检测</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           扫描链上 TeamRewardAccrued 事件，找出数据库缺失的团队奖励并补录（修复贡献奖励不显示、出金偏小）
         </p>
