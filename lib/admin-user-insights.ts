@@ -105,6 +105,7 @@ export interface UserListInsight {
   directCount: number
   teamCount: number
   totalStakedUsd: number
+  activeStakedUsd: number
   totalRedeemedUsd: number
   totalClaimedUsd: number
   totalPendingUsd: number
@@ -464,6 +465,7 @@ export function getAllUserInsights(nowMs = Date.now()): UserListInsight[] {
       directCount: item.directCount,
       teamCount: item.teamCount,
       totalStakedUsd: item.totalStakedUsd,
+      activeStakedUsd: item.totalStakedUsd, // fallback path: no per-order expiry split available
       totalRedeemedUsd: item.totalRedeemedUsd,
       totalClaimedUsd: item.totalClaimedUsd,
       totalPendingUsd: item.totalPendingUsd,

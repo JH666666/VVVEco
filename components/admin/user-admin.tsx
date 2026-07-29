@@ -52,6 +52,14 @@ export function UserAdmin() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [summary, setSummary] = useState<{
+    totalUsers: number
+    stakedUserCount: number
+    activeOrderCount: number
+    activeStakedUsd: number
+    claimedUsd: number
+    pendingUsd: number
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedViewAddress, setSelectedViewAddress] = useState('')
   const [nicknames, setNicknames] = useState<Record<string, string>>({})
@@ -92,6 +100,7 @@ export function UserAdmin() {
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setUsers(data.items ?? [])
+      setSummary(data.summary ?? null)
       setTotal(data.pagination?.total ?? 0)
       setTotalPages(data.pagination?.totalPages ?? 1)
     } catch {
@@ -99,6 +108,7 @@ export function UserAdmin() {
       const { getAllUserInsights } = await import('@/lib/admin-user-insights')
       const fallback = getAllUserInsights(Date.now())
       setUsers(fallback)
+      setSummary(null)
       setTotal(fallback.length)
       setTotalPages(Math.ceil(fallback.length / pageSize))
     } finally {
@@ -231,10 +241,12 @@ export function UserAdmin() {
   }
 
   const filteredUsers = users
-  const totalUserStaked = filteredUsers.reduce((sum, user) => sum + user.totalStakedUsd, 0)
-  const totalUserClaimed = filteredUsers.reduce((sum, user) => sum + user.totalClaimedUsd, 0)
-  const totalUserPending = filteredUsers.reduce((sum, user) => sum + user.totalPendingUsd, 0)
-  const stakedUsers = filteredUsers.filter(user => user.orderCount > 0).length
+  // 四个卡片优先用全平台汇总（summary），仅在接口无 summary 时回退到当前页求和
+  const cardTotalUsers = summary?.totalUsers ?? total
+  const cardActiveStaked = summary?.activeStakedUsd ?? filteredUsers.reduce((sum, user) => sum + user.activeStakedUsd, 0)
+  const cardActiveOrders = summary?.activeOrderCount ?? filteredUsers.reduce((sum, user) => sum + user.activeOrderCount, 0)
+  const totalUserClaimed = summary?.claimedUsd ?? filteredUsers.reduce((sum, user) => sum + user.totalClaimedUsd, 0)
+  const totalUserPending = summary?.pendingUsd ?? filteredUsers.reduce((sum, user) => sum + user.totalPendingUsd, 0)
   const displayTotalPages = totalPages
   const safePage = Math.min(page, displayTotalPages)
   const pagedUsers = users
@@ -331,8 +343,8 @@ export function UserAdmin() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold text-foreground">{formatInteger(filteredUsers.length)}</p>
-            <p className="mt-2 text-xs text-muted-foreground">已质押 {formatInteger(stakedUsers)}</p>
+            <p className="text-2xl font-semibold text-foreground">{formatInteger(cardTotalUsers)}</p>
+            <p className="mt-2 text-xs text-muted-foreground">未到期订单 {formatInteger(cardActiveOrders)} 笔</p>
           </CardContent>
         </Card>
 
@@ -344,8 +356,8 @@ export function UserAdmin() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold text-foreground">{formatUsdFull(totalUserStaked)}</p>
-            <p className="mt-2 text-xs text-muted-foreground">来自用户列表统计</p>
+            <p className="text-2xl font-semibold text-foreground">{formatUsdFull(cardActiveStaked)}</p>
+            <p className="mt-2 text-xs text-muted-foreground">未到期订单质押额</p>
           </CardContent>
         </Card>
 
@@ -430,7 +442,7 @@ export function UserAdmin() {
                       <TableCell>
                         <Badge variant="secondary">{user.effectiveLevel > 0 ? `V${user.effectiveLevel}` : '未达级'}</Badge>
                       </TableCell>
-                      <TableCell>{formatUsdFull(user.totalStakedUsd)}</TableCell>
+                      <TableCell>{formatUsdFull(user.activeStakedUsd)}</TableCell>
                       <TableCell>
                         {formatInteger(user.orderCount)}
                         {user.activeOrderCount > 0 && (

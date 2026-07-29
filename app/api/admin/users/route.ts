@@ -108,6 +108,8 @@ export async function GET(request: NextRequest) {
     const items = users.map((user, i) => {
       const totalStakedUsd = user.stakeOrders.reduce((sum, o) => sum + o.usdValue, 0);
       const activeOrders = user.stakeOrders.filter((o) => !o.isWithdrawn && o.endTime > now);
+      // 未到期质押额（进行中订单 USD 之和）——不含已到期/已赎回
+      const activeStakedUsd = activeOrders.reduce((sum, o) => sum + o.usdValue, 0);
       const totalRedeemedUsd = user.stakeOrders.filter((o) => o.isWithdrawn).reduce((sum, o) => sum + o.usdValue, 0);
       const teamVolume = teamVolumes[i];
       const effectiveLevel = calcLevel(teamVolume);
@@ -142,6 +144,7 @@ export async function GET(request: NextRequest) {
         directCount: user._count.referrals,
         teamCount: user._count.referrals,
         totalStakedUsd,
+        activeStakedUsd,
         totalRedeemedUsd,
         totalClaimedUsd,
         totalPendingUsd,
@@ -152,8 +155,45 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // ── 全平台汇总（不受分页限制，四个卡片口径统一）──
+    // 未到期订单：进行中的质押（未赎回且未到期），用于「用户质押总额」「已质押订单数」「待领取」
+    const activeOrdersAll = await prisma.stakeOrder.findMany({
+      where: { isWithdrawn: false, endTime: { gt: now } },
+      select: {
+        usdValue: true, dailyRate: true, period: true, periodUnit: true, startTime: true,
+        claimRecords: { select: { amountUsd: true } },
+      },
+    });
+    let summaryActiveStakedUsd = 0;
+    let summaryPendingUsd = 0;
+    for (const o of activeOrdersAll) {
+      summaryActiveStakedUsd += o.usdValue;
+      const unitMs = o.periodUnit === "hour" ? 3600_000 : 86_400_000;
+      const elapsedUnits = Math.max(0, (now.getTime() - o.startTime.getTime()) / unitMs);
+      const periodReward = o.usdValue * (o.dailyRate / 100);
+      const accrued = Math.min(periodReward * o.period, periodReward * elapsedUnits);
+      const claimed = o.claimRecords.reduce((s, c) => s + c.amountUsd, 0);
+      summaryPendingUsd += Math.max(0, accrued - claimed);
+    }
+    const claimedAgg = await prisma.claimRecord.aggregate({ _sum: { amountUsd: true } });
+    const stakedUserRows = await prisma.stakeOrder.findMany({
+      distinct: ["walletAddress"], select: { walletAddress: true },
+    });
+    // 四个卡片为全平台 KPI，不随列表搜索/筛选变化（搜索只过滤下方列表）
+    const platformUserTotal = await prisma.user.count();
+
+    const summary = {
+      totalUsers: platformUserTotal,                  // 全部注册用户（全平台）
+      stakedUserCount: stakedUserRows.length,         // 有质押的用户数
+      activeOrderCount: activeOrdersAll.length,       // 未到期订单数
+      activeStakedUsd: summaryActiveStakedUsd,        // 未到期质押总额 USD
+      claimedUsd: claimedAgg._sum.amountUsd ?? 0,     // 全部用户累计已领取
+      pendingUsd: summaryPendingUsd,                  // 全部用户未到期订单待领取
+    };
+
     return NextResponse.json({
       items,
+      summary,
       pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     });
   } catch (error) {
