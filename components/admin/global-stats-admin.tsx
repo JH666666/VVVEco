@@ -503,7 +503,7 @@ export function GlobalStatsAdmin() {
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Wallet className="h-5 w-5 text-primary" />全网质押金额</CardTitle></CardHeader>
           <CardContent>
             {isConfigLoading ? <div className="h-8 w-32 rounded bg-muted animate-pulse" /> : <p className="text-2xl font-semibold text-foreground">{formatUsdFull(computed.displayStakedUsd)}</p>}
-            <p className="mt-2 text-xs text-muted-foreground">真实质押 {formatUsdFull(computed.realStakedUsd)}</p>
+            <p className="mt-2 text-xs text-muted-foreground">真实累计质押 {formatUsdFull(computed.realStakedUsd)}（含已到期）</p>
           </CardContent>
         </Card>
         <Card className="border-border bg-card shadow-card">
@@ -524,9 +524,9 @@ export function GlobalStatsAdmin() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
         <Card className="border-border bg-card shadow-card">
-          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><BarChart3 className="h-5 w-5 text-primary" />真实数据统计</CardTitle><CardDescription>来自数据库真实质押和领取记录。</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><BarChart3 className="h-5 w-5 text-primary" />真实数据统计</CardTitle><CardDescription>来自数据库真实质押和领取记录。「累计质押」含已到期/已赎回；用户管理页的「未到期质押」只算进行中，故两者不同。</CardDescription></CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实质押金额</span><Badge variant="secondary">{formatUsdFull(computed.realStakedUsd)}</Badge></div>
+            <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实累计质押金额（含已到期）</span><Badge variant="secondary">{formatUsdFull(computed.realStakedUsd)}</Badge></div>
             <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实领取收益</span><Badge variant="secondary">{formatUsdFull(computed.realClaimedUsd)}</Badge></div>
             <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实待领取收益</span><Badge variant="secondary">{formatUsdFull(computed.realPendingUsd)}</Badge></div>
             <div className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-sm text-muted-foreground">真实质押地址数</span><Badge variant="secondary">{formatInteger(computed.realStakerCount)}</Badge></div>

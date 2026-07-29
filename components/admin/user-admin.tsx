@@ -352,7 +352,7 @@ export function UserAdmin() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Wallet className="h-5 w-5 text-primary" />
-              用户质押总额
+              未到期质押额
             </CardTitle>
           </CardHeader>
           <CardContent>

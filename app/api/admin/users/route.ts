@@ -120,15 +120,17 @@ export async function GET(request: NextRequest) {
         0
       );
 
-      // 待领取 = 活跃订单的累计收益 - 已领取部分
-      const totalPendingUsd = activeOrders.reduce((sum, o) => {
-        const unitMs = o.periodUnit === "hour" ? 3600_000 : 86_400_000;
-        const elapsedUnits = Math.max(0, (now.getTime() - o.startTime.getTime()) / unitMs);
-        const periodReward = o.usdValue * (o.dailyRate / 100);
-        const accrued = Math.min(periodReward * o.period, periodReward * elapsedUnits);
-        const claimed = o.claimRecords.reduce((s, c) => s + c.amountUsd, 0);
-        return sum + Math.max(0, accrued - claimed);
-      }, 0);
+      // 待领取 = 所有未赎回订单（含已到期但还没领的，仍可领）的累计收益 - 已领取部分
+      const totalPendingUsd = user.stakeOrders
+        .filter((o) => !o.isWithdrawn)
+        .reduce((sum, o) => {
+          const unitMs = o.periodUnit === "hour" ? 3600_000 : 86_400_000;
+          const elapsedUnits = Math.max(0, (now.getTime() - o.startTime.getTime()) / unitMs);
+          const periodReward = o.usdValue * (o.dailyRate / 100);
+          const accrued = Math.min(periodReward * o.period, periodReward * elapsedUnits);
+          const claimed = o.claimRecords.reduce((s, c) => s + c.amountUsd, 0);
+          return sum + Math.max(0, accrued - claimed);
+        }, 0);
 
       return {
         uid: user.uid,
@@ -156,18 +158,22 @@ export async function GET(request: NextRequest) {
     });
 
     // ── 全平台汇总（不受分页限制，四个卡片口径统一）──
-    // 未到期订单：进行中的质押（未赎回且未到期），用于「用户质押总额」「已质押订单数」「待领取」
-    const activeOrdersAll = await prisma.stakeOrder.findMany({
-      where: { isWithdrawn: false, endTime: { gt: now } },
+    // 拉取所有未赎回订单，按是否到期拆分：
+    //  · 质押金额/未到期订单数 → 只算「未到期」（endTime > now）= 当前进行中质押（TVL 口径）
+    //  · 待领取 → 所有未赎回订单（含已到期但还没领的，仍可领），与全局数据页口径一致
+    const openOrders = await prisma.stakeOrder.findMany({
+      where: { isWithdrawn: false },
       select: {
-        usdValue: true, dailyRate: true, period: true, periodUnit: true, startTime: true,
+        usdValue: true, dailyRate: true, period: true, periodUnit: true, startTime: true, endTime: true,
         claimRecords: { select: { amountUsd: true } },
       },
     });
     let summaryActiveStakedUsd = 0;
+    let summaryActiveOrderCount = 0;
     let summaryPendingUsd = 0;
-    for (const o of activeOrdersAll) {
-      summaryActiveStakedUsd += o.usdValue;
+    for (const o of openOrders) {
+      const notExpired = o.endTime.getTime() > now.getTime();
+      if (notExpired) { summaryActiveStakedUsd += o.usdValue; summaryActiveOrderCount += 1; }
       const unitMs = o.periodUnit === "hour" ? 3600_000 : 86_400_000;
       const elapsedUnits = Math.max(0, (now.getTime() - o.startTime.getTime()) / unitMs);
       const periodReward = o.usdValue * (o.dailyRate / 100);
@@ -185,10 +191,10 @@ export async function GET(request: NextRequest) {
     const summary = {
       totalUsers: platformUserTotal,                  // 全部注册用户（全平台）
       stakedUserCount: stakedUserRows.length,         // 有质押的用户数
-      activeOrderCount: activeOrdersAll.length,       // 未到期订单数
+      activeOrderCount: summaryActiveOrderCount,      // 未到期订单数
       activeStakedUsd: summaryActiveStakedUsd,        // 未到期质押总额 USD
       claimedUsd: claimedAgg._sum.amountUsd ?? 0,     // 全部用户累计已领取
-      pendingUsd: summaryPendingUsd,                  // 全部用户未到期订单待领取
+      pendingUsd: summaryPendingUsd,                  // 待领取（所有未赎回订单，与全局页一致）
     };
 
     return NextResponse.json({
