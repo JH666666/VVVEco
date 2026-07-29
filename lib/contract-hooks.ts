@@ -380,8 +380,16 @@ export function useStake() {
       method: "eth_sendTransaction",
       params: [{ from: address, to: STAKING_ADDR, data }],
     });
-    await waitForRawReceipt(txHash);
-    return txHash;
+    if (!txHash) throw new Error("交易未提交，钱包未返回交易 hash");
+    // 交易已提交（钱包已返回 hash），立即返回 txHash 让 UI 解除"质押中"。
+    // 回执等待放到后台 receiptPromise，不阻塞按钮，避免一直转圈。
+    const receiptPromise = (async (): Promise<RawReceipt> => {
+      const receipt = await waitForRawReceipt(txHash);
+      if (!receipt) throw new Error("交易确认失败，未获取到链上回执");
+      if (receipt.status !== "0x1") throw new Error(`交易执行失败（status=${receipt.status}）`);
+      return receipt;
+    })();
+    return { txHash, receiptPromise };
   };
 }
 

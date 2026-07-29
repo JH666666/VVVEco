@@ -296,18 +296,26 @@ export function StakingHub() {
 
       // 2. Stake
       let tx: string
+      let receiptPromise: Promise<unknown>
       try {
-        tx = await realStake(amountWei, selectedPeriod.duration, stakeMode === "coin", onChainReferrer)
+        const stakeResult = await realStake(amountWei, selectedPeriod.duration, stakeMode === "coin", onChainReferrer)
+        tx = stakeResult.txHash
+        receiptPromise = stakeResult.receiptPromise
       } catch (e: unknown) {
         console.error('[stake] stake failed raw error:', e)
         toast({ title: t('质押失败', 'Stake Failed'), description: getErrorMessage(e), variant: 'destructive' })
         return
       }
 
-      // 3. Sync to API
+      // 交易已提交（钱包已返回 hash）——立即解除"质押中"，让用户不必等待/关闭页面。
+      setIsStaking(false)
+      setStakeAmount("")
+
+      // 3. Sync to API —— 立即后台写库（服务端校验对未上链交易 fail-open，会先按前端值建单，
+      //    随后回执确认后再写一次以链上权威值 upsert）。即使用户关闭页面，漏单扫描也会兜底补录。
       const stakeNow = Date.now()
       const stakeEndMs = stakeNow + selectedPeriod.durationDays * 86400 * 1000
-      await createStakeOrder({
+      const orderPayload = {
         id: tx,
         txHash: tx,
         account: address,
@@ -320,10 +328,22 @@ export function StakingHub() {
         createdAt: new Date(stakeNow).toISOString(),
         createdAtMs: stakeNow,
         endTime: new Date(stakeEndMs).toISOString(),
-      })
-      toast({ title: t('质押成功', 'Stake Successful'), description: t('质押订单已创建', 'Stake order created') })
+      }
+      createStakeOrder(orderPayload).catch(() => {})
+      toast({ title: t('质押处理中', 'Processing'), description: t('交易已提交，正在链上确认', 'Transaction submitted, confirming on-chain') })
       refetchBalance()
-      setStakeAmount("")
+
+      // 后台：等回执确认后再 upsert（此时链上已能读到权威订单数据），并提示最终结果
+      receiptPromise
+        .then(() => {
+          createStakeOrder(orderPayload).catch(() => {})
+          toast({ title: t('质押成功', 'Stake Successful'), description: t('质押订单已创建', 'Stake order created') })
+          refetchBalance()
+        })
+        .catch((e: unknown) => {
+          console.error('[stake] receipt error:', e)
+          toast({ title: t('质押确认失败', 'Confirmation failed'), description: getErrorMessage(e), variant: 'destructive' })
+        })
     } catch (e: unknown) {
       console.error('[stake] unexpected error:', e)
       toast({ title: t('质押失败', 'Stake Failed'), description: getErrorMessage(e), variant: 'destructive' })
