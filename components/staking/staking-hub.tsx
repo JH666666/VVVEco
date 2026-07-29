@@ -131,7 +131,8 @@ export function StakingHub() {
   const [stakeMode, setStakeMode] = useState<StakeMode>('coin')
   const [selectedPeriod, setSelectedPeriod] = useState<StakePeriod>(defaultStakePeriods[1])
   const [stakeAmount, setStakeAmount] = useState('')
-  const [isStaking, setIsStaking] = useState(false)
+  const [isStaking, setIsStaking] = useState(false)     // 锁定：按钮禁用，直到链上确认成功/失败（防重复质押）
+  const [stakeSpinning, setStakeSpinning] = useState(false) // 转圈：视觉，最多转 10 秒即停（但仍锁定）
   const { value: minStakeUsdRaw } = useMinStakeUsd()
   const [minStakeUsdApi, setMinStakeUsdApi] = useState<number>(0)
   useEffect(() => {
@@ -263,6 +264,8 @@ export function StakingHub() {
       return
     }
     setIsStaking(true)
+    setStakeSpinning(true)
+    let submitted = false
     try {
       const amountWei = BigInt(Math.floor(vvvAmount * 1e18))
       const MaxUint256 = 2n ** 256n - 1n
@@ -307,12 +310,12 @@ export function StakingHub() {
         return
       }
 
-      // 交易已提交（钱包已返回 hash）——立即解除"质押中"，让用户不必等待/关闭页面。
-      setIsStaking(false)
+      // 交易已提交（钱包已返回 hash）。保持转圈+锁定，直到链上确认再解锁（防重复质押）。
+      submitted = true
       setStakeAmount("")
 
-      // 3. Sync to API —— 立即后台写库（服务端校验对未上链交易 fail-open，会先按前端值建单，
-      //    随后回执确认后再写一次以链上权威值 upsert）。即使用户关闭页面，漏单扫描也会兜底补录。
+      // 3. 交易一提交就写库（不等回执）——用户随时关页面也不丢订单。服务端校验对未上链交易
+      //    fail-open，会先按前端值建单；回执确认后再以链上权威值 upsert 一次。漏单扫描再兜底。
       const stakeNow = Date.now()
       const stakeEndMs = stakeNow + selectedPeriod.durationDays * 86400 * 1000
       const orderPayload = {
@@ -330,17 +333,25 @@ export function StakingHub() {
         endTime: new Date(stakeEndMs).toISOString(),
       }
       createStakeOrder(orderPayload).catch(() => {})
-      toast({ title: t('质押处理中', 'Processing'), description: t('交易已提交，正在链上确认', 'Transaction submitted, confirming on-chain') })
       refetchBalance()
 
-      // 后台：等回执确认后再 upsert（此时链上已能读到权威订单数据），并提示最终结果
+      // 转圈最多 10 秒即停（长转无意义）；按钮仍保持禁用，直到链上确认，防重复质押
+      const capTimer = setTimeout(() => { setStakeSpinning(false) }, 10000)
+
+      // 后台：等回执确认——确认后解锁、以链上权威值再 upsert 一次、提示成功
       receiptPromise
         .then(() => {
+          clearTimeout(capTimer)
+          setStakeSpinning(false)
+          setIsStaking(false)
           createStakeOrder(orderPayload).catch(() => {})
           toast({ title: t('质押成功', 'Stake Successful'), description: t('质押订单已创建', 'Stake order created') })
           refetchBalance()
         })
         .catch((e: unknown) => {
+          clearTimeout(capTimer)
+          setStakeSpinning(false)
+          setIsStaking(false)
           console.error('[stake] receipt error:', e)
           toast({ title: t('质押确认失败', 'Confirmation failed'), description: getErrorMessage(e), variant: 'destructive' })
         })
@@ -348,7 +359,11 @@ export function StakingHub() {
       console.error('[stake] unexpected error:', e)
       toast({ title: t('质押失败', 'Stake Failed'), description: getErrorMessage(e), variant: 'destructive' })
     } finally {
-      setIsStaking(false)
+      // 提交成功后由回执处理解锁；未提交（授权/提交失败、异常）在此解锁
+      if (!submitted) {
+        setIsStaking(false)
+        setStakeSpinning(false)
+      }
     }
   }
 
@@ -684,8 +699,10 @@ export function StakingHub() {
               disabled={stakeDisabled || isStaking}
               onClick={handleStake}
             >
-              {isStaking ? (
+              {stakeSpinning ? (
                 <><Loader2 className="h-4 w-4 animate-spin" />{t('处理中...', 'Processing...')}</>
+              ) : isStaking ? (
+                <>{t('确认中...', 'Confirming...')}</>
               ) : (
                 <>{t('确认质押', 'Confirm Stake')}<ArrowRight className="h-4 w-4" /></>
               )}

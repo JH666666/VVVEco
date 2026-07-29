@@ -156,7 +156,8 @@ export function Dashboard() {
   const { controls } = useAdminControls()
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'withdrawn'>('active')
   const [now, setNow] = useState(Date.now())
-  const [claimingOrderIds, setClaimingOrderIds] = useState<Set<string>>(new Set())
+  const [claimingOrderIds, setClaimingOrderIds] = useState<Set<string>>(new Set()) // 锁定：按钮禁用，直到链上确认成功/失败才解锁（防重复提交）
+  const [claimSpinIds, setClaimSpinIds] = useState<Set<string>>(new Set())         // 转圈：视觉，最多转 10 秒即停（但仍锁定）
   // 领取成功后每单的"归零时刻"：从这一刻起待领取从 0 按秒重新累计（在链上读取追上前先乐观显示）
   const [claimResetAt, setClaimResetAt] = useState<Record<string, number>>({})
   const personalClaimFrozen = isPersonalClaimFrozen(currentAddress)
@@ -217,7 +218,9 @@ export function Dashboard() {
     const TEAM_REWARD_TOPIC = "0xe07f61c526a4ace6d1e5cad0a84eddbf8e2733ce8383b0b2f1d76f07fb1cab49"
     const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
     setClaimingOrderIds(prev => new Set(prev).add(order.id))
-    const releaseSpinner = () => setClaimingOrderIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
+    setClaimSpinIds(prev => new Set(prev).add(order.id))
+    const releaseLock = () => setClaimingOrderIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
+    const releaseSpin = () => setClaimSpinIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
     let tx = ""
     try {
       const claimResult = await realClaim(BigInt(order.chainOrderId), order.pendingReward)
@@ -225,10 +228,9 @@ export function Dashboard() {
       const logsPromise = claimResult.logsPromise
       console.log('[claim] txHash:', tx)
 
-      // 交易已提交后做乐观更新，但保持"领取中"转圈，直到链上回执确认（弹"领取成功"）再松开。
       const nowMs  = Date.now()
       const nowStr = new Date(nowMs).toLocaleString("zh-CN", { hour12: false })
-      const optimisticClaim: SimClaimRecord = {
+      const claimPayload = {
         id: tx,
         orderId: order.id,
         account: currentAddress,
@@ -239,25 +241,26 @@ export function Dashboard() {
         createdAt: nowStr,
         createdAtMs: nowMs,
       }
-      setApiClaims(prev => [...prev, optimisticClaim])
+      setApiClaims(prev => [...prev, claimPayload as SimClaimRecord])
       claimReward(order.id, order.pendingReward)
 
-      // 领取已提交后重读链上待领取让它归零。交易刚提交还没打包，立即读没意义，
-      // 所以延后几次读（兜住节点同步延迟）；回执确认后后台还会再读一次。
+      // 交易一提交就写库（不等回执）——用户随时关页面也不丢领取记录。
+      // 服务端收到后还会读这笔交易补录团队奖励。极小概率 revert 会多一条记录，可对账，好过丢记录。
+      createClaimRecord(claimPayload).then((saved) => { if (saved) refreshData() }).catch(() => {})
+
+      // 领取已提交后重读链上待领取（交易刚提交还没打包，延后读；回执确认后后台还会再读）
       setTimeout(() => { refetchPending() }, 4000)
       setTimeout(() => { refetchPending() }, 12000)
 
-      // 硬性上限：15 秒后无论回执是否到达都松开转圈（后台仍继续读链确认），绝不卡死
-      const capTimer = setTimeout(() => {
-        releaseSpinner()
-        toast({ title: t("仍在链上确认", "Confirming on-chain"), description: t("确认后订单会自动更新；若未到账说明领取未成功", "It will update once confirmed; if nothing arrives the claim didn't go through") })
-      }, 15000)
+      // 转圈最多 10 秒即停（长转无意义）；但按钮仍保持禁用，直到链上确认，防重复提交
+      const capTimer = setTimeout(() => { releaseSpin() }, 10000)
 
-      // ── 后台：等待回执并解析事件——回执一到就松开转圈并弹"领取成功" ──
+      // ── 后台：等待回执并解析事件——回执确认后解锁并弹"领取成功" ──
       logsPromise
         .then(async (logs) => {
           clearTimeout(capTimer)
-          releaseSpinner()
+          releaseSpin()
+          releaseLock()
           console.log('[claim] logs:', logs.length)
           // VVVPayout 合约事件 topic（按合约源码定义）
           const TOPIC_REWARD_PAID   = "0xa4b7979b77c5bef65740b7e1d7a09534eadc2803d5c1cfdae60fa28226be6da2"
@@ -277,20 +280,8 @@ export function Dashboard() {
             return
           }
 
-          // 写库（后台，各页面已改读链上，即使写库慢/失败也不卡 UI）
-          createClaimRecord({
-            id: tx,
-            orderId: order.id,
-            account: currentAddress,
-            amount: order.pendingReward,
-            amountVvv: order.mode === 'coin' ? order.pendingReward : order.pendingReward / vvvPriceAtClaim,
-            amountUsd: order.mode === 'fiat' ? order.pendingReward : order.pendingReward * vvvPriceAtClaim,
-            priceUsd: vvvPriceAtClaim,
-            createdAt: nowStr,
-            createdAtMs: nowMs,
-          }).then((saved) => { if (saved) refreshData() }).catch(() => {})
-
-          // 解析 TeamRewardAccrued 事件，后台写入上级团队奖励记录
+          // 领取记录已在提交时写库，这里不再重复写。
+          // 解析 TeamRewardAccrued 事件，后台写入上级团队奖励记录（快路径；服务端也会补录）
           const teamLogs = logs.filter(l => l.topics[0]?.toLowerCase() === TEAM_REWARD_TOPIC)
           teamLogs.forEach(l => {
             const recipient = ("0x" + l.topics[1]?.slice(-40)) as string
@@ -318,7 +309,8 @@ export function Dashboard() {
         })
         .catch((e: unknown) => {
           clearTimeout(capTimer)
-          releaseSpinner()
+          releaseSpin()
+          releaseLock()
           // 回执确认失败（如链上 revert / 超时）：回滚乐观记录并提示
           setApiClaims(prev => prev.filter(c => c.id !== tx))
           const msg = (e as Error)?.message ?? ""
@@ -330,8 +322,9 @@ export function Dashboard() {
           })
         })
     } catch (e: unknown) {
-      // 交易提交阶段失败（用户拒绝 / 钱包未返回 hash 等）：松开转圈
-      releaseSpinner()
+      // 交易提交阶段失败（用户拒绝 / 钱包未返回 hash 等）：解锁
+      releaseSpin()
+      releaseLock()
       setApiClaims(prev => prev.filter(c => c.orderId !== order.id || c.account !== currentAddress))
       const msg = (e as Error)?.message ?? ""
       console.error('[claim] error:', msg)
@@ -674,8 +667,10 @@ export function Dashboard() {
                       onClick={() => handleClaimReward(order)}
                       disabled={order.pendingReward <= 0 || personalClaimFrozen || claimingOrderIds.has(order.id)}
                     >
-                      {claimingOrderIds.has(order.id) ? (
+                      {claimSpinIds.has(order.id) ? (
                         <><Loader2 className="h-4 w-4 animate-spin" />{t('领取中...', 'Claiming...')}</>
+                      ) : claimingOrderIds.has(order.id) ? (
+                        <>{t('确认中...', 'Confirming...')}</>
                       ) : (
                         <><Gift className="h-4 w-4" />{t('领取收益', 'Claim Rewards')}</>
                       )}
