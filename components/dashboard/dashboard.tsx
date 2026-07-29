@@ -215,6 +215,7 @@ export function Dashboard() {
     const TEAM_REWARD_TOPIC = "0xe07f61c526a4ace6d1e5cad0a84eddbf8e2733ce8383b0b2f1d76f07fb1cab49"
     const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
     setClaimingOrderIds(prev => new Set(prev).add(order.id))
+    const releaseSpinner = () => setClaimingOrderIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
     let tx = ""
     try {
       const claimResult = await realClaim(BigInt(order.chainOrderId), order.pendingReward)
@@ -222,10 +223,7 @@ export function Dashboard() {
       const logsPromise = claimResult.logsPromise
       console.log('[claim] txHash:', tx)
 
-      // 交易已提交（钱包已返回 hash）——立即解除"领取中"并做乐观更新，
-      // 不再等待链上回执（回执解析放到后台），避免按钮一直转圈。
-      setClaimingOrderIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
-
+      // 交易已提交后做乐观更新，但保持"领取中"转圈，直到链上回执确认（弹"领取成功"）再松开。
       const nowMs  = Date.now()
       const nowStr = new Date(nowMs).toLocaleString("zh-CN", { hour12: false })
       const optimisticClaim: SimClaimRecord = {
@@ -246,11 +244,18 @@ export function Dashboard() {
       // 所以延后几次读（兜住节点同步延迟）；回执确认后后台还会再读一次。
       setTimeout(() => { refetchPending() }, 4000)
       setTimeout(() => { refetchPending() }, 12000)
-      toast({ title: t("领取处理中", "Processing"), description: t("交易已提交，正在链上确认", "Transaction submitted, confirming on-chain") })
 
-      // ── 后台：等待回执并解析事件（出款事件检测 / 团队奖励 / 写库），不阻塞按钮 ──
+      // 硬性上限：25 秒后无论回执是否到达都松开转圈（后台仍会继续处理），绝不卡死
+      const capTimer = setTimeout(() => {
+        releaseSpinner()
+        toast({ title: t("领取处理中", "Processing"), description: t("链上确认较慢，稍后在订单中核对即可", "Confirming is slow; re-check the order shortly") })
+      }, 25000)
+
+      // ── 后台：等待回执并解析事件——回执一到就松开转圈并弹"领取成功" ──
       logsPromise
         .then(async (logs) => {
+          clearTimeout(capTimer)
+          releaseSpinner()
           console.log('[claim] logs:', logs.length)
           // VVVPayout 合约事件 topic（按合约源码定义）
           const TOPIC_REWARD_PAID   = "0xa4b7979b77c5bef65740b7e1d7a09534eadc2803d5c1cfdae60fa28226be6da2"
@@ -308,6 +313,8 @@ export function Dashboard() {
           toast({ title: isRewardPaid ? t("领取成功", "Claimed") : t("领取处理中", "Processing") })
         })
         .catch((e: unknown) => {
+          clearTimeout(capTimer)
+          releaseSpinner()
           // 回执确认失败（如链上 revert / 超时）：回滚乐观记录并提示
           setApiClaims(prev => prev.filter(c => c.id !== tx))
           const msg = (e as Error)?.message ?? ""
@@ -319,7 +326,8 @@ export function Dashboard() {
           })
         })
     } catch (e: unknown) {
-      // 交易提交阶段失败（用户拒绝 / 钱包未返回 hash 等）
+      // 交易提交阶段失败（用户拒绝 / 钱包未返回 hash 等）：松开转圈
+      releaseSpinner()
       setApiClaims(prev => prev.filter(c => c.orderId !== order.id || c.account !== currentAddress))
       const msg = (e as Error)?.message ?? ""
       console.error('[claim] error:', msg)
@@ -328,8 +336,6 @@ export function Dashboard() {
         description: msg.slice(0, 120) || t("交易未完成", "Transaction failed"),
         variant: "destructive",
       })
-    } finally {
-      setClaimingOrderIds(prev => { const s = new Set(prev); s.delete(order.id); return s })
     }
   }
   
