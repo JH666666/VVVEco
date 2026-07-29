@@ -656,7 +656,7 @@ export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
         chainId: 8453,
       }))
     : [];
-  const { data, dataUpdatedAt } = useReadContracts({
+  const { data, dataUpdatedAt, refetch } = useReadContracts({
     contracts,
     query: { enabled: !!target && count > 0, refetchInterval: 30_000 },
   });
@@ -664,7 +664,8 @@ export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
     r.status === "success" ? (r.result as bigint) : undefined
   );
   // dataUpdatedAt: 链上数据最近一次成功读取的时间戳；用于两次读取之间做平滑累计
-  return { pendings, dataUpdatedAt };
+  // refetch: 领取成功后立即重新读链上，让待领取马上归零
+  return { pendings, dataUpdatedAt, refetch };
 }
 
 // ═══════════════ NEW: Team Reward Hooks ═══════════════

@@ -191,7 +191,7 @@ export function Dashboard() {
   const userOrderCount = currentAddress
     ? mergedStakes.filter(o => o.account.toLowerCase() === currentAddress.toLowerCase()).length
     : 0
-  const { pendings: chainPendings, dataUpdatedAt: chainReadAt } = useOrdersPendingRewards(
+  const { pendings: chainPendings, dataUpdatedAt: chainReadAt, refetch: refetchPending } = useOrdersPendingRewards(
     userOrderCount,
     (currentAddress || undefined) as `0x${string}` | undefined,
   )
@@ -293,6 +293,11 @@ export function Dashboard() {
       claimReward(order.id, order.pendingReward)
       if (saved) refreshData()
 
+      // 领取成功后立即重读链上待领取，让它马上归零（再补两次延时读，兜住节点同步延迟）
+      refetchPending()
+      setTimeout(() => { refetchPending() }, 3000)
+      setTimeout(() => { refetchPending() }, 8000)
+
       if (isRewardPaid) {
         toast({ title: t("领取成功", "Claimed") })
       } else {
@@ -355,8 +360,8 @@ export function Dashboard() {
         const secsSinceRead = chainReadAt ? Math.max(0, (now - chainReadAt) / 1000) : 0
         const accrualSinceRead = isExpired ? 0 : periodReward * (secsSinceRead / (unitMs / 1000))
         pendingReward = Math.min(totalExpectedReward, basePending + accrualSinceRead)
-        // 已获收益 = 累计应得 − 待领取（基准来自链上，已领取保持稳定）
-        claimedReward = Math.max(0, accruedReward - pendingReward)
+        // 已获收益用数据库领取记录（稳定，不随时间跳动；未领取即为 0）
+        claimedReward = dbClaimedReward
       } else {
         pendingReward = Math.max(0, accruedReward - dbClaimedReward)
         claimedReward = dbClaimedReward
