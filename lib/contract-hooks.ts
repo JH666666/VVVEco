@@ -640,13 +640,17 @@ export function usePendingRewardForOrder(orderId: number, user?: `0x${string}`) 
  * 返回数组：索引 = orderId，值 = 待领取 VVV（bigint）；读取失败的项为 undefined。
  * 用链上权威值替代"时间累计−数据库领取记录"，避免领取记录写库失败导致待领取卡住。
  */
+const GET_PENDING_READ_ABI = parseAbi([
+  "function getPendingReward(address user, uint256 orderId) view returns (uint256)",
+]);
+
 export function useOrdersPendingRewards(count: number, user?: `0x${string}`) {
   const { address } = useAccount();
   const target = user ?? address;
   const contracts = target && count > 0
     ? Array.from({ length: count }, (_, i) => ({
         address: STAKING_ADDR,
-        abi: STAKING_ABI,
+        abi: GET_PENDING_READ_ABI,
         functionName: "getPendingReward" as const,
         args: [target, BigInt(i)] as const,
         chainId: 8453,
