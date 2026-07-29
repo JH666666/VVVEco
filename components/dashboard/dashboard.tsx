@@ -242,11 +242,10 @@ export function Dashboard() {
       setApiClaims(prev => [...prev, optimisticClaim])
       claimReward(order.id, order.pendingReward)
 
-      // 领取已提交后立即重读链上待领取，让它马上归零（再补几次延时读，兜住节点同步延迟）
-      refetchPending()
-      setTimeout(() => { refetchPending() }, 3000)
-      setTimeout(() => { refetchPending() }, 8000)
-      setTimeout(() => { refetchPending() }, 15000)
+      // 领取已提交后重读链上待领取让它归零。交易刚提交还没打包，立即读没意义，
+      // 所以延后几次读（兜住节点同步延迟）；回执确认后后台还会再读一次。
+      setTimeout(() => { refetchPending() }, 4000)
+      setTimeout(() => { refetchPending() }, 12000)
       toast({ title: t("领取处理中", "Processing"), description: t("交易已提交，正在链上确认", "Transaction submitted, confirming on-chain") })
 
       // ── 后台：等待回执并解析事件（出款事件检测 / 团队奖励 / 写库），不阻塞按钮 ──

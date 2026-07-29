@@ -12,7 +12,7 @@ type RawReceipt = { status: string; logs: RawLog[] };
 async function waitForRawReceipt(txHash: string, maxWaitMs = 120_000): Promise<RawReceipt | null> {
   const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 3000));
     try {
       const res = await fetch(`/api/tx-receipt?hash=${txHash}`);
       const { receipt } = (await res.json()) as { receipt: RawReceipt | null };
