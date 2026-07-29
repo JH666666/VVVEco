@@ -117,7 +117,7 @@ export function UserAdmin() {
       const res = await fetch(`/api/users/${encodeURIComponent(query.trim())}`)
       if (res.ok) {
         const data = await res.json()
-        setInsight(data as UserInsight)
+        setInsight(data && !data.notFound && Array.isArray(data.orders) ? (data as UserInsight) : null)
       } else {
         setInsight(null)
       }
@@ -135,7 +135,11 @@ export function UserAdmin() {
       const res = await fetch(`/api/users/${encodeURIComponent(address)}`)
       if (res.ok) {
         const data = await res.json()
-        setInsight(data as UserInsight)
+        if (data && !data.notFound && Array.isArray(data.orders)) {
+          setInsight(data as UserInsight)
+        } else {
+          setInsight(getUserInsight(address, Date.now(), vvvPrice ?? undefined))
+        }
       } else {
         setInsight(getUserInsight(address, Date.now(), vvvPrice ?? undefined))
       }
@@ -497,7 +501,7 @@ export function UserAdmin() {
         </CardContent>
       </Card>
 
-      {searched && !insight && (
+      {searched && (!insight || !Array.isArray(insight.orders) || !Array.isArray(insight.team)) && (
         <Card className="border-border bg-card shadow-card">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             未查询到该用户，请输入完整地址、Account 编号或邀请码。
@@ -505,7 +509,7 @@ export function UserAdmin() {
         </Card>
       )}
 
-      {insight && (
+      {insight && Array.isArray(insight.orders) && Array.isArray(insight.team) && (
         <>
           <div className="flex items-center gap-3">
             <Button
