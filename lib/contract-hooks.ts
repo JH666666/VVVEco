@@ -7,18 +7,15 @@ import { parseEther, formatEther, encodeFunctionData, parseAbi } from "viem";
 type RawLog = { topics: string[]; data: string; address: string; logIndex?: string };
 type RawReceipt = { status: string; logs: RawLog[] };
 
-// 等待 tx 被打包：轮询 eth_getTransactionReceipt，最多等 120 秒，返回 receipt
+// 等待 tx 被打包：通过服务端可靠 RPC 轮询回执（不用手机钱包 provider，避免卡住），
+// 最多等 120 秒，返回 receipt
 async function waitForRawReceipt(txHash: string, maxWaitMs = 120_000): Promise<RawReceipt | null> {
-  const eth = typeof window !== "undefined" ? (window as unknown as Record<string, unknown>).ethereum : null;
-  if (!eth) return null;
   const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 2000));
     try {
-      const receipt = await (eth as { request: (args: unknown) => Promise<unknown> }).request({
-        method: "eth_getTransactionReceipt",
-        params: [txHash],
-      }) as RawReceipt | null;
+      const res = await fetch(`/api/tx-receipt?hash=${txHash}`);
+      const { receipt } = (await res.json()) as { receipt: RawReceipt | null };
       if (receipt) {
         if (receipt.status === "0x0") throw new Error("交易在链上执行失败（revert）");
         return receipt;
