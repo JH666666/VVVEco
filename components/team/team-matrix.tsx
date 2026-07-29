@@ -9,7 +9,7 @@ import { useRewardConfig } from '@/lib/reward-config'
 import { getUserLevelOverride, useUserLevelOverrides } from '@/lib/user-level-overrides'
 import { fetchTeamRewards } from '@/lib/api-client'
 import { useLanguage } from '@/contexts/language-context'
-import { useTeamRewardsTotal, useUserOnChainInfo } from '@/lib/contract-hooks'
+import { useUserOnChainInfo } from '@/lib/contract-hooks'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -235,7 +235,7 @@ export function TeamMatrix() {
   const { controls } = useAdminControls()
   const { config: rewardConfig } = useRewardConfig()
   const { overrides: levelOverrides } = useUserLevelOverrides()
-  const onChainTeamTotal = useTeamRewardsTotal(signedAddress ?? undefined)
+  // 贡献奖励以数据库为准（下级领取时结算入库），不再定时读链——原 onChainTeamTotal 是未使用的死代码
   const onChainInfo = useUserOnChainInfo(signedAddress ?? undefined)
   const onChainLevel = onChainInfo?.level ?? 0
   const teamRewardList = Array.isArray(teamRewards) ? teamRewards : []
