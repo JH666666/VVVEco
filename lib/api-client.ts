@@ -103,33 +103,53 @@ export async function createClaimRecord(claim: SimClaimRecord): Promise<boolean>
 // ═══════════════════════════════════════════
 // Team Rewards
 // ═══════════════════════════════════════════
+const mapTeamRewardItem = (item: Record<string, unknown>): SimTeamRewardRecord => {
+  const source = (item.source as Record<string, unknown>) ?? {};
+  const sourceOrder = (item.sourceOrder as Record<string, unknown>) ?? {};
+  return {
+    id: String(item.id ?? ""),
+    claimId: String(item.claimTxHash ?? ""),
+    type: (item.rewardType as "level" | "peer" | "generation") ?? "generation",
+    generation: typeof item.generation === "number" ? item.generation : undefined,
+    beneficiary: String(item.beneficiaryAddr ?? ""),
+    sourceAccount: String(source.walletAddress ?? ""),
+    sourceOrderId: String(sourceOrder.txHash ?? ""),
+    sourceClaimAmount: 0,
+    sourceClaimAmountVvv: 0,
+    rate: Number(item.rate ?? 0),
+    amount: Number(item.amount ?? 0),
+    claimed: Boolean(item.claimed ?? false),
+    createdAt: String(item.createdAt ?? ""),
+    createdAtMs: item.createdAt ? new Date(String(item.createdAt)).getTime() : Date.now(),
+    claimedAt: item.claimedAt ? String(item.claimedAt) : undefined,
+    claimedAtMs: item.claimedAt ? new Date(String(item.claimedAt)).getTime() : undefined,
+  };
+};
+
 export async function fetchTeamRewards(beneficiary: string): Promise<SimTeamRewardRecord[]> {
+  // 必须翻页拉全部记录：路由把 pageSize 上限截断到 100，若某上级团队奖励 >100 条，
+  // 只取最新 100 条会让"贡献奖励"算小，且每有新领取就把最旧一条挤出窗口 → 数值看起来减少。
+  // 这里循环把所有页拉完，保证贡献奖励=全部记录之和，稳定不跳。
   try {
-    const res = await fetch(`/api/team-rewards?beneficiary=${encodeURIComponent(beneficiary)}&pageSize=500`);
-    if (!res.ok) throw new Error("API failed");
-    const data = await res.json();
-    return (data.items ?? []).map((item: Record<string, unknown>) => {
-      const source = (item.source as Record<string, unknown>) ?? {};
-      const sourceOrder = (item.sourceOrder as Record<string, unknown>) ?? {};
-      return {
-        id: String(item.id ?? ""),
-        claimId: String(item.claimTxHash ?? ""),
-        type: (item.rewardType as "level" | "peer" | "generation") ?? "generation",
-        generation: typeof item.generation === "number" ? item.generation : undefined,
-        beneficiary: String(item.beneficiaryAddr ?? ""),
-        sourceAccount: String(source.walletAddress ?? ""),
-        sourceOrderId: String(sourceOrder.txHash ?? ""),
-        sourceClaimAmount: 0,
-        sourceClaimAmountVvv: 0,
-        rate: Number(item.rate ?? 0),
-        amount: Number(item.amount ?? 0),
-        claimed: Boolean(item.claimed ?? false),
-        createdAt: String(item.createdAt ?? ""),
-        createdAtMs: item.createdAt ? new Date(String(item.createdAt)).getTime() : Date.now(),
-        claimedAt: item.claimedAt ? String(item.claimedAt) : undefined,
-        claimedAtMs: item.claimedAt ? new Date(String(item.claimedAt)).getTime() : undefined,
-      };
-    });
+    const PAGE_SIZE = 100;
+    const first = await fetch(
+      `/api/team-rewards?beneficiary=${encodeURIComponent(beneficiary)}&pageSize=${PAGE_SIZE}&page=1`
+    );
+    if (!first.ok) throw new Error("API failed");
+    const firstData = await first.json();
+    const items: Record<string, unknown>[] = [...(firstData.items ?? [])];
+    const totalPages: number = Math.max(1, Number(firstData.pagination?.totalPages ?? 1));
+
+    for (let page = 2; page <= totalPages; page++) {
+      const res = await fetch(
+        `/api/team-rewards?beneficiary=${encodeURIComponent(beneficiary)}&pageSize=${PAGE_SIZE}&page=${page}`
+      );
+      if (!res.ok) break;
+      const data = await res.json();
+      items.push(...(data.items ?? []));
+    }
+
+    return items.map(mapTeamRewardItem);
   } catch {
     return [];
   }
