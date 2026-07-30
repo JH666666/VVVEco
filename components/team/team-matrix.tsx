@@ -7,7 +7,7 @@ import { useAdminControls } from '@/lib/admin-controls'
 import { useWalletAuth } from '@/contexts/wallet-auth-context'
 import { useRewardConfig } from '@/lib/reward-config'
 import { getUserLevelOverride, useUserLevelOverrides } from '@/lib/user-level-overrides'
-import { fetchTeamRewards } from '@/lib/api-client'
+import { fetchTeamRewardSummary, type TeamRewardSummary } from '@/lib/api-client'
 import { useLanguage } from '@/contexts/language-context'
 import { useUserOnChainInfo } from '@/lib/contract-hooks'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -239,7 +239,7 @@ export function TeamMatrix() {
   const onChainInfo = useUserOnChainInfo(signedAddress ?? undefined)
   const onChainLevel = onChainInfo?.level ?? 0
   const teamRewardList = Array.isArray(teamRewards) ? teamRewards : []
-  const [apiTeamRewards, setApiTeamRewards] = useState<typeof teamRewardList>([])
+  const [apiTeamSummary, setApiTeamSummary] = useState<TeamRewardSummary | null>(null)
   const [copied, setCopied] = useState(false)
   const [addressCopied, setAddressCopied] = useState("")
   const [expanded, setExpanded] = useState<Set<string>>(new Set([walletAddr]))
@@ -258,17 +258,17 @@ export function TeamMatrix() {
     }
   }, [])
 
-  // API fetch: team rewards; clear on disconnect
+  // API fetch: team-reward 聚合（总额 + 按下级分组）；clear on disconnect
   useEffect(() => {
     if (!walletAddr) {
-      setApiTeamRewards([])
+      setApiTeamSummary(null)
       setApiReferrals({})
       setApiStakeByAccount({})
       setApiTreeUsers([])
       return
     }
-    fetchTeamRewards(walletAddr).then((data) => {
-      if (data.length > 0) setApiTeamRewards(data)
+    fetchTeamRewardSummary(walletAddr).then((s) => {
+      if (s) setApiTeamSummary(s)
     })
   }, [walletAddr])
 
@@ -296,9 +296,6 @@ export function TeamMatrix() {
       .catch(() => {})
   }, [walletAddr])
 
-  // Merge: API preferred, localStorage as fallback
-  const mergedTeamRewards = walletAddr ? (apiTeamRewards.length > 0 ? apiTeamRewards : teamRewardList) : []
-
   useEffect(() => {
     setExpanded(new Set([walletAddr]))
   }, [walletAddr])
@@ -316,43 +313,21 @@ export function TeamMatrix() {
     threshold: formatLevelThreshold(rewardConfig.levelThresholds[index] ?? 0),
   }))
 
-  // 按"链上事件唯一身份"去重：同一条 TeamRewardAccrued 曾被浏览器(十六进制logIndex)
-  // 与服务端(十进制logIndex)重复写库，这里把 claimId 的 logIndex 后缀规范化后去重，
-  // 保证贡献奖励=链上真实值（无需手动对账）。
-  const myTeamRewardRecords = useMemo(() => {
-    const mine = mergedTeamRewards.filter(r => r.beneficiary.toLowerCase() === walletAddr.toLowerCase())
-    const seen = new Set<string>()
-    const out: typeof mine = []
-    for (const r of mine) {
-      const claimId = String((r as { claimId?: string }).claimId ?? '')
-      const us = claimId.lastIndexOf('_')
-      let key: string
-      if (us >= 0) {
-        const base = claimId.slice(0, us)
-        const suf = claimId.slice(us + 1)
-        const idx = /^0x[0-9a-f]+$/i.test(suf) ? String(parseInt(suf, 16))
-          : /^\d+$/.test(suf) ? String(parseInt(suf, 10)) : suf
-        key = `${base}_${idx}`
-      } else {
-        // 无 logIndex 的历史/兜底记录：用 交易|上级|下级|金额 兜底去重
-        key = `${claimId}|${r.sourceAccount}|${r.amount}`
-      }
-      key = key.toLowerCase()
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push(r)
+  // 贡献奖励改由数据库聚合：real 钱包用服务端 summary.bySource（总额/分组数据库一次算完，
+  // 数据再多也不卡，且实时由明细算出、不缓存、不漂移）。sim/本地演示回退到 context 记录。
+  const contributionBySource = useMemo<Record<string, number>>(() => {
+    if (walletAddr && apiTeamSummary) return apiTeamSummary.bySource
+    // 回退：本地 sim 记录，按下级分组求和
+    const map: Record<string, number> = {}
+    for (const r of teamRewardList) {
+      if (r.beneficiary.toLowerCase() !== walletAddr.toLowerCase()) continue
+      const k = r.sourceAccount.toLowerCase()
+      map[k] = (map[k] ?? 0) + r.amount
     }
-    return out
-  }, [walletAddr, mergedTeamRewards])
-  const pendingTeamRewards = myTeamRewardRecords
-    .filter(reward => !reward.claimed)
-    .reduce((sum, reward) => sum + reward.amount, 0)
-  const claimedTeamRewards = myTeamRewardRecords
-    .filter(reward => reward.claimed)
-    .reduce((sum, reward) => sum + reward.amount, 0)
-  const getRewardContribution = (address: string): number => myTeamRewardRecords
-    .filter(reward => reward.sourceAccount.toLowerCase() === address.toLowerCase())
-    .reduce((sum, reward) => sum + reward.amount, 0)
+    return map
+  }, [walletAddr, apiTeamSummary, teamRewardList])
+  const getRewardContribution = (address: string): number =>
+    contributionBySource[address.toLowerCase()] ?? 0
 
   const activeReferrals = walletAddr ? (Object.keys(apiReferrals).length > 0 ? apiReferrals : referrals) : {}
   const getRawChildren = (address: string) => Object.entries(activeReferrals)

@@ -155,6 +155,36 @@ export async function fetchTeamRewards(beneficiary: string): Promise<SimTeamRewa
   }
 }
 
+export interface TeamRewardSummary {
+  total: number; // 该上级团队奖励总额（VVV）
+  pendingVvv: number;
+  claimedVvv: number;
+  bySource: Record<string, number>; // 每个下级地址 → 贡献奖励之和
+}
+
+// 聚合口径：数据库一次算完总额+按下级分组，前端不再拉全部明细（数据再多也不卡）。
+export async function fetchTeamRewardSummary(beneficiary: string): Promise<TeamRewardSummary | null> {
+  try {
+    const res = await fetch(
+      `/api/team-rewards?beneficiary=${encodeURIComponent(beneficiary)}&summary=1`
+    );
+    if (!res.ok) throw new Error("API failed");
+    const data = await res.json();
+    const s = data.summary as Partial<TeamRewardSummary> | undefined;
+    if (!s) return null;
+    const bySource: Record<string, number> = {};
+    for (const [k, v] of Object.entries(s.bySource ?? {})) bySource[k.toLowerCase()] = Number(v ?? 0);
+    return {
+      total: Number(s.total ?? 0),
+      pendingVvv: Number(s.pendingVvv ?? 0),
+      claimedVvv: Number(s.claimedVvv ?? 0),
+      bySource,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function claimTeamRewardsAPI(beneficiary: string): Promise<number> {
   try {
     const res = await fetch("/api/team-rewards/claim", {

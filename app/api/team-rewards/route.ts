@@ -8,8 +8,44 @@ export async function GET(request: NextRequest) {
     const beneficiary = (searchParams.get("beneficiary") ?? "").trim().toLowerCase();
     const sourceAddr = (searchParams.get("source") ?? "").trim().toLowerCase();
     const claimed = searchParams.get("claimed");
+    const summary = searchParams.get("summary") === "1";
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
     const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") ?? "20", 10)));
+
+    // 聚合模式：数据库直接按上级求总额 + 按下级分组求和，前端不再拉全部明细。
+    // O(1) 次请求，无论记录多少都毫秒级；数值实时由明细算出（不缓存，绝不漂移）。
+    if (summary && beneficiary) {
+      const [grouped, pendingAgg, claimedAgg] = await Promise.all([
+        prisma.teamReward.groupBy({
+          by: ["sourceAddr"],
+          where: { beneficiaryAddr: beneficiary },
+          _sum: { amount: true },
+        }),
+        prisma.teamReward.aggregate({
+          where: { beneficiaryAddr: beneficiary, claimed: false },
+          _sum: { amount: true },
+        }),
+        prisma.teamReward.aggregate({
+          where: { beneficiaryAddr: beneficiary, claimed: true },
+          _sum: { amount: true },
+        }),
+      ]);
+      const bySource: Record<string, number> = {};
+      let total = 0;
+      for (const g of grouped) {
+        const amt = g._sum.amount ?? 0;
+        bySource[g.sourceAddr] = amt;
+        total += amt;
+      }
+      return NextResponse.json({
+        summary: {
+          total,
+          pendingVvv: pendingAgg._sum.amount ?? 0,
+          claimedVvv: claimedAgg._sum.amount ?? 0,
+          bySource,
+        },
+      });
+    }
 
     const where: Record<string, unknown> = {};
     if (beneficiary) where.beneficiaryAddr = beneficiary;
