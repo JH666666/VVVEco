@@ -316,8 +316,34 @@ export function TeamMatrix() {
     threshold: formatLevelThreshold(rewardConfig.levelThresholds[index] ?? 0),
   }))
 
-  const myTeamRewardRecords = useMemo(() => mergedTeamRewards
-    .filter(reward => reward.beneficiary.toLowerCase() === walletAddr.toLowerCase()), [walletAddr, mergedTeamRewards])
+  // 按"链上事件唯一身份"去重：同一条 TeamRewardAccrued 曾被浏览器(十六进制logIndex)
+  // 与服务端(十进制logIndex)重复写库，这里把 claimId 的 logIndex 后缀规范化后去重，
+  // 保证贡献奖励=链上真实值（无需手动对账）。
+  const myTeamRewardRecords = useMemo(() => {
+    const mine = mergedTeamRewards.filter(r => r.beneficiary.toLowerCase() === walletAddr.toLowerCase())
+    const seen = new Set<string>()
+    const out: typeof mine = []
+    for (const r of mine) {
+      const claimId = String((r as { claimId?: string }).claimId ?? '')
+      const us = claimId.lastIndexOf('_')
+      let key: string
+      if (us >= 0) {
+        const base = claimId.slice(0, us)
+        const suf = claimId.slice(us + 1)
+        const idx = /^0x[0-9a-f]+$/i.test(suf) ? String(parseInt(suf, 16))
+          : /^\d+$/.test(suf) ? String(parseInt(suf, 10)) : suf
+        key = `${base}_${idx}`
+      } else {
+        // 无 logIndex 的历史/兜底记录：用 交易|上级|下级|金额 兜底去重
+        key = `${claimId}|${r.sourceAccount}|${r.amount}`
+      }
+      key = key.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(r)
+    }
+    return out
+  }, [walletAddr, mergedTeamRewards])
   const pendingTeamRewards = myTeamRewardRecords
     .filter(reward => !reward.claimed)
     .reduce((sum, reward) => sum + reward.amount, 0)
