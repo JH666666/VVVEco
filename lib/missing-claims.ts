@@ -215,7 +215,44 @@ let claimCfgColsEnsured: Promise<void> | null = null;
 export function ensureAutoScanClaimColumns(): Promise<void> {
   if (claimCfgColsEnsured) return claimCfgColsEnsured;
   claimCfgColsEnsured = (async () => {
+    // 先整表自愈：pm2 实际库里可能根本没有 auto_scan_config 表
+    // （CLI 迁移写到了另一个 DB 文件）。整张表用 IF NOT EXISTS 建好。
+    const createSql = `CREATE TABLE IF NOT EXISTS "auto_scan_config" (
+      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      "team_reward_enabled" BOOLEAN NOT NULL DEFAULT false,
+      "team_reward_interval_min" INTEGER NOT NULL DEFAULT 10,
+      "team_reward_blocks_back" INTEGER NOT NULL DEFAULT 2000,
+      "team_reward_last_run_at" DATETIME,
+      "team_reward_last_result" TEXT,
+      "team_reward_last_block" INTEGER,
+      "missing_order_enabled" BOOLEAN NOT NULL DEFAULT false,
+      "missing_order_interval_min" INTEGER NOT NULL DEFAULT 10,
+      "missing_order_blocks_back" INTEGER NOT NULL DEFAULT 2000,
+      "missing_order_last_run_at" DATETIME,
+      "missing_order_last_result" TEXT,
+      "missing_order_last_block" INTEGER,
+      "missing_claim_enabled" BOOLEAN NOT NULL DEFAULT false,
+      "missing_claim_interval_min" INTEGER NOT NULL DEFAULT 10,
+      "missing_claim_blocks_back" INTEGER NOT NULL DEFAULT 2000,
+      "missing_claim_last_run_at" DATETIME,
+      "missing_claim_last_result" TEXT,
+      "missing_claim_last_block" INTEGER,
+      "updated_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`;
+    try {
+      await prisma.$executeRawUnsafe(createSql);
+      console.log("[db-ensure] ensured table auto_scan_config");
+    } catch (e) {
+      console.warn("[db-ensure] create auto_scan_config failed:", e instanceof Error ? e.message : String(e));
+    }
+    // 兜底：老库已有表但缺新列时逐列补齐（重复列忽略）。
     const stmts = [
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_order_enabled" BOOLEAN NOT NULL DEFAULT false`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_order_interval_min" INTEGER NOT NULL DEFAULT 10`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_order_blocks_back" INTEGER NOT NULL DEFAULT 2000`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_order_last_run_at" DATETIME`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_order_last_result" TEXT`,
+      `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_order_last_block" INTEGER`,
       `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_enabled" BOOLEAN NOT NULL DEFAULT false`,
       `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_interval_min" INTEGER NOT NULL DEFAULT 10`,
       `ALTER TABLE "auto_scan_config" ADD COLUMN "missing_claim_blocks_back" INTEGER NOT NULL DEFAULT 2000`,
