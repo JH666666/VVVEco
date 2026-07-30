@@ -119,17 +119,26 @@ export async function POST(request: NextRequest) {
 
     // 自愈：领取时把这笔交易里派发给上级的推荐/团队奖励从链上读出并补录入库。
     // 服务端读回执解析 TeamRewardAccrued（按笔数去重，不会与前端上报重复计），
-    // 即使前端上报团队奖励那一步失败，也能在领取入库时自动补齐。
-    // 后台执行、不阻断领取入库的响应（pm2 常驻进程会跑完）。
-    repairTeamRewardByTxHash(txHash)
-      .then((r) => {
+    // 即使前端上报团队奖励那一步失败，也能在领取入库时自动补齐。后台执行、不阻断响应。
+    // 领取记录现在"提交即写库"，此时交易可能还没上链、回执读不到 → 未找到回执就延时重试，
+    // 直到交易被打包（Base 几秒即可），确保上级团队奖励不漏。
+    const backfillTeamRewards = async (attempt = 0): Promise<void> => {
+      try {
+        const r = await repairTeamRewardByTxHash(txHash);
         if (r.repaired > 0) console.log(`[claims] auto-backfilled ${r.repaired} team reward(s) from claim ${txHash}`);
-      })
-      .catch((e) => {
+      } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        // "该交易未找到 TeamRewardAccrued 事件" 属正常（无上级/无奖励），忽略
-        if (!msg.includes("TeamRewardAccrued")) console.warn(`[claims] team reward auto-backfill skipped for ${txHash}:`, msg);
-      });
+        // "无 TeamRewardAccrued 事件"属正常（无上级/无奖励），忽略
+        if (msg.includes("TeamRewardAccrued")) return;
+        // 回执还没有（交易未上链）→ 稍后重试；最多 6 次、每次 8 秒（覆盖 ~48 秒）
+        if (/回执未找到|not found|receipt|无法/i.test(msg) && attempt < 6) {
+          setTimeout(() => { void backfillTeamRewards(attempt + 1); }, 8000);
+          return;
+        }
+        console.warn(`[claims] team reward auto-backfill skipped for ${txHash} (attempt ${attempt}):`, msg);
+      }
+    };
+    void backfillTeamRewards();
 
     return NextResponse.json(claim);
   } catch (error) {
