@@ -340,6 +340,96 @@ export async function repairTeamRewardByTxHash(
   return { repaired, skipped };
 }
 
+/**
+ * 对账重建：把某个上级(beneficiary)的团队奖励记录，重建成与链上完全一致。
+ * 读该地址收到的全部 TeamRewardAccrued 事件（按 recipient 索引，全历史，便宜），
+ * 删掉该上级现有全部记录，再按链上事件逐条以规范键 `${txHash}_${logIndex}` 重新写入。
+ * 既能去重（历史上浏览器+服务端不同键格式导致的重复），又能补漏 → 贡献奖励绝对准。
+ */
+export async function reconcileTeamRewardsForBeneficiary(
+  beneficiaryInput: string
+): Promise<{ before: number; deleted: number; inserted: number; skipped: number; after: number }> {
+  const beneficiary = beneficiaryInput.trim().toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(beneficiary)) throw new Error("上级地址格式不正确");
+  const topicRecipient = "0x" + beneficiary.slice(2).padStart(64, "0");
+  const latest = await client.getBlockNumber();
+
+  // 1) 读链上该上级收到的全部 TeamRewardAccrued（recipient 为 indexed topic1，过滤后很少）
+  const allLogs: RawLog[] = [];
+  let succeeded = 0;
+  let failed = 0;
+  for (let start = DEPLOY_BLOCK; start <= latest; start += LOG_CHUNK) {
+    const end = start + LOG_CHUNK - 1n > latest ? latest : start + LOG_CHUNK - 1n;
+    try {
+      const chunk = (await client.request({
+        method: "eth_getLogs",
+        params: [
+          {
+            address: STAKING_ADDR,
+            topics: [TEAM_REWARD_TOPIC, topicRecipient],
+            fromBlock: `0x${start.toString(16)}`,
+            toBlock: `0x${end.toString(16)}`,
+          },
+        ],
+      } as never)) as RawLog[];
+      allLogs.push(...chunk);
+      succeeded++;
+    } catch (err) {
+      failed++;
+      console.error(`[reconcile-team] getLogs ${start}-${end} failed:`, err);
+    }
+  }
+  if (succeeded === 0 && failed > 0) throw new Error("链上日志查询失败，请稍后重试或检查 RPC");
+
+  // 2) 规范化：每条链上事件一条记录（键 = txHash_十进制logIndex）
+  type Canon = { claimTxHash: string; txHash: string; sourceAddr: string; sourceOrderTx: string; amount: number };
+  const canonical: Canon[] = [];
+  let skipped = 0;
+  for (const log of allLogs) {
+    const txHash = log.transactionHash?.toLowerCase();
+    if (!txHash || log.logIndex == null || !log.topics || log.topics.length < 3) continue;
+    const bonus = log.data && log.data !== "0x" ? BigInt(log.data) : 0n;
+    if (bonus <= 0n) continue;
+    const source = ("0x" + log.topics[2].slice(-40)).toLowerCase();
+    const logIndex = parseInt(log.logIndex, 16);
+    const sourceOrderTx = await resolveSourceOrderTx(txHash, source);
+    if (!sourceOrderTx) { skipped++; continue; } // 下级订单没在库，跳过（先补下级订单）
+    canonical.push({ claimTxHash: `${txHash}_${logIndex}`, txHash, sourceAddr: source, sourceOrderTx, amount: Number(bonus) / 1e18 });
+  }
+
+  // 3) 删旧建新（重建成与链上一致）
+  const before = await prisma.teamReward.count({ where: { beneficiaryAddr: beneficiary } });
+  await ensureUser(beneficiary);
+  const del = await prisma.teamReward.deleteMany({ where: { beneficiaryAddr: beneficiary } });
+  let inserted = 0;
+  for (const c of canonical) {
+    await ensureUser(c.sourceAddr);
+    try {
+      await prisma.teamReward.create({
+        data: {
+          claimTxHash: c.claimTxHash,
+          beneficiaryAddr: beneficiary,
+          sourceAddr: c.sourceAddr,
+          sourceOrderTx: c.sourceOrderTx,
+          rewardType: "generation",
+          generation: null,
+          rate: 0,
+          amount: c.amount,
+          claimed: true,
+          claimedAt: new Date(),
+        },
+      });
+      inserted++;
+    } catch (e) {
+      if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") continue;
+      throw e;
+    }
+  }
+  const after = await prisma.teamReward.count({ where: { beneficiaryAddr: beneficiary } });
+  console.log(`[reconcile-team] ${beneficiary}: before=${before} deleted=${del.count} inserted=${inserted} skipped=${skipped} after=${after}`);
+  return { before, deleted: del.count, inserted, skipped, after };
+}
+
 /** 扫描并补录最近 blocksBack 区块内所有缺失的团队奖励。 */
 export async function scanAndRepairAllTeamRewards(
   blocksBack = 1000

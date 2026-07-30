@@ -3,6 +3,7 @@ import {
   scanMissingTeamRewards,
   scanAndRepairAllTeamRewards,
   repairTeamRewardByTxHash,
+  reconcileTeamRewardsForBeneficiary,
 } from "@/lib/missing-team-rewards";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -46,6 +47,12 @@ export async function POST(request: NextRequest) {
 
     if (typeof body.txHash === "string" && body.txHash) {
       const result = await repairTeamRewardByTxHash(body.txHash);
+      return NextResponse.json(result);
+    }
+
+    if (typeof body.reconcileBeneficiary === "string" && body.reconcileBeneficiary) {
+      // 对账重建：把该上级的团队奖励重建成与链上完全一致（去重+补漏）
+      const result = await reconcileTeamRewardsForBeneficiary(body.reconcileBeneficiary);
       return NextResponse.json(result);
     }
 

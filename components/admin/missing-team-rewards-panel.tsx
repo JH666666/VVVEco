@@ -41,6 +41,8 @@ export function MissingTeamRewardsPanel() {
   const [error, setError] = useState<string | null>(null)
   const [lastResult, setLastResult] = useState<string | null>(null)
   const [txInput, setTxInput] = useState('')
+  const [reconcileInput, setReconcileInput] = useState('')
+  const [reconciling, setReconciling] = useState(false)
 
   // 定时扫描配置
   const [cfg, setCfg] = useState<AutoScanConfig | null>(null)
@@ -152,6 +154,32 @@ export function MissingTeamRewardsPanel() {
       setError(err instanceof Error ? err.message : '补录失败')
     } finally {
       setRepairingTx(null)
+    }
+  }
+
+  const handleReconcile = async () => {
+    const b = reconcileInput.trim()
+    if (!/^0x[a-fA-F0-9]{40}$/.test(b)) {
+      setError('请输入合法的上级钱包地址（0x + 40 位）')
+      return
+    }
+    setReconciling(true)
+    setError(null)
+    setLastResult(null)
+    try {
+      const res = await fetch('/api/admin/missing-team-rewards', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reconcileBeneficiary: b }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '对账失败')
+      setLastResult(`✅ 对账重建完成：原 ${data.before} 笔 → 现 ${data.after} 笔（删 ${data.deleted}、写 ${data.inserted}、跳过 ${data.skipped}）`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '对账失败')
+    } finally {
+      setReconciling(false)
     }
   }
 
@@ -291,6 +319,27 @@ export function MissingTeamRewardsPanel() {
               <Wrench className="mr-1.5 h-4 w-4" />
             )}
             补录该交易
+          </Button>
+        </div>
+      </div>
+
+      {/* 按上级地址对账重建（去重 + 补漏，与链上完全一致） */}
+      <div className="rounded-lg border border-primary/40 bg-primary/5 p-4">
+        <p className="mb-2 text-sm font-semibold">按上级地址对账重建（修"贡献奖励算错/减少"）</p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          若某个上级的「贡献奖励」数字不对（多算/减少/重复），填该<b>上级钱包地址</b>，读链上把它的团队奖励<b>重建成与链上完全一致</b>（删重复、补遗漏）。金额来自链上，最权威。
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            className="h-9 min-w-0 flex-1 font-mono text-xs"
+            placeholder="0x... 上级钱包地址"
+            value={reconcileInput}
+            onChange={(e) => setReconcileInput(e.target.value)}
+            disabled={busy || reconciling}
+          />
+          <Button onClick={handleReconcile} disabled={busy || reconciling || !reconcileInput.trim()} size="sm">
+            {reconciling ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Wrench className="mr-1.5 h-4 w-4" />}
+            {reconciling ? '对账中...' : '对账重建'}
           </Button>
         </div>
       </div>

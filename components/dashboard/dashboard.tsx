@@ -280,27 +280,8 @@ export function Dashboard() {
             return
           }
 
-          // 领取记录已在提交时写库，这里不再重复写。
-          // 解析 TeamRewardAccrued 事件，后台写入上级团队奖励记录（快路径；服务端也会补录）
-          const teamLogs = logs.filter(l => l.topics[0]?.toLowerCase() === TEAM_REWARD_TOPIC)
-          teamLogs.forEach(l => {
-            const recipient = ("0x" + l.topics[1]?.slice(-40)) as string
-            const bonus = l.data && l.data !== "0x" ? Number(BigInt(l.data)) / 1e18 : 0
-            if (!recipient || bonus <= 0) return
-            fetch("/api/team-rewards", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                claimTxHash: tx + "_" + (l.logIndex ?? l.topics[1]?.slice(-8)),
-                beneficiaryAddr: recipient.toLowerCase(),
-                sourceAddr: currentAddress.toLowerCase(),
-                sourceOrderTx: order.id,
-                rewardType: "generation",
-                rate: 0,
-                amount: bonus,
-              }),
-            }).catch(() => {})
-          })
+          // 领取记录已在提交时写库；团队奖励改由服务端在 /api/claims 里读这笔交易统一补录
+          // （规范键、按笔数去重，避免浏览器与服务端重复写导致贡献奖励算错）。此处不再从前端写。
 
           // 领取成功即刻把这单待领取归零、从 0 重新按秒累计（不等链上读取追上）
           setClaimResetAt(prev => ({ ...prev, [order.id]: Date.now() }))
