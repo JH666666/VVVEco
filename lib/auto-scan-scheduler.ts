@@ -5,7 +5,7 @@
  * 在服务器进程内运行（配合 pm2 常驻），补录逻辑幂等，重复运行安全。
  */
 import { prisma } from "@/lib/prisma";
-import { scanAndRepairForwardTeamRewards } from "@/lib/missing-team-rewards";
+import { scanAndRepairForwardTeamRewards, dedupeTeamRewardsInDb } from "@/lib/missing-team-rewards";
 import { scanAndRepairForwardOrders } from "@/lib/missing-orders";
 import { scanAndRepairForwardClaims, ensureAutoScanClaimColumns } from "@/lib/missing-claims";
 
@@ -98,6 +98,11 @@ async function tick() {
 export function startAutoScan() {
   if (started) return;
   started = true;
+  // 启动时自动清理团队奖励重复行（历史浏览器+服务端重复写），让数据库/出金统计口径正确。
+  // 纯 DB 操作、幂等；清理后后续启动无重复可删。
+  void dedupeTeamRewardsInDb()
+    .then((r) => { if (r.removed > 0) console.log("[auto-scan] team-reward dedupe:", r); })
+    .catch((e) => console.error("[auto-scan] team-reward dedupe failed:", e));
   // 每 60 秒检查一次是否到达设定间隔
   setInterval(() => {
     void tick();

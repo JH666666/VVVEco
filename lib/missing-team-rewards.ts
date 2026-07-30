@@ -432,6 +432,46 @@ export async function reconcileTeamRewardsForBeneficiary(
 }
 
 /**
+ * 纯数据库去重：删除 team_rewards 里"同一条链上事件被写了多次"的重复行。
+ * 不读链——按 claimTxHash 里的 logIndex 后缀规范化（十六进制/十进制归一）识别同一事件。
+ * 保留每个规范事件的第一条（最小 id），删掉其余。幂等；用于自动清理历史重复，
+ * 让数据库口径（出金统计等）也正确。
+ */
+function canonicalTeamKey(claimTxHash: string, beneficiary: string, source: string): string {
+  const us = claimTxHash.lastIndexOf("_");
+  let base = claimTxHash;
+  let suf = "";
+  if (us >= 0) { base = claimTxHash.slice(0, us); suf = claimTxHash.slice(us + 1); }
+  const idx = /^0x[0-9a-f]+$/i.test(suf)
+    ? String(parseInt(suf, 16))
+    : /^\d+$/.test(suf)
+      ? String(parseInt(suf, 10))
+      : suf;
+  return `${base}_${idx}|${beneficiary}|${source}`.toLowerCase();
+}
+
+export async function dedupeTeamRewardsInDb(): Promise<{ scanned: number; removed: number }> {
+  const all = await prisma.teamReward.findMany({
+    select: { id: true, claimTxHash: true, beneficiaryAddr: true, sourceAddr: true },
+    orderBy: { id: "asc" },
+  });
+  const seen = new Set<string>();
+  const toDelete: number[] = [];
+  for (const r of all) {
+    const key = canonicalTeamKey(r.claimTxHash, r.beneficiaryAddr, r.sourceAddr);
+    if (seen.has(key)) toDelete.push(r.id);
+    else seen.add(key);
+  }
+  // 分批删除（避免 SQLite IN 变量上限）
+  for (let i = 0; i < toDelete.length; i += 400) {
+    const batch = toDelete.slice(i, i + 400);
+    await prisma.teamReward.deleteMany({ where: { id: { in: batch } } });
+  }
+  if (toDelete.length > 0) console.log(`[dedupe-team-db] scanned=${all.length} removed=${toDelete.length}`);
+  return { scanned: all.length, removed: toDelete.length };
+}
+
+/**
  * 全量对账重建：把整张 team_rewards 表重建成与链上完全一致。
  * 读全历史所有 TeamRewardAccrued 事件，删掉整表，按规范键逐条重写。
  * 用于一次性修正"历史上浏览器+服务端重复写"导致的全体上级贡献奖励算错。
