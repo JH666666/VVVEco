@@ -43,6 +43,7 @@ export function MissingTeamRewardsPanel() {
   const [txInput, setTxInput] = useState('')
   const [reconcileInput, setReconcileInput] = useState('')
   const [reconciling, setReconciling] = useState(false)
+  const [reconcilingAll, setReconcilingAll] = useState(false)
 
   // 定时扫描配置
   const [cfg, setCfg] = useState<AutoScanConfig | null>(null)
@@ -180,6 +181,28 @@ export function MissingTeamRewardsPanel() {
       setError(err instanceof Error ? err.message : '对账失败')
     } finally {
       setReconciling(false)
+    }
+  }
+
+  const handleReconcileAll = async () => {
+    if (!confirm('全量对账重建：将整张团队奖励表按链上重建（删重复、补遗漏），一次修正所有上级。确认执行？')) return
+    setReconcilingAll(true)
+    setError(null)
+    setLastResult(null)
+    try {
+      const res = await fetch('/api/admin/missing-team-rewards', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reconcileAll: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '对账失败')
+      setLastResult(`✅ 全量对账重建完成：原 ${data.before} 笔 → 现 ${data.after} 笔（删 ${data.deleted}、写 ${data.inserted}、跳过 ${data.skipped}，涉及 ${data.beneficiaries} 个上级）`)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '对账失败')
+    } finally {
+      setReconcilingAll(false)
     }
   }
 
@@ -337,9 +360,18 @@ export function MissingTeamRewardsPanel() {
             onChange={(e) => setReconcileInput(e.target.value)}
             disabled={busy || reconciling}
           />
-          <Button onClick={handleReconcile} disabled={busy || reconciling || !reconcileInput.trim()} size="sm">
+          <Button onClick={handleReconcile} disabled={busy || reconciling || reconcilingAll || !reconcileInput.trim()} size="sm">
             {reconciling ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Wrench className="mr-1.5 h-4 w-4" />}
             {reconciling ? '对账中...' : '对账重建'}
+          </Button>
+        </div>
+        <div className="mt-3 border-t border-border pt-3">
+          <p className="mb-2 text-xs text-muted-foreground">
+            所有上级的贡献奖励都可能受重复写影响 → <b>一次性全部修正</b>（读全历史链上事件，整表重建）：
+          </p>
+          <Button onClick={handleReconcileAll} disabled={busy || reconciling || reconcilingAll} size="sm" variant="destructive">
+            {reconcilingAll ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : <Wrench className="mr-1.5 h-4 w-4" />}
+            {reconcilingAll ? '全量对账中...（可能几分钟）' : '全部对账重建'}
           </Button>
         </div>
       </div>

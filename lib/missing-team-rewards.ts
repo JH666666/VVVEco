@@ -379,7 +379,8 @@ export async function reconcileTeamRewardsForBeneficiary(
       console.error(`[reconcile-team] getLogs ${start}-${end} failed:`, err);
     }
   }
-  if (succeeded === 0 && failed > 0) throw new Error("链上日志查询失败，请稍后重试或检查 RPC");
+  // 有任何区块段读取失败就中止：避免"读不全就删库重建"造成误删
+  if (failed > 0) throw new Error(`链上日志查询有 ${failed} 段失败，为避免误删已中止，请稍后重试`);
 
   // 2) 规范化：每条链上事件一条记录（键 = txHash_十进制logIndex）
   type Canon = { claimTxHash: string; txHash: string; sourceAddr: string; sourceOrderTx: string; amount: number };
@@ -428,6 +429,94 @@ export async function reconcileTeamRewardsForBeneficiary(
   const after = await prisma.teamReward.count({ where: { beneficiaryAddr: beneficiary } });
   console.log(`[reconcile-team] ${beneficiary}: before=${before} deleted=${del.count} inserted=${inserted} skipped=${skipped} after=${after}`);
   return { before, deleted: del.count, inserted, skipped, after };
+}
+
+/**
+ * 全量对账重建：把整张 team_rewards 表重建成与链上完全一致。
+ * 读全历史所有 TeamRewardAccrued 事件，删掉整表，按规范键逐条重写。
+ * 用于一次性修正"历史上浏览器+服务端重复写"导致的全体上级贡献奖励算错。
+ * 任一区块段读取失败即中止（不删库），避免误删。
+ */
+export async function reconcileAllTeamRewards(): Promise<{
+  before: number; deleted: number; inserted: number; skipped: number; after: number; beneficiaries: number;
+}> {
+  const latest = await client.getBlockNumber();
+
+  const allLogs: RawLog[] = [];
+  let succeeded = 0;
+  let failed = 0;
+  for (let start = DEPLOY_BLOCK; start <= latest; start += LOG_CHUNK) {
+    const end = start + LOG_CHUNK - 1n > latest ? latest : start + LOG_CHUNK - 1n;
+    try {
+      const chunk = (await client.request({
+        method: "eth_getLogs",
+        params: [
+          {
+            address: STAKING_ADDR,
+            topics: [TEAM_REWARD_TOPIC],
+            fromBlock: `0x${start.toString(16)}`,
+            toBlock: `0x${end.toString(16)}`,
+          },
+        ],
+      } as never)) as RawLog[];
+      allLogs.push(...chunk);
+      succeeded++;
+    } catch (err) {
+      failed++;
+      console.error(`[reconcile-team-all] getLogs ${start}-${end} failed:`, err);
+    }
+  }
+  // 任一段失败即中止，避免"读不全就删整表"
+  if (failed > 0) throw new Error(`链上日志查询有 ${failed} 段失败，为避免误删已中止，请稍后重试`);
+
+  type Canon = { claimTxHash: string; beneficiaryAddr: string; sourceAddr: string; sourceOrderTx: string; amount: number };
+  const canonical: Canon[] = [];
+  const benefSet = new Set<string>();
+  let skipped = 0;
+  for (const log of allLogs) {
+    const txHash = log.transactionHash?.toLowerCase();
+    if (!txHash || log.logIndex == null || !log.topics || log.topics.length < 3) continue;
+    const bonus = log.data && log.data !== "0x" ? BigInt(log.data) : 0n;
+    if (bonus <= 0n) continue;
+    const recipient = ("0x" + log.topics[1].slice(-40)).toLowerCase();
+    const source = ("0x" + log.topics[2].slice(-40)).toLowerCase();
+    const logIndex = parseInt(log.logIndex, 16);
+    const sourceOrderTx = await resolveSourceOrderTx(txHash, source);
+    if (!sourceOrderTx) { skipped++; continue; }
+    canonical.push({ claimTxHash: `${txHash}_${logIndex}`, beneficiaryAddr: recipient, sourceAddr: source, sourceOrderTx, amount: Number(bonus) / 1e18 });
+    benefSet.add(recipient);
+  }
+
+  const before = await prisma.teamReward.count();
+  const del = await prisma.teamReward.deleteMany({});
+  let inserted = 0;
+  for (const c of canonical) {
+    await ensureUser(c.beneficiaryAddr);
+    await ensureUser(c.sourceAddr);
+    try {
+      await prisma.teamReward.create({
+        data: {
+          claimTxHash: c.claimTxHash,
+          beneficiaryAddr: c.beneficiaryAddr,
+          sourceAddr: c.sourceAddr,
+          sourceOrderTx: c.sourceOrderTx,
+          rewardType: "generation",
+          generation: null,
+          rate: 0,
+          amount: c.amount,
+          claimed: true,
+          claimedAt: new Date(),
+        },
+      });
+      inserted++;
+    } catch (e) {
+      if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") continue;
+      throw e;
+    }
+  }
+  const after = await prisma.teamReward.count();
+  console.log(`[reconcile-team-all] before=${before} deleted=${del.count} inserted=${inserted} skipped=${skipped} after=${after} beneficiaries=${benefSet.size}`);
+  return { before, deleted: del.count, inserted, skipped, after, beneficiaries: benefSet.size };
 }
 
 /** 扫描并补录最近 blocksBack 区块内所有缺失的团队奖励。 */
