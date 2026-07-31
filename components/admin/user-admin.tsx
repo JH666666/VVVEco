@@ -161,6 +161,17 @@ export function UserAdmin() {
 
   const handleToggleOrderVisibility = (orderId: string, hidden: boolean) => {
     hideOrder(orderId, hidden)
+    // 乐观更新本地 insight：以数据库字段 hiddenByAdmin 为准，刷新后仍保持正确状态
+    setInsight(prev =>
+      prev
+        ? {
+            ...prev,
+            orders: prev.orders.map(o =>
+              o.id === orderId ? { ...o, hiddenByAdmin: hidden } : o
+            ),
+          }
+        : prev
+    )
     toast({
       title: hidden ? '订单已隐藏' : '订单已显示',
       description: hidden ? '用户前端将不再显示该质押订单。' : '用户前端已恢复显示该质押订单。',
@@ -789,7 +800,8 @@ export function UserAdmin() {
                     </TableHeader>
                     <TableBody>
                       {insight.orders.map(order => {
-                        const isHidden = controls.hiddenOrderIds.includes(order.id)
+                        // 以数据库字段为准（刷新后仍正确），叠加本会话乐观隐藏列表
+                        const isHidden = order.hiddenByAdmin || controls.hiddenOrderIds.includes(order.id)
 
                         return (
                           <TableRow key={order.id} className={isHidden ? 'bg-muted/40' : undefined}>

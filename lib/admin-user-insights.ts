@@ -43,6 +43,7 @@ export interface UserStakeInsight {
   totalExpected: number
   progressPercent: number
   status: '进行中' | '已完成'
+  hiddenByAdmin: boolean
 }
 
 export interface TeamUserInsight {
@@ -345,6 +346,7 @@ export function getUserInsight(
       totalExpected,
       progressPercent,
       status: elapsedMs >= periodMs ? '已完成' as const : '进行中' as const,
+      hiddenByAdmin: (order as { hiddenByAdmin?: boolean }).hiddenByAdmin ?? false,
     }
   })
 

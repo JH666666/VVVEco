@@ -154,6 +154,8 @@ export async function GET(
         totalExpected,
         progressPercent,
         status: isActive ? ("进行中" as const) : ("已完成" as const),
+        // 隐藏状态以数据库为准，刷新后后台仍能正确显示"已隐藏/显示"
+        hiddenByAdmin: order.hiddenByAdmin,
       };
     });
 
