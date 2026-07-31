@@ -14,7 +14,7 @@ import { createPublicClient, http, formatEther } from "viem";
 import { base } from "viem/chains";
 
 // 资金统计的团队层数（仅影响入金/出金统计口径，不改变佣金结算层数）
-export const TEAM_STAT_LAYERS = 20;
+export const TEAM_STAT_LAYERS = 15;
 
 // 团队奖励以 VVV 代币发放，需按 VVV/USD 价格换算成 USD 计入出金。
 const STAKING_ADDR = (

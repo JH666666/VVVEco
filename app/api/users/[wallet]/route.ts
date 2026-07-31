@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 const DEFAULT_LEVEL_THRESHOLDS = [0, 10000, 20000, 30000, 50000, 100000, 150000, 200000];
 const DAY_MS = 24 * 60 * 60 * 1000;
 // 资金统计的团队层数（仅影响入金/出金统计口径，不改变佣金结算层数）
-const TEAM_STAT_LAYERS = 20;
+const TEAM_STAT_LAYERS = 15;
 
 function calculateLevel(teamStake: number, thresholds: number[]) {
   for (let i = thresholds.length - 1; i >= 0; i--) {
