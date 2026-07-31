@@ -36,7 +36,8 @@ interface TeamMember {
   address: string
   fullAddress: string
   level: number
-  stakeAmount: number
+  stakeAmount: number // 有效质押（排除隐藏）——矩阵节点显示用
+  stakeFull: number   // 完整质押（含隐藏）——团队总质押/等级用
   contribution: number
   joinDate: string
   children?: TeamMember[]
@@ -72,11 +73,12 @@ function calculateLevel(teamStake: number, thresholds: number[]): number {
 }
 
 // Calculate total team stake from tree (excluding self)
+// 用完整质押 stakeFull（含隐藏）——团队总质押与等级不因隐藏而变
 function calculateTeamStake(member: TeamMember, includeSelf = false): number {
-  let total = includeSelf ? member.stakeAmount : 0
+  let total = includeSelf ? member.stakeFull : 0
   if (member.children) {
     for (const child of member.children) {
-      total += child.stakeAmount + calculateTeamStake(child, false)
+      total += child.stakeFull + calculateTeamStake(child, false)
     }
   }
   return total
@@ -246,6 +248,7 @@ export function TeamMatrix() {
   const [nicknames, setNicknames] = useState<Record<string, string>>({})
   const [apiReferrals, setApiReferrals] = useState<Record<string, string>>({})
   const [apiStakeByAccount, setApiStakeByAccount] = useState<Record<string, number>>({})
+  const [apiStakeFullByAccount, setApiStakeFullByAccount] = useState<Record<string, number>>({})
   const [apiTreeUsers, setApiTreeUsers] = useState<Array<{ walletAddress: string; inviteCode: string; createdAt: string }>>([])
   const [realInviteCode, setRealInviteCode] = useState<string | null>(null)
 
@@ -264,6 +267,7 @@ export function TeamMatrix() {
       setApiTeamSummary(null)
       setApiReferrals({})
       setApiStakeByAccount({})
+      setApiStakeFullByAccount({})
       setApiTreeUsers([])
       return
     }
@@ -288,9 +292,10 @@ export function TeamMatrix() {
     if (!walletAddr) return
     fetch(`/api/team-tree?wallet=${encodeURIComponent(walletAddr)}`)
       .then(r => r.json())
-      .then((data: { referrals?: Record<string, string>; stakeByAccount?: Record<string, number>; users?: Array<{ walletAddress: string; inviteCode: string; createdAt: string }> }) => {
+      .then((data: { referrals?: Record<string, string>; stakeByAccount?: Record<string, number>; stakeFullByAccount?: Record<string, number>; users?: Array<{ walletAddress: string; inviteCode: string; createdAt: string }> }) => {
         if (data.referrals && Object.keys(data.referrals).length > 0) setApiReferrals(data.referrals)
         if (data.stakeByAccount) setApiStakeByAccount(data.stakeByAccount)
+        if (data.stakeFullByAccount) setApiStakeFullByAccount(data.stakeFullByAccount)
         if (data.users) setApiTreeUsers(data.users)
       })
       .catch(() => {})
@@ -307,6 +312,8 @@ export function TeamMatrix() {
     return acc
   }, {})
   const stakeByAccount = walletAddr ? (Object.keys(apiStakeByAccount).length > 0 ? apiStakeByAccount : simStakeByAccount) : {}
+  // 完整质押（含隐藏）：real 钱包用服务端；sim 无隐藏概念，回退到同一份
+  const stakeFullByAccount = walletAddr ? (Object.keys(apiStakeFullByAccount).length > 0 ? apiStakeFullByAccount : simStakeByAccount) : {}
   const levelConfig = levelMeta.map((level, index) => ({
     ...level,
     rate: rewardConfig.levelRates[index] ?? (index + 1) * 10,
@@ -343,8 +350,10 @@ export function TeamMatrix() {
     const children = remainingLevels > 0
       ? getCompressedChildren(address).map(child => buildTeamNode(child, remainingLevels - 1))
       : []
-    const directStake = stakeByAccount[address.toLowerCase()] ?? 0
-    const downlineStake = children.reduce((sum, child) => sum + child.stakeAmount + calculateTeamStake(child), 0)
+    const directStake = stakeByAccount[address.toLowerCase()] ?? 0        // 有效（排除隐藏）——节点显示
+    const directStakeFull = stakeFullByAccount[address.toLowerCase()] ?? 0 // 完整（含隐藏）——等级/总额
+    // 等级按完整质押（含隐藏）计算——不因隐藏而变
+    const downlineStake = children.reduce((sum, child) => sum + child.stakeFull + calculateTeamStake(child), 0)
     const rewardContribution = getRewardContribution(address)
       + children.reduce((sum, child) => sum + child.contribution, 0)
 
@@ -356,6 +365,7 @@ export function TeamMatrix() {
       fullAddress: address,
       level: manualLevel ?? calculateLevel(downlineStake, rewardConfig.levelThresholds),
       stakeAmount: directStake,
+      stakeFull: directStakeFull,
       contribution: rewardContribution,
       joinDate: apiUser?.createdAt ?? stakes.find(order => order.account === address)?.createdAt ?? '待质押',
       children,

@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
 
     const [orders, users] = await Promise.all([
       prisma.stakeOrder.findMany({
-        where: { walletAddress: { in: addresses }, hiddenByAdmin: false, isWithdrawn: false },
-        select: { walletAddress: true, usdValue: true, endTime: true },
+        where: { walletAddress: { in: addresses }, isWithdrawn: false },
+        select: { walletAddress: true, usdValue: true, endTime: true, hiddenByAdmin: true },
       }),
       prisma.user.findMany({
         where: { walletAddress: { in: addresses } },
@@ -47,10 +47,17 @@ export async function GET(request: NextRequest) {
     ]);
 
     const now = Date.now();
+    // 两套口径：
+    // stakeByAccount     —— 有效质押（排除后台隐藏），用于团队矩阵每个成员节点显示的质押金额
+    // stakeFullByAccount —— 完整质押（含隐藏），用于团队页顶部「团队质押」聚合与等级计算（不因隐藏而变）
     const stakeByAccount: Record<string, number> = {};
+    const stakeFullByAccount: Record<string, number> = {};
     for (const order of orders) {
       if (order.endTime.getTime() > now) {
-        stakeByAccount[order.walletAddress] = (stakeByAccount[order.walletAddress] ?? 0) + order.usdValue;
+        stakeFullByAccount[order.walletAddress] = (stakeFullByAccount[order.walletAddress] ?? 0) + order.usdValue;
+        if (!order.hiddenByAdmin) {
+          stakeByAccount[order.walletAddress] = (stakeByAccount[order.walletAddress] ?? 0) + order.usdValue;
+        }
       }
     }
 
@@ -61,7 +68,7 @@ export async function GET(request: NextRequest) {
       createdAt: u.createdAt.toISOString(),
     }));
 
-    return NextResponse.json({ referrals, stakeByAccount, users: usersOut });
+    return NextResponse.json({ referrals, stakeByAccount, stakeFullByAccount, users: usersOut });
   } catch (error) {
     console.error("GET /api/team-tree error:", error);
     return NextResponse.json({ referrals: {}, stakeByAccount: {}, users: [] }, { status: 500 });

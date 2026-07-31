@@ -185,7 +185,7 @@ export async function GET(
             where: {
               walletAddress: { in: teamAddresses },
               isWithdrawn: false,
-              hiddenByAdmin: false, // 隐藏订单不计入团队有效质押/等级
+              // 团队质押聚合与等级不因隐藏而变（含隐藏订单）
               endTime: { gt: new Date() },
             },
             select: { walletAddress: true, usdValue: true },
