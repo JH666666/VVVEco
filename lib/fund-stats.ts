@@ -201,7 +201,7 @@ async function collectTeam(rootAddr: string, maxLevel: number): Promise<Array<{ 
 async function fetchRaw(addresses: string[]) {
   if (addresses.length === 0) {
     return { orders: [], claims: [], rewards: [] } as {
-      orders: { walletAddress: string; usdValue: number; isWithdrawn: boolean; endTime: Date }[];
+      orders: { walletAddress: string; usdValue: number; isWithdrawn: boolean; endTime: Date; hiddenByAdmin: boolean }[];
       claims: { walletAddress: string; amountUsd: number }[];
       rewards: { beneficiaryAddr: string; amount: number }[];
     };
@@ -209,7 +209,7 @@ async function fetchRaw(addresses: string[]) {
   const [orders, claims, rewards] = await Promise.all([
     prisma.stakeOrder.findMany({
       where: { walletAddress: { in: addresses } },
-      select: { walletAddress: true, usdValue: true, isWithdrawn: true, endTime: true },
+      select: { walletAddress: true, usdValue: true, isWithdrawn: true, endTime: true, hiddenByAdmin: true },
     }),
     prisma.claimRecord.findMany({
       where: { walletAddress: { in: addresses } },
@@ -232,9 +232,10 @@ function toBlock(
 ): FundBlock {
   const deposit = raw.orders.reduce((s, o) => s + o.usdValue, 0);
   const redeemed = raw.orders.filter((o) => o.isWithdrawn).reduce((s, o) => s + o.usdValue, 0);
-  // 质押业绩 = 当前有效质押（未赎回且未到期）
+  // 质押业绩 = 当前有效质押（未赎回、未到期，且未被后台隐藏）
+  // 被后台隐藏的订单不计入有效质押；恢复显示后自动重新计入。
   const stakeActiveUsd = raw.orders
-    .filter((o) => !o.isWithdrawn && o.endTime.getTime() > now)
+    .filter((o) => !o.isWithdrawn && o.endTime.getTime() > now && !o.hiddenByAdmin)
     .reduce((s, o) => s + o.usdValue, 0);
   const claimReward = raw.claims.reduce((s, c) => s + c.amountUsd, 0);
   // 团队奖励：VVV 数量 × 当前 VVV/USD 价格
