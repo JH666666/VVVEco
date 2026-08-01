@@ -10,6 +10,7 @@
  *  - 团队 = 当前地址下方第 1~TEAM_STAT_LAYERS 层，地址去重、去环、排除本人
  */
 import { prisma } from "@/lib/prisma";
+import { getWithdrawMarkupPct } from "@/lib/fund-adjust";
 import { createPublicClient, http, formatEther } from "viem";
 import { base } from "viem/chains";
 
@@ -229,18 +230,20 @@ function toBlock(
   raw: Awaited<ReturnType<typeof fetchRaw>>,
   now: number,
   vvvUsdPrice: number,
+  markup = 1, // 出金核对加成系数（1 = 不加成；1.05 = +5%）
 ): FundBlock {
   const deposit = raw.orders.reduce((s, o) => s + o.usdValue, 0);
-  const redeemed = raw.orders.filter((o) => o.isWithdrawn).reduce((s, o) => s + o.usdValue, 0);
+  // 出金三项按核对系数放大（领取收益 / 团队奖励 / 赎回本金），入金与有效质押不放大
+  const redeemed = raw.orders.filter((o) => o.isWithdrawn).reduce((s, o) => s + o.usdValue, 0) * markup;
   // 质押业绩 = 当前有效质押（未赎回、未到期，且未被后台隐藏）
   // 被后台隐藏的订单不计入有效质押；恢复显示后自动重新计入。
   const stakeActiveUsd = raw.orders
     .filter((o) => !o.isWithdrawn && o.endTime.getTime() > now && !o.hiddenByAdmin)
     .reduce((s, o) => s + o.usdValue, 0);
-  const claimReward = raw.claims.reduce((s, c) => s + c.amountUsd, 0);
+  const claimReward = raw.claims.reduce((s, c) => s + c.amountUsd, 0) * markup;
   // 团队奖励：VVV 数量 × 当前 VVV/USD 价格
   const teamRewardVvv = raw.rewards.reduce((s, r) => s + r.amount, 0);
-  const teamReward = teamRewardVvv * vvvUsdPrice;
+  const teamReward = teamRewardVvv * vvvUsdPrice * markup;
   const withdraw = claimReward + teamReward + redeemed;
   return {
     deposit,
@@ -282,10 +285,12 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
 
   const now = Date.now();
   const vvvUsdPrice = await getVvvUsdPrice();
+  // 出金核对加成系数（后台可调；仅放大出金三项，不改入金/有效质押）
+  const markup = 1 + (await getWithdrawMarkupPct()) / 100;
 
   // ── 个人 ──
   const personalRaw = await fetchRaw([address]);
-  const personal = toBlock(personalRaw, now, vvvUsdPrice);
+  const personal = toBlock(personalRaw, now, vvvUsdPrice, markup);
 
   const orderRows = await prisma.stakeOrder.findMany({
     where: { walletAddress: address },
@@ -326,8 +331,9 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
       const pendingUsd = pv * vvvUsdPrice;
       chainClaimUsd += Math.max(0, accruedUsd - pendingUsd);
     }
-    personal.breakdown.claimReward = chainClaimUsd;
-    personal.withdraw = chainClaimUsd + personal.breakdown.teamReward + personal.breakdown.redeemed;
+    // 链上口径的领取收益同样按核对系数放大（teamReward/redeemed 已在 toBlock 放大）
+    personal.breakdown.claimReward = chainClaimUsd * markup;
+    personal.withdraw = personal.breakdown.claimReward + personal.breakdown.teamReward + personal.breakdown.redeemed;
     personal.net = personal.withdraw - personal.deposit;
   }
   const personalOrders: PersonalOrderDetail[] = orderRows.map((o) => ({
@@ -344,21 +350,21 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
   const members = await collectTeam(address, TEAM_STAT_LAYERS);
   const memberAddrs = members.map((m) => m.address);
   const teamRaw = await fetchRaw(memberAddrs);
-  const team = toBlock(teamRaw, now, vvvUsdPrice);
+  const team = toBlock(teamRaw, now, vvvUsdPrice, markup);
 
-  // 逐成员拆分
+  // 逐成员拆分（出金部分按核对系数放大，与团队汇总口径一致；入金不放大）
   const depositBy: Record<string, number> = {};
   const withdrawBy: Record<string, number> = {};
   for (const o of teamRaw.orders) {
     depositBy[o.walletAddress] = (depositBy[o.walletAddress] ?? 0) + o.usdValue;
-    if (o.isWithdrawn) withdrawBy[o.walletAddress] = (withdrawBy[o.walletAddress] ?? 0) + o.usdValue;
+    if (o.isWithdrawn) withdrawBy[o.walletAddress] = (withdrawBy[o.walletAddress] ?? 0) + o.usdValue * markup;
   }
   for (const c of teamRaw.claims) {
-    withdrawBy[c.walletAddress] = (withdrawBy[c.walletAddress] ?? 0) + c.amountUsd;
+    withdrawBy[c.walletAddress] = (withdrawBy[c.walletAddress] ?? 0) + c.amountUsd * markup;
   }
   for (const r of teamRaw.rewards) {
     // 团队奖励 VVV → USD
-    withdrawBy[r.beneficiaryAddr] = (withdrawBy[r.beneficiaryAddr] ?? 0) + r.amount * vvvUsdPrice;
+    withdrawBy[r.beneficiaryAddr] = (withdrawBy[r.beneficiaryAddr] ?? 0) + r.amount * vvvUsdPrice * markup;
   }
 
   const teamMembers: TeamMemberDetail[] = members
