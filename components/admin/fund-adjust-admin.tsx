@@ -55,9 +55,9 @@ export function FundAdjustAdmin() {
           <SlidersHorizontal className="h-4 w-4" /> 出金核对加成系数
         </CardTitle>
         <CardDescription className="text-xs leading-relaxed">
-          仅用于内部股东核对：资金报表里「累计出金」的三项（领取收益 / 团队奖励 / 赎回本金）
-          会按此系数放大。例如填 5 表示各 +5%，累计出金随之 ×1.05，净额相应变化。
-          入金、有效质押不受影响；填 0 表示不加成（按真实值）。
+          仅用于内部股东核对：资金报表里「团队出金」的三项（领取收益 / 团队奖励 / 赎回本金）
+          会按此系数放大。例如填 5 表示各 +5%，团队累计出金随之 ×1.05，团队净额相应变化。
+          个人出金板块、入金、有效质押均不受影响；填 0 表示不加成（按真实值）。
         </CardDescription>
       </CardHeader>
       <CardContent>

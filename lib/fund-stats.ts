@@ -288,9 +288,9 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
   // 出金核对加成系数（后台可调；仅放大出金三项，不改入金/有效质押）
   const markup = 1 + (await getWithdrawMarkupPct()) / 100;
 
-  // ── 个人 ──
+  // ── 个人 ── 个人出金板块不加核对系数，保持真实值（系数仅用于团队出金）
   const personalRaw = await fetchRaw([address]);
-  const personal = toBlock(personalRaw, now, vvvUsdPrice, markup);
+  const personal = toBlock(personalRaw, now, vvvUsdPrice);
 
   const orderRows = await prisma.stakeOrder.findMany({
     where: { walletAddress: address },
@@ -331,9 +331,9 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
       const pendingUsd = pv * vvvUsdPrice;
       chainClaimUsd += Math.max(0, accruedUsd - pendingUsd);
     }
-    // 链上口径的领取收益同样按核对系数放大（teamReward/redeemed 已在 toBlock 放大）
-    personal.breakdown.claimReward = chainClaimUsd * markup;
-    personal.withdraw = personal.breakdown.claimReward + personal.breakdown.teamReward + personal.breakdown.redeemed;
+    // 个人出金保持真实值，不加核对系数
+    personal.breakdown.claimReward = chainClaimUsd;
+    personal.withdraw = chainClaimUsd + personal.breakdown.teamReward + personal.breakdown.redeemed;
     personal.net = personal.withdraw - personal.deposit;
   }
   const personalOrders: PersonalOrderDetail[] = orderRows.map((o) => ({
