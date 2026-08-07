@@ -30,6 +30,7 @@ interface TeamMember {
   level: number
   deposit: number
   withdraw: number
+  orders?: PersonalOrder[]
 }
 interface QueryResult {
   found: boolean
@@ -86,6 +87,16 @@ export default function ShareholderQueryPage() {
   const [error, setError] = useState('')
   const [teamPage, setTeamPage] = useState(1)
   const [teamPageSize, setTeamPageSize] = useState(20)
+  const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set())
+
+  const toggleMember = (addr: string) => {
+    setExpandedMembers((prev) => {
+      const next = new Set(prev)
+      if (next.has(addr)) next.delete(addr)
+      else next.add(addr)
+      return next
+    })
+  }
 
   const isValid = /^0x[a-fA-F0-9]{40}$/.test(address.trim())
 
@@ -220,18 +231,49 @@ export default function ShareholderQueryPage() {
                     </div>
                   )}
                   <div className="space-y-2">
-                    {pageItems.map((m) => (
-                      <div key={m.address} className="rounded-lg border border-border/60 px-3 py-2 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-foreground">{m.displayAddress}</span>
-                          <span className="text-muted-foreground">第 {m.level} 层</span>
+                    {pageItems.map((m) => {
+                      const orders = m.orders ?? []
+                      const isOpen = expandedMembers.has(m.address)
+                      return (
+                        <div key={m.address} className="rounded-lg border border-border/60 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => orders.length > 0 && toggleMember(m.address)}
+                            className={`w-full px-3 py-2 text-left ${orders.length > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono text-foreground">{m.displayAddress}</span>
+                              <span className="flex items-center gap-1.5 text-muted-foreground">
+                                第 {m.level} 层
+                                {orders.length > 0 && (
+                                  <span className="text-muted-foreground/70">{isOpen ? '▲' : `▼ ${orders.length}单`}</span>
+                                )}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex items-center justify-between text-muted-foreground">
+                              <span>入金 {usd(m.deposit)}</span>
+                              <span>出金 {usd(m.withdraw)}</span>
+                            </div>
+                          </button>
+                          {isOpen && orders.length > 0 && (
+                            <div className="space-y-1.5 border-t border-border/60 px-3 py-2">
+                              {orders.map((o) => (
+                                <div key={o.id} className="rounded-md bg-muted/30 px-2.5 py-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-semibold text-foreground">{usd(o.usdValue)}</span>
+                                    <span className={o.status === '进行中' ? 'text-emerald-500' : 'text-muted-foreground'}>{o.status}</span>
+                                  </div>
+                                  <div className="mt-0.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                                    <span>{o.mode === 'coin' ? '币本位' : '金本位'} · {o.period}{o.periodUnit === 'hour' ? '时' : '天'}</span>
+                                    <span>{o.startTime}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="mt-1 flex items-center justify-between text-muted-foreground">
-                          <span>入金 {usd(m.deposit)}</span>
-                          <span>出金 {usd(m.withdraw)}</span>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                   {totalPages > 1 && (
                     <div className="mt-4 flex items-center justify-between">

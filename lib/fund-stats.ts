@@ -148,6 +148,7 @@ export interface TeamMemberDetail {
   level: number;
   deposit: number;
   withdraw: number;
+  orders: PersonalOrderDetail[]; // 该成员的质押订单明细
 }
 
 export interface FundDetail {
@@ -367,6 +368,38 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
     withdrawBy[r.beneficiaryAddr] = (withdrawBy[r.beneficiaryAddr] ?? 0) + r.amount * vvvUsdPrice * markup;
   }
 
+  // 团队成员的质押订单明细（供展示每人的入金对应订单）
+  const teamOrderRows =
+    memberAddrs.length > 0
+      ? await prisma.stakeOrder.findMany({
+          where: { walletAddress: { in: memberAddrs } },
+          orderBy: { startTime: "desc" },
+          select: {
+            txHash: true,
+            walletAddress: true,
+            mode: true,
+            usdValue: true,
+            period: true,
+            periodUnit: true,
+            startTime: true,
+            endTime: true,
+            isWithdrawn: true,
+          },
+        })
+      : [];
+  const ordersByMember: Record<string, PersonalOrderDetail[]> = {};
+  for (const o of teamOrderRows) {
+    (ordersByMember[o.walletAddress] ??= []).push({
+      id: `${o.txHash.slice(0, 8)}...${o.txHash.slice(-4)}`,
+      mode: o.mode as "coin" | "fiat",
+      usdValue: o.usdValue,
+      period: o.period,
+      periodUnit: o.periodUnit ?? "day",
+      startTime: formatDate(o.startTime),
+      status: !o.isWithdrawn && o.endTime.getTime() > now ? "进行中" : "已完成",
+    });
+  }
+
   const teamMembers: TeamMemberDetail[] = members
     .map((m) => ({
       address: m.address,
@@ -374,6 +407,7 @@ export async function computeFundDetail(walletInput: string): Promise<FundDetail
       level: m.level,
       deposit: depositBy[m.address] ?? 0,
       withdraw: withdrawBy[m.address] ?? 0,
+      orders: ordersByMember[m.address] ?? [],
     }))
     .sort((a, b) => b.deposit - a.deposit || a.level - b.level);
 
