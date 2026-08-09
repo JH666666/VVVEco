@@ -278,7 +278,7 @@ export function ContractAdmin() {
       ...Object.keys(controls.freezeAudits),
     ]))
 
-    return addresses.flatMap(targetAddress => {
+    const rows = addresses.flatMap(targetAddress => {
       const audit = controls.freezeAudits[targetAddress] ?? {}
 
       return (Object.keys(freezeTypeMeta) as Array<keyof typeof freezeTypeMeta>)
@@ -299,6 +299,13 @@ export function ContractAdmin() {
           }
         })
         .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    })
+
+    // 按操作时间降序：最近的操作排在最上面（冻结行取 frozenAt，解冻行取 unfrozenAt，无时间的排末尾）
+    return rows.sort((a, b) => {
+      const ta = (a.frozen ? a.frozenAt : a.unfrozenAt) ?? 0
+      const tb = (b.frozen ? b.frozenAt : b.unfrozenAt) ?? 0
+      return tb - ta
     })
   }, [
       controls.controlledAddresses,
