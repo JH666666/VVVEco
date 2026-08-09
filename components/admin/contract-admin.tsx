@@ -301,12 +301,8 @@ export function ContractAdmin() {
         .filter((row): row is NonNullable<typeof row> => Boolean(row))
     })
 
-    // 按操作时间降序：最近的操作排在最上面（冻结行取 frozenAt，解冻行取 unfrozenAt，无时间的排末尾）
-    return rows.sort((a, b) => {
-      const ta = (a.frozen ? a.frozenAt : a.unfrozenAt) ?? 0
-      const tb = (b.frozen ? b.frozenAt : b.unfrozenAt) ?? 0
-      return tb - ta
-    })
+    // 按冻结操作时间(frozenAt)降序：最近冻结的排在最上面；无冻结时间的排末尾
+    return rows.sort((a, b) => (b.frozenAt ?? 0) - (a.frozenAt ?? 0))
   }, [
       controls.controlledAddresses,
       controls.frozenPersonalClaims,
