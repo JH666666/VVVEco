@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { createPublicClient, http, formatEther, parseAbiItem } from "viem";
 import { base } from "viem/chains";
 
@@ -39,6 +40,9 @@ const CHAINLINK_ABI = [
 ] as const;
 
 export async function GET() {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     // Paginate getLogs in 9k-block chunks (public RPC limit is 10k)
     const currentBlock = await client.getBlockNumber();

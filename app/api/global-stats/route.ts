@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 // GET /api/global-stats
@@ -47,6 +48,9 @@ export async function GET() {
 
 // PUT /api/global-stats — admin update config
 export async function PUT(request: NextRequest) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const data: Record<string, number> = {};

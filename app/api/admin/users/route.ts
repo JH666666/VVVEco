@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 // V1=$0 V2=$10K V3=$20K V4=$30K V5=$50K V6=$100K V7=$150K V8=$200K
@@ -40,6 +41,9 @@ async function getTeamVolume7(walletAddress: string): Promise<number> {
 
 // GET /api/admin/users?page=1&pageSize=10&q=&registeredStart=&registeredEnd=&minStake=&maxStake=
 export async function GET(request: NextRequest) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q") ?? "";

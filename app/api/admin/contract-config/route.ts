@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { invalidateRootReferrerCache } from "@/lib/get-root-referrer";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 // V1 staking 地址特征 — 检测到即认定整行 ContractConfig 为旧数据
@@ -52,6 +53,9 @@ export async function GET() {
 
 // PUT /api/admin/contract-config
 export async function PUT(request: NextRequest) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const data: Record<string, unknown> = {};

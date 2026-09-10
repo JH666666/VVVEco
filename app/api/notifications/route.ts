@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,9 @@ export async function GET() {
 
 // POST /api/notifications — admin publish
 export async function POST(request: NextRequest) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const notification = await prisma.notification.create({
@@ -38,6 +42,9 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/notifications — toggle/delete
 export async function PUT(request: NextRequest) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const id = body.id;
@@ -54,6 +61,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/notifications
 export async function DELETE(request: NextRequest) {
+  if (!(await isAdminAuthenticated())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
