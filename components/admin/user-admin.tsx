@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Check, Copy, Gift, Search, Users, Wallet, Network, Clock, Eye, EyeOff, Pencil } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Gift, Search, Users, Wallet, Network, Clock, Eye, EyeOff, Pencil, Trash2 } from 'lucide-react'
 import { getUserInsight, type UserInsight, type UserListInsight } from '@/lib/admin-user-insights'
 import { cn } from '@/lib/utils'
 import { formatInteger, formatUsdFull } from '@/lib/global-stats'
@@ -176,6 +176,28 @@ export function UserAdmin() {
       title: hidden ? '订单已隐藏' : '订单已显示',
       description: hidden ? '用户前端将不再显示该质押订单。' : '用户前端已恢复显示该质押订单。',
     })
+  }
+
+  const handleDeleteUser = async (address: string) => {
+    if (!window.confirm(`确认删除空壳用户 ${address} 吗？\n（仅删除零质押、零订单、零奖励、无下级的地址；有真实数据会被服务端拒绝）`)) {
+      return
+    }
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: address }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast({ title: '删除失败', description: data.error ?? '', variant: 'destructive' })
+        return
+      }
+      toast({ title: '已删除', description: `${address} 已清理` })
+      fetchUsers()
+    } catch {
+      toast({ title: '删除失败', description: '网络异常', variant: 'destructive' })
+    }
   }
 
   const resetListFilters = () => {
@@ -481,6 +503,18 @@ export function UserAdmin() {
                           <Eye className="mr-2 h-4 w-4" />
                           查看
                         </Button>
+                        {user.orderCount === 0 && user.totalStakedUsd === 0 && user.directCount === 0 && user.teamCount === 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteUser(user.address)}
+                            className="ml-2 border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                            title="删除空壳用户（零质押/零订单/无下级）"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            删除
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
