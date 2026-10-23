@@ -115,7 +115,7 @@ export default function ShareholderQueryPage() {
       const res = await fetch(`/api/shareholder/${encodeURIComponent(addr)}`)
       const data = await res.json()
       if (data?.notWhitelisted) {
-        setError('该地址未授权查询，请联系管理员将其加入白名单后再查。')
+        setError('该地址未经授权，禁止查询')
       } else if (!res.ok) {
         setError('查询失败，请稍后重试')
       } else {
