@@ -8,6 +8,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://vvveco.io"),
   title: "VVVeco",
   description: "VVVeco - 基于 Base 链的双轨制质押平台，支持币本位与金本位收益模式",
   keywords: ["VVV", "DeFi", "Staking", "Base", "Web3", "质押"],
@@ -22,8 +23,15 @@ export const metadata: Metadata = {
     description: "VVVeco - 基于 Base 链的双轨制质押平台",
     url: "https://vvveco.io",
     siteName: "VVVeco",
-    images: [{ url: "/apple-touch-icon.png", width: 512, height: 512, alt: "VVVeco" }],
+    images: [{ url: "/icon.png", width: 512, height: 512, alt: "VVVeco" }],
+    locale: "zh_CN",
     type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "VVVeco",
+    description: "VVVeco - 基于 Base 链的双轨制质押平台",
+    images: ["/icon.png"],
   },
 };
 
